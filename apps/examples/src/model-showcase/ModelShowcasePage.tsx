@@ -23,6 +23,8 @@ import { Scene03Labels } from './scenes/scene03_labels';
 import { Scene04View } from './scenes/scene04_view';
 import { Scene05Carousel } from './scenes/scene05_carousel';
 import { ChartProgressIndicator, ThemeToggle } from '../Lights';
+import { ExampleHeader, useFpsCap } from '../ExampleHeader';
+import { StatsOverlay } from '../StatsOverlay';
 
 export default function ModelShowcasePage(): JSX.Element {
   const plugins = useMemo(() => [corePlugin(), modelShowcasePlugin], []);
@@ -31,15 +33,19 @@ export default function ModelShowcasePage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+  const fpsCap = useFpsCap();
 
   return (
-    <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#030510' }}>
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        persist
-      />
-      <SceneEngine plugins={plugins} theme={theme}>
+    <div style={{ position: 'relative', display: 'flex', flexFlow: 'column', height: '100vh', overflow: 'hidden', background: '#030510' }}>
+      <ExampleHeader>
+        <ThemeToggle
+          onPolarityChange={setPolarity}
+          onFamilyChange={setFamily}
+          persist
+          style={{position: 'static', zIndex: 'auto'}}
+        />
+      </ExampleHeader>
+      <SceneEngine plugins={plugins} theme={theme} timingProfile={{ fpsCap }}>
 
         {/* Scene declarations */}
         <Scene01Intro />
@@ -59,7 +65,7 @@ export default function ModelShowcasePage(): JSX.Element {
           <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity="light" />
-
+        <StatsOverlay />
       </SceneEngine>
     </div>
   );

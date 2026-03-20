@@ -1434,6 +1434,14 @@ export function applyCarouselScrubber(
 ): void {
   if (state.childCount === 0 || state.layoutId === '') {
     cache.root.visible = false;
+    // Dispose highlight meshes — they are parented to the scene (not cache.root)
+    // so hiding cache.root alone leaves them visible.
+    if (cache.highlightMeshes.size > 0) {
+      for (const [, meshSet] of cache.highlightMeshes) {
+        disposeHighlightMeshSet(meshSet);
+      }
+      cache.highlightMeshes.clear();
+    }
     return;
   }
   cache.root.visible = true;
@@ -1571,7 +1579,9 @@ export function applyCarouselScrubber(
     const highlightTopY = trayPos ? trayPos.topY : 0;
     applyViewHighlights(mergedHighlights, cache, scene, highlightTopY, coords, state.nvsBounds, runtimeRegistry ?? null);
   } else if (cache.highlightMeshes.size > 0) {
-    // Clean up highlights when none are active
+    // Clean up highlights when none are active or coords unavailable.
+    // Highlight meshes are parented to the scene (not cache.root), so they
+    // must be explicitly disposed — hiding cache.root won't affect them.
     for (const [, meshSet] of cache.highlightMeshes) {
       disposeHighlightMeshSet(meshSet);
     }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { makeSimpleContext } from '@brewsite/core';
 import { functionalDiagramTransitionSpec, applyDiagramEnter, applyDiagramExit } from '../compile';
-import type { DiagramNodeState, DiagramEdgeState, DiagramState } from '../types';
+import type { DiagramNodeState, DiagramEdgeState, DiagramGroupState, DiagramState } from '../types';
 
 const makeNode = (id: string, z: number, opacity = 1): DiagramNodeState => ({
   id,
@@ -245,5 +245,54 @@ describe('interpolateFn — diagram viewportBounds', () => {
     const to = { ...makeState([makeNode('a', 0)], []), tiltRotation: [0, 0.4, 0] as const };
     const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
     expect(result.tiltRotation[1]).toBeCloseTo(0.2);
+  });
+});
+
+describe('interpolateFn — group borderOpacity and borderEmissiveIntensity', () => {
+  const makeGroup = (id: string, overrides: Partial<DiagramGroupState> = {}): DiagramGroupState => ({
+    id,
+    label: id,
+    variant: 'boundary',
+    orientation: 'vertical',
+    bounds: { x: 0, y: 0, w: 0.5, h: 0.5, padding: [0, 0, 0, 0] as readonly [number, number, number, number], titleGap: 0 },
+    color: '#112233',
+    borderColor: '#445566',
+    borderWidth: 0.01,
+    borderHeight: 0.01,
+    borderStyle: 'solid',
+    fillOpacity: 0.1,
+    borderOpacity: 0.8,
+    borderEmissiveColor: '#000000',
+    borderEmissiveIntensity: 0,
+    labelColor: '#ffffff',
+    ...overrides,
+  });
+
+  const makeStateWithGroups = (groups: DiagramGroupState[]): DiagramState => ({
+    id: 'test',
+    nodes: [makeNode('a', 0)],
+    edges: [],
+    groups,
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    exit: undefined,
+    enter: undefined,
+    themeConfig: {} as any,
+  });
+
+  it('lerps group borderOpacity between from and to at t=0.5', () => {
+    const from = makeStateWithGroups([makeGroup('g1', { borderOpacity: 0.2 })]);
+    const to = makeStateWithGroups([makeGroup('g1', { borderOpacity: 1.0 })]);
+    const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.groups[0]!.borderOpacity).toBeCloseTo(0.6);
+  });
+
+  it('lerps group borderEmissiveIntensity between from and to at t=0.5', () => {
+    const from = makeStateWithGroups([makeGroup('g1', { borderEmissiveIntensity: 0 })]);
+    const to = makeStateWithGroups([makeGroup('g1', { borderEmissiveIntensity: 0.8 })]);
+    const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.groups[0]!.borderEmissiveIntensity).toBeCloseTo(0.4);
   });
 });

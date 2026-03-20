@@ -24,6 +24,7 @@ export function blendDiagramNodes(
       return {
         ...toNode,
         opacity: blendOpacity(0, toNode.opacity, t) ?? toNode.opacity,
+        emissiveIntensity: lerp(0, toNode.emissiveIntensity, t),
       };
     }
     // Use fromNode as the base for t < 0.5, toNode for t >= 0.5.
@@ -41,6 +42,10 @@ export function blendDiagramNodes(
         lerp(fromNode.size[1], toNode.size[1], t),
       ] as readonly [number, number],
       thickness: lerp(fromNode.thickness, toNode.thickness, t),
+      // Emissive / highlight — interpolate so glow fades smoothly between scenes
+      emissiveIntensity: lerp(fromNode.emissiveIntensity, toNode.emissiveIntensity, t),
+      emissive: fromNode.emissive || toNode.emissive,
+      emissiveColor: t < 0.5 ? fromNode.emissiveColor : toNode.emissiveColor,
     };
   });
 
@@ -49,6 +54,7 @@ export function blendDiagramNodes(
     .map((node) => ({
       ...node,
       opacity: blendOpacity(node.opacity, 0, t) ?? 0,
+      emissiveIntensity: lerp(node.emissiveIntensity, 0, t),
     }));
 
   return { blended, fading };

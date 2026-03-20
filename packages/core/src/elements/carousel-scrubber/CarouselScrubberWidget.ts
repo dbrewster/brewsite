@@ -198,10 +198,9 @@ export class CarouselScrubberWidget
     // During transitions a tray widget can persist with empty layoutId
     // and default style — if not hidden it overlaps the real tray mesh
     // causing z-fighting interference patterns.
-    if (!state.layoutId || state.childCount === 0) {
-      this.cache.root.visible = false;
-      return;
-    }
+    // No early return here — applyCarouselScrubber handles the
+    // childCount === 0 / layoutId === '' case and properly disposes
+    // highlight meshes that are parented to the scene (not cache.root).
 
     const materialLoader = this.registry?.getMaterialLoader();
     const materialManifest = this.registry?.getMaterialManifest() ?? undefined;

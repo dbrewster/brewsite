@@ -1,5 +1,6 @@
-// Tests for CarouselScrubberWidget — mergeSnapshot and duck-type guard.
+// Tests for CarouselScrubberWidget — mergeSnapshot, duck-type guard, and render cleanup.
 
+import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import type { CarouselScrubberState, ViewHighlight } from '../types';
 import {
@@ -10,6 +11,10 @@ import {
   DEFAULT_CAROUSEL_SCRUBBER_STATE,
   DEFAULT_CAROUSEL_SCRUBBER_STYLE,
 } from '../compile';
+import {
+  getOrCreateCache,
+  applyCarouselScrubber,
+} from '../render';
 
 // -- Helper: state with highlights -------------------------------------------
 
@@ -117,5 +122,108 @@ describe('isCarouselScrubberStateLike', () => {
 
   it('returns false for a plain object missing required fields', () => {
     expect(isCarouselScrubberStateLike({ layoutId: 'x' })).toBe(false);
+  });
+});
+
+// -- applyCarouselScrubber cleanup on empty state -----------------------------
+
+describe('applyCarouselScrubber — highlight cleanup on empty state', () => {
+  it('hides root and clears highlightMeshes when childCount is 0', () => {
+    const scene = new THREE.Scene();
+    const cache = getOrCreateCache(scene, 'cleanup-test');
+
+    // Simulate a pre-existing highlight mesh entry in the cache.
+    // HighlightMeshSet is not exported, so we use the structural shape directly.
+    const hlGroup = new THREE.Group();
+    scene.add(hlGroup);
+    (cache.highlightMeshes as Map<string, unknown>).set('view-1', {
+      group: hlGroup,
+      glowPlane: null,
+      beamMesh: null,
+      backdropMesh: null,
+      dustMesh: null,
+      dustParticles: null,
+      smokeMesh: null,
+      smokeParticles: null,
+      currentOpacity: 0.5,
+      mode: 'glow',
+      lastTime: 0,
+      currentX: null,
+      currentZ: null,
+    });
+
+    expect(cache.highlightMeshes.size).toBe(1);
+    cache.root.visible = true;
+
+    const state = makeState({ childCount: 0, layoutId: 'some-layout' });
+    applyCarouselScrubber(state, cache, scene);
+
+    expect(cache.root.visible).toBe(false);
+    expect(cache.highlightMeshes.size).toBe(0);
+  });
+
+  it('hides root and clears highlightMeshes when layoutId is empty string', () => {
+    const scene = new THREE.Scene();
+    const cache = getOrCreateCache(scene, 'cleanup-test-2');
+
+    const hlGroup = new THREE.Group();
+    scene.add(hlGroup);
+    (cache.highlightMeshes as Map<string, unknown>).set('view-2', {
+      group: hlGroup,
+      glowPlane: null,
+      beamMesh: null,
+      backdropMesh: null,
+      dustMesh: null,
+      dustParticles: null,
+      smokeMesh: null,
+      smokeParticles: null,
+      currentOpacity: 0.8,
+      mode: 'holographic',
+      lastTime: 0,
+      currentX: null,
+      currentZ: null,
+    });
+
+    expect(cache.highlightMeshes.size).toBe(1);
+    cache.root.visible = true;
+
+    const state = makeState({ childCount: 3, layoutId: '' });
+    applyCarouselScrubber(state, cache, scene);
+
+    expect(cache.root.visible).toBe(false);
+    expect(cache.highlightMeshes.size).toBe(0);
+  });
+
+  it('removes highlight group from scene when cleaning up', () => {
+    const scene = new THREE.Scene();
+    const cache = getOrCreateCache(scene, 'cleanup-test-3');
+
+    const hlGroup = new THREE.Group();
+    hlGroup.name = 'test-highlight-group';
+    scene.add(hlGroup);
+    (cache.highlightMeshes as Map<string, unknown>).set('view-3', {
+      group: hlGroup,
+      glowPlane: null,
+      beamMesh: null,
+      backdropMesh: null,
+      dustMesh: null,
+      dustParticles: null,
+      smokeMesh: null,
+      smokeParticles: null,
+      currentOpacity: 0.5,
+      mode: 'glow',
+      lastTime: 0,
+      currentX: null,
+      currentZ: null,
+    });
+
+    // The highlight group should be in the scene initially.
+    expect(scene.getObjectByName('test-highlight-group')).toBeDefined();
+
+    const state = makeState({ childCount: 0, layoutId: '' });
+    applyCarouselScrubber(state, cache, scene);
+
+    // After cleanup, the highlight group should be removed from the scene.
+    expect(scene.getObjectByName('test-highlight-group')).toBeUndefined();
   });
 });

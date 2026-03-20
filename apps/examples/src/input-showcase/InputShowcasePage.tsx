@@ -21,6 +21,8 @@ import {
 import { chartPlugin } from '@brewsite/charts';
 import { texturesPlugin } from '@brewsite/textures';
 import { ThemeToggle } from '../Lights';
+import { ExampleHeader, useFpsCap } from '../ExampleHeader';
+import { StatsOverlay } from '../StatsOverlay';
 import { themesPlugin } from '@brewsite/themes';
 
 import { WelcomeScene } from './scenes/scene1-welcome';
@@ -91,6 +93,7 @@ export default function InputShowcasePage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
 
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+  const fpsCap = useFpsCap();
 
   return (
     <div
@@ -105,15 +108,19 @@ export default function InputShowcasePage(): JSX.Element {
           : 'radial-gradient(circle at 50% 0%, #0a1830 0%, #04091a 42%, #020610 72%, #010408 100%)',
       }}
     >
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        persist
-      />
+      <ExampleHeader>
+        <ThemeToggle
+          onPolarityChange={setPolarity}
+          onFamilyChange={setFamily}
+          persist
+          style={{position: 'static', zIndex: 'auto'}}
+        />
+      </ExampleHeader>
 
       <SceneEngine
         plugins={plugins}
         theme={theme}
+        timingProfile={{ fpsCap }}
       >
         {/* ── Scene declarations ───────────────────────────────────────────── */}
         <WelcomeScene />
@@ -147,6 +154,7 @@ export default function InputShowcasePage(): JSX.Element {
 
         {/* ── Timeline scrubber ────────────────────────────────────────────── */}
         <InputTimelineBar scrollStageRef={scrollStageRef} polarity={polarity} />
+        <StatsOverlay />
       </SceneEngine>
     </div>
   );

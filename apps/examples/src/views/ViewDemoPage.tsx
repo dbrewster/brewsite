@@ -26,6 +26,8 @@ import {NestedViewsScene} from './scenes/scene4-nested-views';
 import {StackVerticalScene} from './scenes/scene5-stack-vertical';
 import {LinearCarouselScene1, LinearCarouselScene2, LinearCarouselScene3} from './scenes/scene6-linear-carousel';
 import {ChartProgressIndicator, ThemeToggle} from "../Lights";
+import {ExampleHeader, useFpsCap} from "../ExampleHeader";
+import {StatsOverlay} from "../StatsOverlay";
 
 function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
   return {
@@ -46,6 +48,7 @@ export default function ViewDemoPage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
 
   const theme = useMemo((): ActiveTheme => ({family, polarity}), [family, polarity]);
+  const fpsCap = useFpsCap();
 
   return (
     <div
@@ -60,13 +63,16 @@ export default function ViewDemoPage(): JSX.Element {
           : 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
       }}
     >
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        persist
-      />
+      <ExampleHeader>
+        <ThemeToggle
+          onPolarityChange={setPolarity}
+          onFamilyChange={setFamily}
+          persist
+          style={{position: 'static', zIndex: 'auto'}}
+        />
+      </ExampleHeader>
 
-      <SceneEngine plugins={plugins} theme={theme}>
+      <SceneEngine plugins={plugins} theme={theme} timingProfile={{ fpsCap }}>
         {/* Scene 1: Two standalone views (side-by-side) */}
         <StandaloneViewsScene/>
 
@@ -96,6 +102,7 @@ export default function ViewDemoPage(): JSX.Element {
           <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85}/>
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity}/>
+        <StatsOverlay />
       </SceneEngine>
     </div>
   );

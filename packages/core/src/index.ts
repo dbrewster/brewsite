@@ -24,7 +24,8 @@ export { isSceneLifecycle } from './widget/WidgetRegistry';
 export { getSceneProgressFromTrack } from './compiler/sceneTrackHelpers';
 
 // ─── Dev utilities ─────────────────────────────────────────────────────────────
-export { clearCache as clearSceneTrackCache } from './compiler/sceneTrackCache';
+export { clearCache as clearSceneTrackCache, getCacheStats as getSceneTrackCacheStats } from './compiler/sceneTrackCache';
+export type { CacheStats } from './compiler/sceneTrackCache';
 
 // ─── S2 — Public API additions (eliminates @brewsite/model deep sub-path imports) ──
 export type { AnimationTrack } from './runtime/types';

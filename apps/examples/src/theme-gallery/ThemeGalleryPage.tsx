@@ -4,6 +4,7 @@ import type { ThemeFamily } from '@brewsite/core';
 import type { JSX } from 'react';
 import { bundles } from '@brewsite/themes';
 import { ThemeSwatchCard } from './ThemeSwatchCard';
+import { ExampleHeader } from '../ExampleHeader';
 
 const FAMILIES = Object.keys(bundles) as (keyof typeof bundles)[];
 
@@ -18,7 +19,9 @@ const DIAGRAM_THEME_PAIRS = Object.fromEntries(
 
 export default function ThemeGalleryPage(): JSX.Element {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui', background: '#1a1a1a', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: 'system-ui', background: '#1a1a1a', minHeight: '100vh', color: '#e0e0e8' }}>
+      <ExampleHeader />
+      <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
       <style>{`
         .theme-gallery-grid {
           display: grid;
@@ -95,6 +98,7 @@ export default function ThemeGalleryPage(): JSX.Element {
             </Fragment>
           );
         })}
+      </div>
       </div>
     </div>
   );

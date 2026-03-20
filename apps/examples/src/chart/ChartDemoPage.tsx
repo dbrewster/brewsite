@@ -18,6 +18,8 @@ import {
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createChartDemoPlugins } from './widgetSetup';
 import { ThemeToggle } from '../Lights';
+import { ExampleHeader, useFpsCap } from '../ExampleHeader';
+import { StatsOverlay } from '../StatsOverlay';
 
 // Bust the compiled SceneTrack cache whenever this module is re-evaluated by Vite HMR.
 // This ensures changes to transition specs (functionalChartTransitionSpec, etc.) take effect
@@ -44,6 +46,7 @@ export default function ChartDemoPage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('lightCanvas');
   const [polarity, setPolarity] = useState<ThemePolarity>('light');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+  const fpsCap = useFpsCap();
 
   return (
     <div
@@ -58,16 +61,20 @@ export default function ChartDemoPage(): JSX.Element {
           : 'radial-gradient(circle at 50% 0%, #0a1830 0%, #04091a 42%, #020610 72%, #010408 100%)',
       }}
     >
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        initialFamily="lightCanvas"
-        initialPolarity="light"
-        persist
-      />
+      <ExampleHeader>
+        <ThemeToggle
+          onPolarityChange={setPolarity}
+          onFamilyChange={setFamily}
+          initialFamily="lightCanvas"
+          initialPolarity="light"
+          persist
+          style={{position: 'static', zIndex: 'auto'}}
+        />
+      </ExampleHeader>
       <SceneEngine
         plugins={plugins}
         theme={theme}
+        timingProfile={{ fpsCap }}
       >
         {/* Scene 1: Animated bar morphing (2 sub-scenes, same chart ID) */}
         <Scene1a />
@@ -117,6 +124,7 @@ export default function ChartDemoPage(): JSX.Element {
           <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity="light" />
+        <StatsOverlay />
       </SceneEngine>
     </div>
   );

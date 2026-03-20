@@ -816,7 +816,6 @@ export const ThemingScene = (): JSX.Element => (
         w={0.5}
         h={1}
         tilt={-Math.PI / 14}
-        scale={0.85}
       >
         <ManualLayout />
         <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" sublabelColor="#b8c8e8" icon="ui:cpu-chip" position={[0.5, 0.2, 0]} size={[0.35, 0.14]} color="#1a3060" glow={{ intensity: 0.15 }} />

@@ -106,6 +106,57 @@ describe('blendDiagramNodes', () => {
     const { fading } = blendDiagramNodes([makeNode('a', { opacity: 0.7 })], [], 1);
     expect(fading[0].opacity).toBeCloseTo(0);
   });
+
+  it('lerps emissiveIntensity between from and to nodes', () => {
+    const from = [makeNode('a', { emissiveIntensity: 0, emissive: true, emissiveColor: '#ff0000' })];
+    const to = [makeNode('a', { emissiveIntensity: 1, emissive: true, emissiveColor: '#00ff00' })];
+    const at0 = blendDiagramNodes(from, to, 0);
+    const at05 = blendDiagramNodes(from, to, 0.5);
+    const at1 = blendDiagramNodes(from, to, 1);
+    expect(at0.blended[0].emissiveIntensity).toBeCloseTo(0);
+    expect(at05.blended[0].emissiveIntensity).toBeCloseTo(0.5);
+    expect(at1.blended[0].emissiveIntensity).toBeCloseTo(1);
+  });
+
+  it('emissive is true during transition if either from or to has it true', () => {
+    const from = [makeNode('a', { emissive: true, emissiveColor: '#ff0000', emissiveIntensity: 0.5 })];
+    const to = [makeNode('a', { emissive: false, emissiveColor: '#00ff00', emissiveIntensity: 0 })];
+    const { blended } = blendDiagramNodes(from, to, 0.5);
+    expect(blended[0].emissive).toBe(true);
+
+    // Reverse: from=false, to=true
+    const from2 = [makeNode('a', { emissive: false, emissiveColor: '#ff0000', emissiveIntensity: 0 })];
+    const to2 = [makeNode('a', { emissive: true, emissiveColor: '#00ff00', emissiveIntensity: 0.5 })];
+    const { blended: blended2 } = blendDiagramNodes(from2, to2, 0.5);
+    expect(blended2[0].emissive).toBe(true);
+  });
+
+  it('emissiveColor comes from fromNode when t < 0.5, toNode when t >= 0.5', () => {
+    const from = [makeNode('a', { emissive: true, emissiveColor: '#ff0000', emissiveIntensity: 0.5 })];
+    const to = [makeNode('a', { emissive: true, emissiveColor: '#00ff00', emissiveIntensity: 0.5 })];
+    const earlyResult = blendDiagramNodes(from, to, 0.25);
+    expect(earlyResult.blended[0].emissiveColor).toBe('#ff0000');
+    const midResult = blendDiagramNodes(from, to, 0.5);
+    expect(midResult.blended[0].emissiveColor).toBe('#00ff00');
+    const lateResult = blendDiagramNodes(from, to, 0.75);
+    expect(lateResult.blended[0].emissiveColor).toBe('#00ff00');
+  });
+
+  it('new entering nodes fade emissiveIntensity in from 0', () => {
+    const to = [makeNode('a', { emissiveIntensity: 0.8, emissive: true, emissiveColor: '#ff0000' })];
+    const at0 = blendDiagramNodes([], to, 0);
+    const at05 = blendDiagramNodes([], to, 0.5);
+    expect(at0.blended[0].emissiveIntensity).toBeCloseTo(0);
+    expect(at05.blended[0].emissiveIntensity).toBeCloseTo(0.4);
+  });
+
+  it('fading nodes fade emissiveIntensity out to 0', () => {
+    const from = [makeNode('a', { emissiveIntensity: 0.6, emissive: true, emissiveColor: '#ff0000' })];
+    const at0 = blendDiagramNodes(from, [], 0);
+    const at1 = blendDiagramNodes(from, [], 1);
+    expect(at0.fading[0].emissiveIntensity).toBeCloseTo(0.6);
+    expect(at1.fading[0].emissiveIntensity).toBeCloseTo(0);
+  });
 });
 
 describe('rerouteLiveEdges', () => {

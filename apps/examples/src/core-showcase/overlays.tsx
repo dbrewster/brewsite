@@ -240,11 +240,10 @@ export function TopChrome(): JSX.Element {
     <div
       style={{
         position: 'fixed',
-        top: 0,
+        top: 48,
         left: 0,
         right: 0,
-        // Right padding clears the ThemeToggle (~172px wide at right:16)
-        padding: '20px 200px 20px 32px',
+        padding: '20px 32px 20px 32px',
         pointerEvents: 'none',
         zIndex: 100,
         background: 'linear-gradient(rgba(3,5,12,0.55), transparent)',

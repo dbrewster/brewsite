@@ -1,8 +1,8 @@
 // Core Showcase — demonstrates @brewsite/core architecture and DSL features.
 // Canvas fills the full viewport. TopChrome and BottomChrome are fixed overlays
 // outside the canvas but inside SceneEngine (so they can use engine hooks).
-import {JSX, useCallback, useRef} from 'react';
-import { useMemo, useState } from 'react';
+import type {JSX} from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   InputCoordinator,
   BackgroundLayer,
@@ -14,10 +14,11 @@ import {
   type ThemePolarity,
   type ActiveTheme, type ScrollStageHandle,
 } from '@brewsite/core';
-import { RendererStats } from '@brewsite/core/player/devtools';
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createCoreShowcasePlugins } from './widgetSetup';
 import {ChartProgressIndicator, ThemeToggle} from '../Lights';
+import {ExampleHeader, useFpsCap} from '../ExampleHeader';
+import {StatsOverlay} from '../StatsOverlay';
 import { TopChrome, BottomChrome } from './overlays';
 import {
   HeroScene,
@@ -43,17 +44,19 @@ export default function CoreShowcasePage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
-  const [showStats, setShowStats] = useState(false);
-  const toggleStats = useCallback(() => setShowStats((v) => !v), []);
+  const fpsCap = useFpsCap();
 
   return (
-    <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#030510' }}>
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        persist
-      />
-      <SceneEngine plugins={plugins} theme={theme}>
+    <div style={{ position: 'relative', display: 'flex', flexFlow: 'column', height: '100vh', overflow: 'hidden', background: '#030510' }}>
+      <ExampleHeader>
+        <ThemeToggle
+          onPolarityChange={setPolarity}
+          onFamilyChange={setFamily}
+          persist
+          style={{position: 'static', zIndex: 'auto'}}
+        />
+      </ExampleHeader>
+      <SceneEngine plugins={plugins} theme={theme} timingProfile={{ fpsCap }}>
 
         {/* ── Scene declarations ──────────────────────────────────────────── */}
         {/* Act 1: Introduction */}
@@ -89,11 +92,6 @@ export default function CoreShowcasePage(): JSX.Element {
         <SummaryScene />
 
         {/* ── Canvas + scroll ─────────────────────────────────────────────── */}
-        {/*
-          No EngineARContainer — the canvas fills the full viewport.
-          ScrollStage creates the scroll spacer; SceneCanvas fills inset:0.
-          EngineOverlayHost layers TextBox and React HTML over the canvas.
-        */}
         <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={1200}>
           <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
           <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
@@ -105,39 +103,11 @@ export default function CoreShowcasePage(): JSX.Element {
         </ScrollStage>
 
         {/* ── Overlay chrome ──────────────────────────────────────────────── */}
-        {/*
-          TopChrome and BottomChrome use useCurrentScene() which requires a
-          SceneEngine ancestor. They are rendered inside SceneEngine but outside
-          ScrollStage, so they float fixed over everything using position:fixed.
-        */}
         <TopChrome />
         <BottomChrome />
 
-        {/* ── Renderer stats (toggle with button) ─────────────────────────── */}
-        {showStats && <RendererStats position="top-left" />}
+        <StatsOverlay />
       </SceneEngine>
-
-      {/* Stats toggle — outside SceneEngine so it's always clickable */}
-      <button
-        onClick={toggleStats}
-        style={{
-          position: 'fixed',
-          top: 8,
-          left: 8,
-          zIndex: 100000,
-          background: showStats ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-          color: showStats ? '#0f0' : '#888',
-          border: '1px solid ' + (showStats ? '#0f04' : '#fff2'),
-          borderRadius: 4,
-          padding: '4px 8px',
-          fontSize: 10,
-          fontFamily: 'monospace',
-          cursor: 'pointer',
-          pointerEvents: 'auto',
-        }}
-      >
-        {showStats ? '● STATS' : '○ Stats'}
-      </button>
     </div>
   );
 }

@@ -79,16 +79,25 @@ export class RuntimeLoop {
     tickMs: 0,
     renderMs: 0,
     totalMs: 0,
-    /** Max frame-to-frame interval delta (jitter) over last 60 frames. */
+    /** Frame-time standard deviation (ms) over the rolling window — the
+     *  industry-standard measure of frame pacing consistency. Values under
+     *  2ms indicate smooth delivery; above 4ms suggests scheduling issues. */
     jitterMs: 0,
+    /** 1st percentile frame time (ms) — best-case frame in the window. */
+    frameP01: 0,
+    /** 99th percentile frame time (ms) — worst single frame in the window. */
+    frameP99: 0,
     /** Current engine progress [0..1]. */
     progress: 0,
     /** Progress delta from the previous frame. Large values = camera jump. */
     progressDelta: 0,
+    /** Active FPS cap (null = uncapped / system native). */
+    fpsCap: null as number | null,
     _lastFrameMs: 0,
     _lastProgress: 0,
     _intervalBuf: new Float32Array(60),
     _intervalIdx: 0,
+    _sortBuf: new Float32Array(60),
   };
 
   private readonly handleContextLost = (e: Event): void => {
@@ -110,6 +119,7 @@ export class RuntimeLoop {
     this.render = options.render;
     this.onAfterTick = options.onAfterTick;
     this.fpsCap = typeof options.fpsCap === 'number' ? options.fpsCap : null;
+    this._frameTiming.fpsCap = this.fpsCap;
     this.fixedDeltaSeconds = typeof options.fixedDeltaSeconds === 'number' ? options.fixedDeltaSeconds : null;
     this.clock = options.clock ?? defaultClock;
     this.perfBuffer = new Array(120)
@@ -282,18 +292,40 @@ export class RuntimeLoop {
       ft.tickMs = t1 - t0;
       ft.renderMs = t3 - t2;
       ft.totalMs = t3 - t0;
-      // Frame interval jitter: track how evenly spaced frames are
+      // Frame interval statistics: stddev + percentiles over a rolling window.
       if (ft._lastFrameMs > 0) {
         const interval = t0 - ft._lastFrameMs;
         ft._intervalBuf[ft._intervalIdx] = interval;
         ft._intervalIdx = (ft._intervalIdx + 1) % ft._intervalBuf.length;
-        // Jitter = max - min interval over the rolling window
-        let min = Infinity, max = 0;
-        for (let j = 0; j < ft._intervalBuf.length; j++) {
-          const v = ft._intervalBuf[j]!;
-          if (v > 0) { if (v < min) min = v; if (v > max) max = v; }
+
+        // Collect non-zero samples
+        let n = 0;
+        let sum = 0;
+        const buf = ft._intervalBuf;
+        for (let j = 0; j < buf.length; j++) {
+          const v = buf[j]!;
+          if (v > 0) { sum += v; n++; }
         }
-        ft.jitterMs = max - min;
+        if (n >= 10) {
+          // Standard deviation
+          const mean = sum / n;
+          let sqSum = 0;
+          for (let j = 0; j < buf.length; j++) {
+            const v = buf[j]!;
+            if (v > 0) { const d = v - mean; sqSum += d * d; }
+          }
+          ft.jitterMs = Math.sqrt(sqSum / n);
+
+          // P1 / P99 from sorted copy
+          const sorted = ft._sortBuf;
+          let si = 0;
+          for (let j = 0; j < buf.length; j++) {
+            if (buf[j]! > 0) sorted[si++] = buf[j]!;
+          }
+          sorted.subarray(0, si).sort();
+          ft.frameP01 = sorted[Math.floor(si * 0.01)]!;
+          ft.frameP99 = sorted[Math.floor(si * 0.99)]!;
+        }
       }
       ft._lastFrameMs = t0;
 

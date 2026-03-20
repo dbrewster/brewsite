@@ -517,6 +517,20 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
       // DESTINATION scene's metadata for the entire transition block —
       // even at t=0 when the outgoing scene should be fully visible.
       const base = t < 0.5 ? from : to;
+
+      // Blend group properties that should interpolate (opacity, emissive).
+      const fromGroupMap = new Map(from.groups.map((g) => [g.id, g]));
+      const blendedGroups = base.groups.map((g) => {
+        const fromGroup = fromGroupMap.get(g.id);
+        const toGroup = to.groups.find((tg) => tg.id === g.id);
+        if (!fromGroup || !toGroup) return g;
+        return {
+          ...g,
+          borderOpacity: lerp(fromGroup.borderOpacity, toGroup.borderOpacity, t),
+          borderEmissiveIntensity: lerp(fromGroup.borderEmissiveIntensity, toGroup.borderEmissiveIntensity, t),
+        };
+      });
+
       return {
         ...base,
         z: lerp(from.z, to.z, t),
@@ -527,6 +541,7 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
           [to.tiltRotation[0], to.tiltRotation[1], to.tiltRotation[2]],
           t,
         ) ?? to.tiltRotation,
+        groups: blendedGroups,
         nodes: [...blended, ...fading],
         edges: [...blendedEdges, ...fadingEdges],
       };

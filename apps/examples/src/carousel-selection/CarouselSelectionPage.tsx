@@ -15,6 +15,8 @@ import { ChartDetailScene } from './scenes/sceneChartDetail';
 import { DiagramDetailScene } from './scenes/sceneDiagramDetail';
 import { ExplorerOverlay } from './overlays/ExplorerOverlay';
 import { FullScreenCloseButton } from './overlays/FullScreenCloseButton';
+import { ExampleHeader, useFpsCap } from '../ExampleHeader';
+import { StatsOverlay } from '../StatsOverlay';
 
 function createPlugins(): { plugins: WidgetPlugin[] } {
   return {
@@ -78,6 +80,7 @@ export default function CarouselSelectionPage(): JSX.Element {
   const theme = useMemo((): ActiveTheme => ({
     family: 'darkGlass', polarity: 'dark',
   }), []);
+  const fpsCap = useFpsCap();
 
   return (
     <div style={{
@@ -85,7 +88,8 @@ export default function CarouselSelectionPage(): JSX.Element {
       height: '100vh', overflow: 'hidden',
       background: 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
     }}>
-      <SceneEngine plugins={plugins} theme={theme}>
+      <ExampleHeader />
+      <SceneEngine plugins={plugins} theme={theme} timingProfile={{ fpsCap }}>
         <SelectionHandler />
         <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={500}>
           <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-width">
@@ -97,6 +101,7 @@ export default function CarouselSelectionPage(): JSX.Element {
           </EngineARContainer>
           <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
+        <StatsOverlay />
       </SceneEngine>
     </div>
   );

@@ -1,6 +1,7 @@
 import type {JSX} from 'react';
 import {lazy, Suspense} from 'react';
-import {Route, Routes} from 'react-router';
+import {Link, Route, Routes} from 'react-router';
+import {ExampleHeader, EXAMPLES} from './ExampleHeader';
 
 const ChartDemoPage = lazy(() => import('./chart/ChartDemoPage'));
 const SlidesDemoPage = lazy(() => import('./slides-demo/SlidesDemoPage'));
@@ -34,20 +35,75 @@ export default function ExamplesApp(): JSX.Element {
         <Route
           path="/"
           element={
-            <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-              <h1>BrewSite Examples</h1>
-              <ul>
-                <li><a href="/examples/chart">Chart Demo</a></li>
-                <li><a href="/examples/slides-demo">Slides Demo — @brewsite/slides</a></li>
-                <li><a href="/examples/theme-gallery">Theme Family Gallery (all 12 variants)</a></li>
-                <li><a href="/examples/views">View/ViewLayout Demo</a></li>
-                <li><a href="/examples/input-showcase">Input Options Showcase</a></li>
-                <li><a href="/examples/core-showcase">Core Showcase — @brewsite/core Features</a></li>
-                <li><a href="/examples/media-screen-demo">MediaScreen Demo — @brewsite/screens</a></li>
-                <li><a href="/examples/model-showcase">Model Showcase — @brewsite/model</a></li>
-                <li><a href="/examples/canvas-region">Canvas Region — Embedded 3D Viewer</a></li>
-                <li><a href="/examples/carousel-selection">Carousel Selection — onSelect + Full Screen Patterns</a></li>
-              </ul>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100vh',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              background: '#0a0a1a',
+              color: '#e0e0e8',
+              overflow: 'hidden',
+            }}>
+              <ExampleHeader />
+              <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 2.5rem' }}>
+                <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>BrewSite Examples</h1>
+                <p style={{ fontSize: 13, opacity: 0.5, marginBottom: 32 }}>
+                  Interactive demos of the BrewSite toolkit. Pick one from the menu above or the grid below.
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: 12,
+                  maxWidth: 960,
+                }}>
+                  {EXAMPLES.map((ex) => (
+                    <Link
+                      key={ex.path}
+                      to={ex.path}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        padding: '16px 18px',
+                        borderRadius: 8,
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.07)',
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        transition: 'background 0.15s ease, border-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.08)';
+                        e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.25)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.07)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{ex.label}</span>
+                        {ex.badge && (
+                          <span style={{
+                            fontSize: 10,
+                            padding: '1px 6px',
+                            borderRadius: 3,
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            color: '#8b95cf',
+                            fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+                            fontWeight: 500,
+                          }}>
+                            {ex.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 12, opacity: 0.5, lineHeight: 1.4 }}>
+                        {ex.description}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
           }
         />

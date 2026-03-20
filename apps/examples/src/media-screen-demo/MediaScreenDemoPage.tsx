@@ -17,6 +17,8 @@ import { createMediaScreenDemoPlugins } from './widgetSetup';
 import { MediaScreenScene } from './scenes/mediaScreenScene';
 import { CanvasAnimation } from './CanvasAnimation';
 import { ThemeToggle } from '../Lights';
+import { ExampleHeader, useFpsCap } from '../ExampleHeader';
+import { StatsOverlay } from '../StatsOverlay';
 
 // ── Display capture controls (must be inside SceneEngine for hook access) ────
 
@@ -104,9 +106,9 @@ function TitleOverlay(): JSX.Element {
     <div
       style={{
         position: 'absolute',
-        top: 20,
+        top: 68,
         left: 16,
-        right: 176, // leave room for the ThemeToggle (select ~130px + button ~34px + gap + margin)
+        right: 16,
         textAlign: 'center',
         zIndex: 10,
         pointerEvents: 'none',
@@ -146,15 +148,19 @@ export default function MediaScreenDemoPage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+  const fpsCap = useFpsCap();
 
   return (
-    <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#06081a' }}>
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        persist
-      />
-      <SceneEngine plugins={plugins} theme={theme}>
+    <div style={{ position: 'relative', display: 'flex', flexFlow: 'column', height: '100vh', overflow: 'hidden', background: '#06081a' }}>
+      <ExampleHeader>
+        <ThemeToggle
+          onPolarityChange={setPolarity}
+          onFamilyChange={setFamily}
+          persist
+          style={{position: 'static', zIndex: 'auto'}}
+        />
+      </ExampleHeader>
+      <SceneEngine plugins={plugins} theme={theme} timingProfile={{ fpsCap }}>
         {/* Scene declaration */}
         <MediaScreenScene />
 
@@ -172,6 +178,7 @@ export default function MediaScreenDemoPage(): JSX.Element {
         {/* HTML overlays — positioned over the 3D canvas */}
         <TitleOverlay />
         <DisplayCaptureControls />
+        <StatsOverlay />
       </SceneEngine>
     </div>
   );
