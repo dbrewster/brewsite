@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/diagram",
-  "version": "0.6.5",
+  "version": "0.7.1",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -56,6 +56,6 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
-    "@brewsite/core": "0.6.5"
+    "@brewsite/core": "0.7.1"
   }
 }

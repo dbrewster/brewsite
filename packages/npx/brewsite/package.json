@@ -1,6 +1,6 @@
 {
   "name": "brewsite",
-  "version": "0.6.5",
+  "version": "0.7.1",
   "private": false,
   "type": "module",
   "bin": {
