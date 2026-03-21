@@ -5,6 +5,7 @@ import { useEffect, type CSSProperties, type ReactElement, type ReactNode } from
 import { useTheme } from '../theme/ThemeContext';
 import { resolveSceneThemeFamilyByRef } from '../theme/sceneThemeRegistry';
 import type { SceneTheme } from '../theme/types';
+import { computeThemeStyles } from './computeThemeStyles';
 import { useSceneEngineContext } from './EngineContext';
 
 // Inject the entry animation keyframe once per document (global scope, runs once on load).
@@ -86,30 +87,9 @@ export const EngineOverlayHost = ({
 
   // Build CSS variable injection object when theme is present.
   // CSSProperties doesn't include custom properties; cast is required.
-  const themeStyles = theme ? ({
-    '--brewsite-font-family':          theme.font.htmlFamily,
-    fontFamily:                        'var(--brewsite-font-family)',
-    '--brewsite-font-size-heading':    `calc(1rem * ${theme.fontSize.heading})`,
-    '--brewsite-font-size-body':       `calc(1rem * ${theme.fontSize.body})`,
-    '--brewsite-font-size-label':      `calc(1rem * ${theme.fontSize.label})`,
-    '--brewsite-font-size-caption':    `calc(1rem * ${theme.fontSize.caption})`,
-    '--brewsite-font-size-annotation': `calc(1rem * ${theme.fontSize.annotation})`,
-    '--brewsite-color-mode':           theme.colorMode,
-    '--brewsite-text-primary':
-      theme.colorMode === 'dark' ? '#ffffff' : '#111111',
-    '--brewsite-text-secondary':
-      theme.colorMode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-    // NEW in theming-overhaul:
-    '--brewsite-background-color':
-      theme.background?.fill?.kind === 'color'
-        ? theme.background.fill.value
-        : (theme.colorMode === 'dark' ? '#0a0a14' : '#f5f5f7'),
-    '--brewsite-surface-elevated':
-      theme.colorMode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-    '--brewsite-border-subtle':
-      theme.colorMode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
-    '--brewsite-radius-base': '6px',
-  } as CSSProperties) : {};
+  const themeStyles = theme
+    ? (computeThemeStyles(theme) as unknown as CSSProperties)
+    : {};
 
   // Compute theme class names for CSS-based overlay overrides.
   // .bw-theme-{family} enables family-scoped CSS overrides.

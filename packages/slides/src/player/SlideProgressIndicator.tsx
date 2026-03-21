@@ -55,7 +55,7 @@ export const SlideProgressIndicator = ({ nav, style }: SlideProgressIndicatorPro
 
   if (style === 'numbers') {
     return (
-      <div style={{ position: 'absolute', bottom: '2%', right: '3%', zIndex: 40, fontFamily: 'var(--brewsite-font-family)', fontSize: '0.875rem', color: 'var(--slide-color-muted, rgba(128,128,128,0.7))' }}>
+      <div style={{ position: 'absolute', bottom: '2%', right: '3%', zIndex: 40, fontFamily: 'var(--brewsite-font-family)', fontSize: '0.875rem', color: 'var(--brewsite-text-muted)' }}>
         {current + 1} / {total}
       </div>
     );

@@ -8,27 +8,12 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 // ─── Mock @brewsite/core ──────────────────────────────────────────────────────
-// SceneEngine, SceneCanvas, EngineOverlayHost require Three.js and DOM which
-// are not available in node test environment. We replace them with lightweight stubs.
+// SlidePlayer uses SceneCanvas, EngineOverlayHost etc. which require Three.js and DOM.
+// We replace them with lightweight stubs.
 
 vi.mock('@brewsite/core', async () => {
   const ReactModule = await import('react');
   const R = ReactModule.default;
-
-  /** SceneEngine stub — renders children inside a labelled div. */
-  const SceneEngine = ({
-    children,
-    id,
-  }: {
-    children?: ReactModule.ReactNode;
-    id?: string;
-    [key: string]: unknown;
-  }) =>
-    R.createElement(
-      'div',
-      { 'data-testid': 'engine-provider', 'data-engine-id': id ?? '' },
-      children,
-    );
 
   /** EngineARContainer stub — passes children through. */
   const EngineARContainer = ({
@@ -91,10 +76,17 @@ vi.mock('@brewsite/core', async () => {
   const Lighting = ({ children }: { children?: ReactModule.ReactNode }) =>
     R.createElement(R.Fragment, null, children);
   const Ambient = () => null;
+  const View = ({
+    children,
+    id,
+  }: {
+    children?: ReactModule.ReactNode;
+    id?: string;
+    [key: string]: unknown;
+  }) => R.createElement('div', { 'data-testid': 'view', 'data-view-id': id ?? '' }, children);
 
   return {
     // Components
-    SceneEngine,
     EngineARContainer,
     SceneCanvas,
     EngineOverlayHost,
@@ -106,12 +98,12 @@ vi.mock('@brewsite/core', async () => {
     BackgroundLayer,
     Lighting,
     Ambient,
+    View,
 
     // Plugin factory stubs
-    corePlugin: () => ({ createWidgets: () => [], registerHandlers: () => {} }),
     registerNode: vi.fn(),
 
-    // Hook stubs (called inside SlidePlayerInner which renders in the mocked tree)
+    // Hook stubs (called inside SlidePlayerInner which renders in the tree)
     useCurrentScene: () => ({ id: '', index: 0 }),
     useSceneEngineContext: () => ({
       setProgress: vi.fn(),
@@ -151,18 +143,7 @@ describe('SlidePlayer', () => {
     expect(html).toContain('position:relative');
   });
 
-  it('renders the SceneEngine stub for a 3-slide deck', () => {
-    const html = renderToStaticMarkup(
-      <SlidePlayer>
-        <Slide key="s1"><TitleLayout title="S1" /></Slide>
-        <Slide key="s2"><TitleLayout title="S2" /></Slide>
-        <Slide key="s3"><TitleLayout title="S3" /></Slide>
-      </SlidePlayer>,
-    );
-    expect(html).toContain('data-testid="engine-provider"');
-  });
-
-  it('renders 3 scene elements for a 3-slide deck', () => {
+  it('renders scene elements for a 3-slide deck', () => {
     const html = renderToStaticMarkup(
       <SlidePlayer>
         <Slide key="s1"><TitleLayout title="S1" /></Slide>
@@ -211,7 +192,6 @@ describe('SlidePlayer', () => {
         <Slide key="s3"><TitleLayout title="S3" /></Slide>
       </SlidePlayer>,
     );
-    // Dots = buttons. Default progressIndicator='dots' → 3 buttons for 3 slides.
     const buttonMatches = html.match(/<button/g);
     expect(buttonMatches).toHaveLength(3);
   });
@@ -254,7 +234,7 @@ describe('SlidePlayer', () => {
     expect(html).toContain('class="my-slide-player"');
   });
 
-  it('renders SceneCanvas stub inside the input region', () => {
+  it('renders SceneCanvas stub inside the AR container', () => {
     const html = renderToStaticMarkup(
       <SlidePlayer>
         <Slide key="s1"><TitleLayout title="S1" /></Slide>
@@ -263,12 +243,27 @@ describe('SlidePlayer', () => {
     expect(html).toContain('data-testid="scene-canvas"');
   });
 
+  it('does not render a SceneEngine wrapper', () => {
+    const html = renderToStaticMarkup(
+      <SlidePlayer>
+        <Slide key="s1"><TitleLayout title="S1" /></Slide>
+      </SlidePlayer>,
+    );
+    // Should NOT have an engine-provider data-testid (no SceneEngine wrapper)
+    expect(html).not.toContain('data-testid="engine-provider"');
+  });
+
+  it('injects --slide-* CSS vars on the container', () => {
+    const html = renderToStaticMarkup(
+      <SlidePlayer>
+        <Slide key="s1"><TitleLayout title="S1" /></Slide>
+      </SlidePlayer>,
+    );
+    // resolveSlideConfig produces --slide-content-padding: 48px by default
+    expect(html).toContain('--slide-content-padding:48px');
+  });
+
   // ─── SlidePlayerHandle interface ──────────────────────────────────────────
-  // The imperative handle is only populated by useImperativeHandle inside
-  // SlidePlayerInner, which does not execute during renderToStaticMarkup
-  // (effects and imperative handles do not run in server rendering).
-  // We verify the TypeScript shape by creating a typed ref and confirming
-  // it is accepted by forwardRef<SlidePlayerHandle, SlidePlayerProps>.
 
   it('accepts a SlidePlayerHandle ref without TypeScript error', () => {
     const ref = React.createRef<SlidePlayerHandle>();
@@ -277,9 +272,7 @@ describe('SlidePlayer', () => {
         <Slide key="s1"><TitleLayout title="S1" /></Slide>
       </SlidePlayer>,
     );
-    // Component renders correctly (would throw if types were wrong)
     expect(html).toContain('<div');
-    // ref.current is null in server render — expected behaviour
     expect(ref.current).toBeNull();
   });
 });
@@ -287,9 +280,6 @@ describe('SlidePlayer', () => {
 // ─── SlideContentWithProgress ────────────────────────────────────────────────
 
 describe('SlideContentWithProgress', () => {
-  // SlideContentWithProgress reads sceneProgress via useVariable (mocked to
-  // return null → progress=0 throughout these tests).
-
   it('renders children when totalBullets is 0', () => {
     const html = renderToStaticMarkup(
       <SlideContentWithProgress slideKey="s1" totalBullets={0}>
@@ -309,25 +299,21 @@ describe('SlideContentWithProgress', () => {
   });
 
   it('injects visibleCount=0 into BulletList when sceneProgress=0 (useVariable returns null)', () => {
-    // useVariable mocked to return null → progress=0 → visibleCount=ceil(0*3)=0
     const html = renderToStaticMarkup(
       <SlideContentWithProgress slideKey="s1" totalBullets={3}>
         <BulletList items={['A', 'B', 'C']} animateEntrance />
       </SlideContentWithProgress>,
     );
-    // BulletList with visibleCount=0 renders no <li> elements
     const liCount = (html.match(/<li/g) ?? []).length;
     expect(liCount).toBe(0);
   });
 
   it('does not inject visibleCount for BulletList without animateEntrance', () => {
-    // BulletList with animateEntrance=false should render all items
     const html = renderToStaticMarkup(
       <SlideContentWithProgress slideKey="s1" totalBullets={3}>
         <BulletList items={['A', 'B', 'C']} />
       </SlideContentWithProgress>,
     );
-    // All 3 items should render (animateEntrance not set, so no visibleCount injection)
     const liCount = (html.match(/<li/g) ?? []).length;
     expect(liCount).toBe(3);
   });

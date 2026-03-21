@@ -170,6 +170,13 @@ export const lightCanvasSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.2, brightness: 1.2, saturation: 0.4 },
   },
   highlightPalette: lightCanvasLightHighlights,
+  accentColor: '#4768C9',
+  textColors: {
+    primary: '#1D2A3D',
+    secondary: '#5F7088',
+    muted: '#A8B4C4',
+    surface: '#FFFFFF',
+  },
 };
 
 /** lightCanvas family, dark polarity. */
@@ -218,4 +225,11 @@ export const lightCanvasDarkSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.3, brightness: 1.1, saturation: 0.5 },
   },
   highlightPalette: lightCanvasDarkHighlights,
+  accentColor: '#3D63D9',
+  textColors: {
+    primary: '#E8EEF7',
+    secondary: '#A8B4C4',
+    muted: '#5F7088',
+    surface: '#232F40',
+  },
 };

@@ -1,5 +1,5 @@
 // packages/slides/src/player/SlidePlayer.tsx
-// Primary SlidePlayer component. Assembles SceneEngine + full slide stack.
+// Primary SlidePlayer component. Renders inside a parent SceneEngine context.
 
 import React, {
   forwardRef,
@@ -21,30 +21,28 @@ import {
   BackgroundLayer,
   EngineARContainer,
   SceneCanvas,
-  SceneEngine,
   EngineOverlayHost,
-  corePlugin,
   useSceneEngineContext,
   useVariable,
-  // NOTE: VariableStoreContext is NOT exported from @brewsite/core.
-  // Use the useVariable hook for reactive VariableStore reads.
 } from '@brewsite/core';
-import type { WidgetPlugin } from '@brewsite/core';
 import type {
-  DeckTheme,
+  SlideTheme,
+  SlideTemplate,
+  SlideTransition,
   ProgressStyle,
   SlideNavigationConfig,
   SlidePlayerHandle,
 } from '../types';
-import { compileDeckTheme } from '../compiler/themeCompiler';
+import { resolveSlideConfig } from '../compiler/themeCompiler';
 import { compileDeck, buildSceneElements } from '../compiler/deckCompiler';
-import { slidesPlugin } from '../plugin';
+import { resolveTemplate } from '../template/resolveTemplate';
+import { SlideChromeLogo } from './SlideChromeLogo';
+import { SlideChromeFooter } from './SlideChromeFooter';
+import { SlideChromeWatermark } from './SlideChromeWatermark';
 import { useSlideNavigation, computeSlideStartProgress } from './useSlideNavigation';
 import { SlideProgressIndicator } from './SlideProgressIndicator';
 import { Slide } from '../dsl';
 import { SLIDE_META_NAMESPACE } from '../widget/SlideMetaWidget';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 // ─── SlideContentWithProgress ─────────────────────────────────────────────────
 
@@ -78,9 +76,6 @@ export const SlideContentWithProgress = ({
   children: ReactNode;
 }): ReactElement => {
   // Read sceneProgress reactively via useVariable (exported from @brewsite/core).
-  // useVariable subscribes to VariableStore updates and triggers re-renders when
-  // the value changes. This is the correct reactive read pattern.
-  // VariableStoreContext is NOT exported from @brewsite/core — do not use useContext.
   const rawProgress = useVariable(SLIDE_META_NAMESPACE, `${slideKey}.sceneProgress`);
   const progress = typeof rawProgress === 'number' ? rawProgress : 0;
 
@@ -110,8 +105,7 @@ SlideContentWithProgress.displayName = 'SlideContentWithProgress';
 // Separated so it can use hooks (must be inside SceneEngine).
 // Renders NO DOM — all visual output (pointer overlay, progress indicator) is
 // rendered by the outer SlidePlayer at the containerRef level, outside the
-// EngineARContainer. This ensures click targets cover the full player area
-// (including letterbox) rather than being trapped inside the AR-locked inner div.
+// EngineARContainer.
 
 /**
  * Navigation state exposed to the outer SlidePlayer via a mutable ref.
@@ -132,6 +126,8 @@ type SlidePlayerInnerProps = {
   imperativeRef: MutableRefObject<SlidePlayerHandle | null>;
   navRef: MutableRefObject<SlideNavRef | null>;
   navigation?: SlideNavigationConfig;
+  onSlideChangeRef: MutableRefObject<((index: number, slideKey: string) => void) | undefined>;
+  setCurrentSlideIndex: (index: number) => void;
 };
 
 /**
@@ -148,6 +144,8 @@ const SlidePlayerInner = ({
   imperativeRef,
   navRef,
   navigation,
+  onSlideChangeRef,
+  setCurrentSlideIndex,
 }: SlidePlayerInnerProps): null => {
   const engine = useSceneEngineContext();
   const scrollUnits = useMemo(
@@ -159,8 +157,18 @@ const SlidePlayerInner = ({
   // Keep navRef in sync every render so the outer component reads fresh callbacks.
   navRef.current = nav;
 
+  // VariableStore-based slide change detection
+  const currentLogicalIndex = useVariable(SLIDE_META_NAMESPACE, 'currentLogicalIndex');
+  const currentSlideKey = useVariable(SLIDE_META_NAMESPACE, 'currentSlideKey');
+
+  useEffect(() => {
+    if (typeof currentLogicalIndex !== 'number') return;
+    if (typeof currentSlideKey !== 'string') return;
+    onSlideChangeRef.current?.(currentLogicalIndex, currentSlideKey);
+    setCurrentSlideIndex(currentLogicalIndex);
+  }, [currentLogicalIndex, currentSlideKey, onSlideChangeRef, setCurrentSlideIndex]);
+
   // Expose imperative handle via the internal mutable ref.
-  // SlidePlayer (outer) delegates to this via the forwarded ref.
   useImperativeHandle(imperativeRef, () => ({
     goTo: nav.goTo,
     next: nav.next,
@@ -170,19 +178,12 @@ const SlidePlayerInner = ({
       if (!canvas) return new Map();
       const result = new Map<string, string>();
 
-      // Save current progress.
       const savedProgress = engine.frameState.progress;
 
       for (let i = 0; i < spec.slides.length; i++) {
         const slide = spec.slides[i]!;
-        // Engine-space: scene i starts at i/(n-1). This is the uniform progress value
-        // that matches SceneTrack's engineStart per scene (see sceneTrackCompiler.ts §298).
-        // setProgress() takes post-mapper engine-space — do NOT use computeSlideStartProgress
-        // here, which returns scroll-space and would navigate to the wrong slide for
-        // non-uniform scroll budgets (e.g. title=100 + body=400).
         const targetProgress = spec.slides.length > 1 ? i / (spec.slides.length - 1) : 0;
         engine.setProgress(targetProgress);
-        // Wait two rAF cycles for Three.js to render the new frame.
         await new Promise<void>((resolve) =>
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
         );
@@ -194,27 +195,15 @@ const SlidePlayerInner = ({
     },
   }), [nav, canvasRef, engine, spec.slides, scrollUnits]);
 
-  // Slide-change notification is handled by corePlugin({ onSceneChange }) — NOT here.
-  // Using both corePlugin.onSceneChange and a useEffect would fire the callback twice
-  // per slide change. The corePlugin path is the sole owner of onSlideChange dispatch.
-
   // ─── Stable ref for nav callbacks ──────────────────────────────────────────
-  // The nav object changes reference on every sceneIndex change (because next/prev
-  // are useCallback with [engine, sceneIndex, totalSlides] deps). Using a ref avoids
-  // tearing down and re-registering window event listeners on every slide change.
-  // The handler reads navRef.current at call time — always fresh, zero listener churn.
   const navCallbackRef = useRef(nav);
   navCallbackRef.current = nav;
 
-  // Keyboard navigation — registered once on mount (stable handler via ref).
-  // Bindings: ArrowRight/ArrowDown/Space/Enter/PageDown → next;
-  //           ArrowLeft/ArrowUp/PageUp → prev; Home → first slide; End → last slide.
-  // F-key fullscreen is handled in the outer SlidePlayer component.
+  // Keyboard navigation
   useEffect(() => {
     if (navigation?.keyboard === false) return;
     const totalSlides = spec.slides.length;
     const handler = (e: KeyboardEvent): void => {
-      // Skip navigation keys when a form element has focus (e.g. toolbar <select>).
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
 
@@ -250,7 +239,7 @@ const SlidePlayerInner = ({
     return () => window.removeEventListener('keydown', handler);
   }, [navigation, spec.slides.length]);
 
-  // Touch swipe: track touchstart X, fire next/prev on touchend based on delta.
+  // Touch swipe
   useEffect(() => {
     if (navigation?.touch === false) return;
     let startX = 0;
@@ -262,8 +251,8 @@ const SlidePlayerInner = ({
       const dx = (e.changedTouches[0]?.clientX ?? 0) - startX;
       if (Math.abs(dx) < MIN_SWIPE_PX) return;
       const n = navCallbackRef.current;
-      if (dx < 0) n.next(); // swipe left → next
-      else n.prev(); // swipe right → prev
+      if (dx < 0) n.next();
+      else n.prev();
     };
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -282,18 +271,16 @@ const SlidePlayerInner = ({
  * Props for the `<SlidePlayer>` component.
  */
 export type SlidePlayerProps = {
-  /** `<Slide>` elements authored with the slides DSL. */
+  /** <Slide> elements authored with the slides DSL. */
   children: ReactNode;
-  /** Deck-level theme. Merged with `defaultDeckTheme`. */
-  theme?: Partial<DeckTheme>;
+  /** Presentation behavioral theme. Default: defaultSlideTheme. */
+  slideTheme?: SlideTheme;
+  /** Corporate chrome template (Phase 2). */
+  template?: SlideTemplate;
   /** Default slide transition. Default: 'dissolve'. */
-  transition?: 'dissolve' | 'none';
+  transition?: SlideTransition;
   /** Progress indicator style. Default: 'dots'. */
   progressIndicator?: ProgressStyle;
-  /** Optional engine ID for `useSceneEngineState(id)`. */
-  id?: string;
-  /** Additional plugins (e.g. `diagramPlugin()`, `modelPlugin()`). */
-  plugins?: WidgetPlugin[];
   /** Canvas aspect ratio. Default: 16/9. */
   aspectRatio?: number;
   /** Navigation configuration. */
@@ -315,30 +302,28 @@ export type SlidePlayerProps = {
 /**
  * Primary slide deck player component.
  *
- * Owns the full engine stack: `SceneEngine` → `EngineARContainer` →
- * `EngineInputRegion` → `SceneCanvas` + `EngineOverlayHost`.
+ * Must be rendered inside a `<SceneEngine>` context — does not create its own engine.
+ * Visual tokens come from SceneTheme via the parent engine. Behavioral tokens come
+ * from SlideTheme via `--slide-*` CSS variables injected on the container.
  *
  * @example
  * ```tsx
- * <SlidePlayer theme={darkDeckTheme}>
- *   <Slide key="intro"><TitleLayout title="Hello" /></Slide>
- *   <Slide key="body"><TitleBodyLayout title="Content"><Body>...</Body></TitleBodyLayout></Slide>
- * </SlidePlayer>
+ * <SceneEngine plugins={[corePlugin(), slidesPlugin()]}>
+ *   <SlidePlayer>
+ *     <Slide key="intro"><TitleSlide title="Hello" /></Slide>
+ *     <Slide key="body"><ContentSlide title="Content"><Body>...</Body></ContentSlide></Slide>
+ *   </SlidePlayer>
+ * </SceneEngine>
  * ```
  */
-// Stable empty array for the default plugins prop — avoids creating a new []
-// on every render, which would cascade to widgetRegistry/driver rebuilds.
-const EMPTY_PLUGINS: WidgetPlugin[] = [];
-
 export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
   function SlidePlayer(
     {
       children,
-      theme,
-      transition = 'dissolve',
-      progressIndicator = 'dots',
-      id,
-      plugins = EMPTY_PLUGINS,
+      slideTheme,
+      template,
+      transition: transitionProp,
+      progressIndicator: progressIndicatorProp,
       aspectRatio = 16 / 9,
       navigation,
       fullscreen,
@@ -350,26 +335,17 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
     }: SlidePlayerProps,
     ref,
   ) {
+    // Apply template defaults, then fall back to hard defaults
+    const transition = transitionProp ?? template?.defaultTransition ?? 'dissolve';
+    const progressIndicator = progressIndicatorProp ?? template?.defaultProgressIndicator ?? 'dots';
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    // Internal ref for imperative handle; populated by SlidePlayerInner.
     const imperativeRef = useRef<SlidePlayerHandle | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    // Navigation state ref — written by SlidePlayerInner every render, read by
-    // the pointer overlay and progress indicator rendered here in the outer component.
     const navRef = useRef<SlideNavRef | null>(null);
 
-    // Stable refs for callbacks and config objects — prevents the allPlugins memo
-    // and SceneEngine props from recomputing when the caller passes unstable
-    // (inline arrow / inline object) values. Read via ref at call time.
     const onSlideChangeRef = useRef(onSlideChange);
     onSlideChangeRef.current = onSlideChange;
 
-    const navigationRef = useRef(navigation);
-    navigationRef.current = navigation;
-
-    // Current slide index — driven by corePlugin.onSceneChange so the progress
-    // indicator (rendered at the container level, outside SceneEngine) re-renders
-    // whenever the active slide changes.
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
     // Fullscreen state
@@ -393,10 +369,7 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
       }
     }, [onFullscreenChange]);
 
-    // F key fullscreen toggle — always window-scoped regardless of navigation.scope.
-    // Slide navigation keys (arrows, space, etc.) are handled inside SlidePlayerInner
-    // which has access to the engine context. The F-key handler is here because
-    // toggleFullscreen references containerRef which is only in this scope.
+    // F key fullscreen toggle
     useEffect(() => {
       if (navigation?.keyboard === false) return;
       const handler = (e: KeyboardEvent): void => {
@@ -409,8 +382,17 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
       return () => window.removeEventListener('keydown', handler);
     }, [toggleFullscreen, navigation]);
 
-    // Compile theme once per theme prop change
-    const resolvedTheme = useMemo(() => compileDeckTheme(theme), [theme]);
+    // Resolve SlideTheme → CSS vars
+    const resolvedConfig = useMemo(
+      () => resolveSlideConfig(slideTheme),
+      [slideTheme],
+    );
+
+    // Resolve SlideTemplate → CSS vars + master chrome config
+    const resolvedTemplate = useMemo(
+      () => resolveTemplate(template),
+      [template],
+    );
 
     // Collect and validate <Slide> children
     const slideElements = useMemo(() => {
@@ -425,14 +407,11 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
 
     // Compile DeckSpec once per children change
     const spec = useMemo(
-      () => compileDeck(slideElements, resolvedTheme, transition),
-      [slideElements, resolvedTheme, transition],
+      () => compileDeck(slideElements, transition),
+      [slideElements, transition],
     );
 
     // Build Scene elements from spec.
-    // buildSceneElements is pure — it produces STATIC JSX with no runtime state dependency.
-    // SlideContentWithProgress inside the JSX reads sceneProgress via useVariable
-    // at render time, so animated bullet reveals work without recompiling the SceneTrack.
     const sceneElements = useMemo(
       () =>
         buildSceneElements(
@@ -450,31 +429,7 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
       [slideElements, spec],
     );
 
-    // Build plugin array.
-    // onSlideChange is wired through corePlugin({ onSceneChange }) — the single source
-    // of slide-change notification. Using both corePlugin.onSceneChange AND a useEffect
-    // inside SlidePlayerInner would fire the callback twice per scene change. Only
-    // corePlugin is used; SlidePlayerInner has NO useEffect for onSlideChange.
-    // Note: corePlugin's onSceneChange receives (sceneId: string, sceneIndex: number);
-    // SlidePlayer's onSlideChange contract is (index: number, slideKey: string).
-    const allPlugins = useMemo(
-      () => [
-        corePlugin({
-          onSceneChange: (sceneId, sceneIndex) => {
-            setCurrentSlideIndex(sceneIndex);
-            onSlideChangeRef.current?.(sceneIndex, sceneId);
-          },
-        }),
-        slidesPlugin({ theme: resolvedTheme, navigation: navigationRef.current }),
-        ...plugins,
-      ],
-      // onSlideChange and navigation excluded — read via refs to avoid plugin/registry
-      // rebuild when the caller passes unstable (inline arrow / inline object) values.
-      [resolvedTheme, plugins], // eslint-disable-line react-hooks/exhaustive-deps
-    );
-
     // Expose the imperative handle via the forwarded ref.
-    // SlidePlayerInner populates imperativeRef via its own useImperativeHandle.
     useImperativeHandle(ref, () => ({
       goTo: (i) => imperativeRef.current?.goTo(i),
       next: () => imperativeRef.current?.next(),
@@ -484,39 +439,18 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
         Promise.resolve(new Map()),
     }));
 
-    // Inject --slide-* CSS custom properties and --brewsite-accent-color so that
-    // slide content (TextBox children) can consume them via var(). Custom properties
-    // are inherited — applying them here makes them available to all descendants
-    // including EngineOverlayHost's overlay divs.
-    // NOTE: EngineOverlayHost only injects --brewsite-font-family, --brewsite-font-size-*,
-    // etc. It does NOT inject --slide-* or --brewsite-accent-color; that is done here.
+    // Inject --slide-* CSS custom properties on the container
     const cssVarStyle = {
-      ...resolvedTheme.cssVars,
-      '--brewsite-accent-color': resolvedTheme.accentColor,
+      ...resolvedConfig.cssVars,
+      ...(resolvedTemplate?.cssVars ?? {}),
     } as CSSProperties;
 
+    // Derive current slide layout for template exclusion rules
+    const currentSlideLayout = spec.slides[currentSlideIndex]?.layout;
+
     const containerStyle: CSSProperties = effectiveFullscreen
-      ? {
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          background: resolvedTheme.background.color,
-          ...cssVarStyle,
-        }
+      ? { position: 'fixed', inset: 0, zIndex: 9999, ...cssVarStyle }
       : { position: 'relative', width: '100%', height: '100%', ...cssVarStyle, ...style };
-
-    // ─── Navigation adapter for outer UI ──────────────────────────────────────
-    // The progress indicator and pointer overlay live at the containerRef level
-    // (outside EngineARContainer) so they cover the full player area including
-    // letterbox. They read navigation state via navRef (written by SlidePlayerInner)
-    // and are re-rendered via onSlideChange which triggers a state update in the
-    // demo page. For the standalone case (no onSlideChange), the outer component
-    // uses the imperative ref which always returns fresh nav callbacks.
-
-    /** Stable error handler — avoids inline arrow in JSX which causes SceneEngine re-render. */
-    const handleEngineError = useCallback((err: Error) => {
-      console.error('[SlidePlayer] Engine error:', err);
-    }, []);
 
     /** Stable click handler — reads navRef at call time, never stale. */
     const handlePointerNext = useCallback(() => {
@@ -532,57 +466,56 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
       navRef.current?.goTo(index);
     }, []);
 
+    // Stable setCurrentSlideIndex for SlidePlayerInner
+    const stableSetCurrentSlideIndex = useCallback((index: number) => {
+      setCurrentSlideIndex(index);
+    }, []);
+
     return (
       <div ref={containerRef} className={className} style={containerStyle}>
-        <SceneEngine
-          id={id}
-          plugins={allPlugins}
-          sceneTheme={resolvedTheme.sceneTheme}
-          defaultTransitionDuration={400}
-          onError={handleEngineError}
-        >
-          {/* Inject <Slide>→<Scene> expanded children into the engine's scene registration */}
-          {sceneElements}
+        {/* Scene elements injected directly — SceneEngine context comes from parent */}
+        {sceneElements}
 
-          <EngineARContainer aspectRatio={aspectRatio} scaleMode="contain">
-            {/*
-             * BackgroundLayer is required for <Background color> DSL to take effect.
-             * BackgroundWidget.apply() is a no-op when no DOM element is wired.
-             * The WebGL renderer uses alpha:true + setClearColor(0,0) = transparent canvas,
-             * so without BackgroundLayer the slide area is completely transparent.
-             * (SceneReel includes this internally; SlidePlayer must add it explicitly.)
-             */}
-            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-            {/* SceneCanvas uses forwardRef<HTMLCanvasElement> — prop is `ref`, NOT `canvasRef`. */}
-            <SceneCanvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-            <EngineOverlayHost
-              passthroughPointerEvents
-              overlayTransition={
-                transition === 'none'
-                  ? { enabled: false }
-                  : { enabled: true, durationMs: 200 }
-              }
+        <EngineARContainer aspectRatio={aspectRatio} scaleMode="contain">
+          <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+          <SceneCanvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+          <EngineOverlayHost
+            passthroughPointerEvents
+            overlayTransition={
+              transition === 'cut'
+                ? { enabled: false }
+                : { enabled: true, durationMs: 200 }
+            }
+          />
+          <SlidePlayerInner
+            spec={spec}
+            canvasRef={canvasRef}
+            imperativeRef={imperativeRef}
+            navRef={navRef}
+            navigation={navigation}
+            onSlideChangeRef={onSlideChangeRef}
+            setCurrentSlideIndex={stableSetCurrentSlideIndex}
+          />
+          {resolvedTemplate?.template.master?.logo && (
+            <SlideChromeLogo
+              template={resolvedTemplate.template}
+              currentLayout={currentSlideLayout}
             />
-            {/* Inner component uses hooks — must be inside SceneEngine.
-              * Renders null — all visible navigation UI is below, at the container level. */}
-            <SlidePlayerInner
-              spec={spec}
-              canvasRef={canvasRef}
-              imperativeRef={imperativeRef}
-              navRef={navRef}
-              navigation={navigation}
+          )}
+          {resolvedTemplate?.template.master?.footer && (
+            <SlideChromeFooter
+              template={resolvedTemplate.template}
+              currentIndex={currentSlideIndex}
+              totalSlides={spec.slides.length}
+              currentLayout={currentSlideLayout}
             />
-          </EngineARContainer>
-        </SceneEngine>
+          )}
+          {resolvedTemplate?.template.master?.watermark && (
+            <SlideChromeWatermark template={resolvedTemplate.template} />
+          )}
+        </EngineARContainer>
 
-        {/*
-         * Navigation UI rendered OUTSIDE EngineARContainer so it covers the
-         * full player container (including letterbox area in contain mode).
-         * z-index 30 puts these above the AR container's children (canvas z:1,
-         * overlay host z:10, etc.).
-         */}
-
-        {/* Pointer navigation overlay: click → next, right-click → prev. */}
+        {/* Navigation UI outside EngineARContainer */}
         {navigation?.pointer !== false && (
           <div
             aria-hidden
@@ -592,9 +525,6 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
           />
         )}
 
-        {/* Progress indicator (dots / bar / numbers).
-          * Uses currentSlideIndex state (driven by corePlugin.onSceneChange)
-          * so it re-renders on every slide change. */}
         <SlideProgressIndicator
           nav={{
             current: currentSlideIndex,

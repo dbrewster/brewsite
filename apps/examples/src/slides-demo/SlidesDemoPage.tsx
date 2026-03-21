@@ -1,11 +1,20 @@
 // apps/examples/src/slides-demo/SlidesDemoPage.tsx
-// Enterprise slide deck demo — showcases @brewsite/slides with the enterprise
-// dark theme, bar progress indicator, and full navigation controls.
+// Enterprise slide deck demo — showcases @brewsite/slides with the new Phase 1B
+// layout DSL, three-axis theming (SceneTheme + SlideTheme + SlideTemplate),
+// section dividers, entrance animations, graphics components, and 3D sceneDsl.
 
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
-import { SlidePlayer, getDeckThemeForFamily, DECK_THEME_PAIRS } from '@brewsite/slides';
-import type { DeckTheme, ProgressStyle } from '@brewsite/slides';
-import type { ThemeFamily, ThemePolarity } from '@brewsite/core';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import {
+  SlidePlayer,
+  slidesPlugin,
+  defaultSlideTheme,
+  compactSlideTheme,
+  cinematicSlideTheme,
+  minimalSlideTheme,
+} from '@brewsite/slides';
+import type { ProgressStyle, SlideTheme, SlideTemplate } from '@brewsite/slides';
+import { SceneEngine, corePlugin } from '@brewsite/core';
+import type { ThemeFamily, ThemePolarity, ActiveTheme } from '@brewsite/core';
 import { ExampleHeader } from '../ExampleHeader';
 import { ThemeToggle } from '../Lights';
 import { diagramPlugin } from '@brewsite/diagram';
@@ -16,27 +25,61 @@ import { useThemeCss } from '../hooks/useThemeCss';
 
 // Stable plugin instances — must be created outside the component to avoid
 // reference instability that causes infinite driver rebuilds.
-const extraPlugins = [diagramPlugin(), chartPlugin(), themesPlugin()];
+const plugins = [corePlugin(), slidesPlugin(), diagramPlugin(), chartPlugin(), themesPlugin()];
+
+// ─── Slide Theme Presets ────────────────────────────────────────────────────
+
+const SLIDE_THEME_OPTIONS: { label: string; value: SlideTheme }[] = [
+  { label: 'Default', value: defaultSlideTheme },
+  { label: 'Compact', value: compactSlideTheme },
+  { label: 'Cinematic', value: cinematicSlideTheme },
+  { label: 'Minimal', value: minimalSlideTheme },
+];
 
 const PROGRESS_OPTIONS: { label: string; value: ProgressStyle }[] = [
-  { label: 'Bar', value: 'bar' },
   { label: 'Dots', value: 'dots' },
+  { label: 'Bar', value: 'bar' },
   { label: 'Numbers', value: 'numbers' },
   { label: 'None', value: 'none' },
 ];
 
+// ─── Slide Template (corporate chrome) ──────────────────────────────────────
+
+const nexusTemplate: SlideTemplate = {
+  name: 'Nexus Platform',
+  master: {
+    footer: {
+      text: 'Nexus Platform · Confidential',
+      showPageNumbers: true,
+      position: 'bottom-center',
+      excludeLayouts: ['title'],
+    },
+  },
+  defaultTransition: 'dissolve',
+  defaultProgressIndicator: 'dots',
+};
+
+// ─── Page Component ─────────────────────────────────────────────────────────
+
 export default function SlidesDemoPage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('enterprise');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
-  const [progressStyle, setProgressStyle] = useState<ProgressStyle>('bar');
+  const [slideThemeIndex, setSlideThemeIndex] = useState(0);
+  const [progressStyle, setProgressStyle] = useState<ProgressStyle>('dots');
   const [showControls, setShowControls] = useState(true);
   const [slideInfo, setSlideInfo] = useState({ index: 0, key: 'title' });
   useThemeCss(family, polarity);
 
-  const theme: DeckTheme = useMemo(
-    () => getDeckThemeForFamily(family, polarity),
+  const theme: ActiveTheme = useMemo(
+    () => ({ family, polarity }),
     [family, polarity],
   );
+
+  const slideTheme = SLIDE_THEME_OPTIONS[slideThemeIndex]!.value;
+
+  const handleSlideChange = useCallback((index: number, key: string) => {
+    setSlideInfo({ index, key });
+  }, []);
 
   return (
     <div className="ex-page" style={{ width: '100vw' }}>
@@ -47,7 +90,7 @@ export default function SlidesDemoPage(): JSX.Element {
           initialFamily="enterprise"
           initialPolarity="dark"
           persist
-          style={{position: 'static', zIndex: 'auto'}}
+          style={{ position: 'static', zIndex: 'auto' }}
         />
       </ExampleHeader>
 
@@ -56,9 +99,25 @@ export default function SlidesDemoPage(): JSX.Element {
         @media (max-width: 640px) { .slides-keyboard-hint { display: none !important; } }
       `}</style>
 
-      {/* Toolbar — progress style + slide info */}
+      {/* Toolbar — theme/progress controls + slide info */}
       {showControls && (
         <div className="ex-toolbar">
+          {/* Slide theme */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            Feel:
+            <select
+              value={slideThemeIndex}
+              onChange={(e) => setSlideThemeIndex(Number(e.target.value))}
+              className="ex-select"
+            >
+              {SLIDE_THEME_OPTIONS.map((opt, i) => (
+                <option key={opt.label} value={i}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <span className="ex-toolbar__muted">|</span>
+
           {/* Progress style */}
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             Progress:
@@ -88,18 +147,23 @@ export default function SlidesDemoPage(): JSX.Element {
 
       {/* Player container */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <SlidePlayer
+        <SceneEngine
           key={`${family}-${polarity}`}
+          plugins={plugins}
           theme={theme}
-          plugins={extraPlugins}
-          progressIndicator={progressStyle}
-          transition="dissolve"
-          aspectRatio={9 / 9}
-          navigation={{ keyboard: true, touch: true, pointer: true }}
-          onSlideChange={(index, key) => setSlideInfo({ index, key })}
         >
-          {demoSlides}
-        </SlidePlayer>
+          <SlidePlayer
+            slideTheme={slideTheme}
+            template={nexusTemplate}
+            progressIndicator={progressStyle}
+            transition="dissolve"
+            aspectRatio={16 / 9}
+            navigation={{ keyboard: true, touch: true, pointer: true }}
+            onSlideChange={handleSlideChange}
+          >
+            {demoSlides}
+          </SlidePlayer>
+        </SceneEngine>
       </div>
 
       {/* H key toolbar toggle */}

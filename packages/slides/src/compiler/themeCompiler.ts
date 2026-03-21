@@ -1,59 +1,47 @@
-// Pure function: DeckTheme → ResolvedDeckTheme. No React, No Three.js, no runtime imports.
+// Pure function: SlideTheme → ResolvedSlideConfig. No React, no Three.js.
 
-import type { DeckTheme, ResolvedDeckTheme } from '../types';
-import type { SceneTheme } from '@brewsite/core';
-import { defaultDeckTheme } from '../theme';
+import type { SlideTheme, ResolvedSlideConfig } from '../types';
+import { defaultSlideTheme } from '../theme';
 
 /**
- * Merges the provided DeckTheme with defaults and derives:
- *  - A SceneTheme for injection into SceneEngine.sceneTheme
- *  - A CSS variable map for the --slide-* namespace injected by SlideMetaWidget
+ * Resolves a SlideTheme (with potential missing fields) into a
+ * ResolvedSlideConfig with all fields filled and CSS variables computed.
  *
- * This function is pure: same inputs always produce the same output.
+ * Pure function — same inputs always produce the same output.
  */
-export function compileDeckTheme(theme?: Partial<DeckTheme>): ResolvedDeckTheme {
-  // Merge each sub-object, ensuring all required fields have concrete values.
-  // Optional fields on DeckTheme (accentColor, border) are given defaults here
-  // so the returned ResolvedDeckTheme (= Required<DeckTheme> & extras) satisfies
-  // TypeScript's strict mode without unsafe casts.
-  const fonts = { ...defaultDeckTheme.fonts, ...theme?.fonts };
-  const colorMode = theme?.colorMode ?? defaultDeckTheme.colorMode;
-  const accentColor = theme?.accentColor ?? defaultDeckTheme.accentColor ?? '#2563eb';
-  const background = { ...defaultDeckTheme.background, ...theme?.background };
-  const colors = { ...defaultDeckTheme.colors, ...theme?.colors };
-  const spacing = { ...defaultDeckTheme.spacing, ...theme?.spacing };
-  const border = {
-    radius: theme?.border?.radius ?? defaultDeckTheme.border?.radius ?? '0.5rem',
+export function resolveSlideConfig(
+  slideTheme?: Partial<SlideTheme>,
+): ResolvedSlideConfig {
+  const resolved: Required<SlideTheme> = {
+    timing: { ...defaultSlideTheme.timing, ...slideTheme?.timing },
+    density: { ...defaultSlideTheme.density, ...slideTheme?.density },
+    typography: { ...defaultSlideTheme.typography, ...slideTheme?.typography },
+    components: { ...defaultSlideTheme.components, ...slideTheme?.components },
   };
 
-  // Derive SceneTheme from DeckTheme fields (1:1 mapping)
-  const sceneTheme: SceneTheme = {
-    font: {
-      htmlFamily: fonts.heading,
-    },
-    fontSize: {
-      heading: 2.4,
-      body: 1.0,
-      label: 1.0,
-      caption: 1.0,
-      annotation: 0.7,
-    },
-    colorMode,
-  };
-
-  // CSS variable map for --slide-* namespace
   const cssVars: Record<string, string> = {
-    '--slide-padding': spacing.slide,
-    '--slide-gap': spacing.stack,
-    '--slide-color-heading': colors.heading,
-    '--slide-color-body': colors.body,
-    '--slide-color-surface': colors.surface,
-    '--slide-color-muted': colors.muted,
-    '--slide-border-radius': border.radius,
+    // Timing
+    '--slide-transition-duration':       resolved.timing.transitionDuration,
+    '--slide-entrance-duration':         String(resolved.timing.entranceDuration),
+    '--slide-entrance-distance':         resolved.timing.entranceDistance,
+    '--slide-stagger-delay':             String(resolved.timing.staggerDelay),
+    '--slide-count-up-duration':         String(resolved.timing.countUpDuration),
+    // Density
+    '--slide-content-padding':           resolved.density.contentPadding,
+    '--slide-content-gap':               resolved.density.contentGap,
+    '--slide-title-height':              String(resolved.density.titleHeight),
+    '--slide-gutter':                    String(resolved.density.gutter),
+    // Typography scale
+    '--slide-heading-scale':             String(resolved.typography.headingScale),
+    '--slide-body-scale':                String(resolved.typography.bodyScale),
+    '--slide-caption-scale':             String(resolved.typography.captionScale),
+    // Component sizing
+    '--slide-card-border-width':         resolved.components.cardBorderWidth,
+    '--slide-timeline-connector-width':  resolved.components.timelineConnectorWidth,
+    '--slide-timeline-dot-size':         resolved.components.timelineDotSize,
+    '--slide-progress-ring-size':        resolved.components.progressRingSize,
+    '--slide-progress-ring-thickness':   resolved.components.progressRingThickness,
   };
-  if (fonts.body) cssVars['--slide-font-body'] = fonts.body;
-  if (fonts.mono) cssVars['--slide-font-mono'] = fonts.mono;
-  if (background.gradient) cssVars['--slide-bg-gradient'] = background.gradient;
 
-  return { fonts, colorMode, accentColor, background, colors, spacing, border, sceneTheme, cssVars };
+  return { slideTheme: resolved, cssVars };
 }

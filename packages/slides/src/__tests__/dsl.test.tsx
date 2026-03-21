@@ -13,6 +13,18 @@ import {
   FullBleedLayout,
   BlankLayout,
   SlideContent,
+  TitleSlide,
+  SectionSlide,
+  ContentSlide,
+  TwoColumnSlide,
+  ImageSlide,
+  FullBleedSlide,
+  BlankSlide,
+  BigNumberSlide,
+  MetricGridSlide,
+  ComparisonSlide,
+  QuoteSlide,
+  AgendaSlide,
   Heading,
   Body,
   BulletList,
@@ -86,6 +98,83 @@ describe('DSL compile-time marker components', () => {
   });
 });
 
+// ─── New Phase 1B layout DSL components ──────────────────────────────────────
+
+describe('New layout DSL components', () => {
+  it('TitleSlide returns null', () => {
+    expect(TitleSlide({ title: 'T' })).toBeNull();
+  });
+
+  it('SectionSlide returns null', () => {
+    expect(SectionSlide({ title: 'T' })).toBeNull();
+  });
+
+  it('ContentSlide returns null', () => {
+    expect(ContentSlide({ title: 'T' })).toBeNull();
+  });
+
+  it('TwoColumnSlide returns null', () => {
+    expect(TwoColumnSlide({ left: null, right: null })).toBeNull();
+  });
+
+  it('ImageSlide returns null', () => {
+    expect(ImageSlide({ imageUrl: '/img.png' })).toBeNull();
+  });
+
+  it('FullBleedSlide returns null', () => {
+    expect(FullBleedSlide({})).toBeNull();
+  });
+
+  it('BlankSlide returns null', () => {
+    expect(BlankSlide({})).toBeNull();
+  });
+
+  it('BigNumberSlide returns null', () => {
+    expect(BigNumberSlide({ stats: [{ value: 42, label: 'Count' }] })).toBeNull();
+  });
+
+  it('MetricGridSlide returns null', () => {
+    expect(MetricGridSlide({ metrics: [{ value: 42, label: 'Count' }] })).toBeNull();
+  });
+
+  it('ComparisonSlide returns null', () => {
+    expect(ComparisonSlide({ headers: ['A'], rows: [] })).toBeNull();
+  });
+
+  it('QuoteSlide returns null', () => {
+    expect(QuoteSlide({ quote: 'Q', attribution: 'A' })).toBeNull();
+  });
+
+  it('AgendaSlide returns null', () => {
+    expect(AgendaSlide({ title: 'T', items: [] })).toBeNull();
+  });
+
+  it('all new layout components have correct displayNames', () => {
+    expect(TitleSlide.displayName).toBe('TitleSlide');
+    expect(SectionSlide.displayName).toBe('SectionSlide');
+    expect(ContentSlide.displayName).toBe('ContentSlide');
+    expect(TwoColumnSlide.displayName).toBe('TwoColumnSlide');
+    expect(ImageSlide.displayName).toBe('ImageSlide');
+    expect(FullBleedSlide.displayName).toBe('FullBleedSlide');
+    expect(BlankSlide.displayName).toBe('BlankSlide');
+    expect(BigNumberSlide.displayName).toBe('BigNumberSlide');
+    expect(MetricGridSlide.displayName).toBe('MetricGridSlide');
+    expect(ComparisonSlide.displayName).toBe('ComparisonSlide');
+    expect(QuoteSlide.displayName).toBe('QuoteSlide');
+    expect(AgendaSlide.displayName).toBe('AgendaSlide');
+  });
+
+  it('all new layout component references are distinct', () => {
+    const components = [
+      TitleSlide, SectionSlide, ContentSlide, TwoColumnSlide,
+      ImageSlide, FullBleedSlide, BlankSlide, BigNumberSlide,
+      MetricGridSlide, ComparisonSlide, QuoteSlide, AgendaSlide,
+    ];
+    const unique = new Set(components);
+    expect(unique.size).toBe(12);
+  });
+});
+
 // ─── Text primitive rendering ─────────────────────────────────────────────────
 
 describe('Heading', () => {
@@ -111,9 +200,14 @@ describe('Heading', () => {
     expect(html).toContain('#ff0000');
   });
 
-  it('uses CSS variable for color when no override', () => {
+  it('uses --brewsite-text-primary for default color', () => {
     const html = renderToStaticMarkup(<Heading>Default</Heading>);
-    expect(html).toContain('var(--slide-color-heading)');
+    expect(html).toContain('var(--brewsite-text-primary)');
+  });
+
+  it('uses --brewsite-font-heading for font family', () => {
+    const html = renderToStaticMarkup(<Heading>Default</Heading>);
+    expect(html).toContain('var(--brewsite-font-heading)');
   });
 
   it('has correct displayName', () => {
@@ -128,9 +222,13 @@ describe('Body', () => {
     expect(html).toContain('Some body text');
   });
 
-  it('uses CSS variables for styling', () => {
+  it('uses --brewsite-text-secondary for color', () => {
     const html = renderToStaticMarkup(<Body>text</Body>);
-    expect(html).toContain('var(--slide-color-body)');
+    expect(html).toContain('var(--brewsite-text-secondary)');
+  });
+
+  it('uses --brewsite-font-family for font', () => {
+    const html = renderToStaticMarkup(<Body>text</Body>);
     expect(html).toContain('var(--brewsite-font-family)');
   });
 
@@ -176,7 +274,6 @@ describe('BulletList', () => {
     const html = renderToStaticMarkup(
       <BulletList items={['Item']} bulletStyle="none" />,
     );
-    // The bullet span should not be rendered for 'none'
     expect(html).not.toContain('•');
     expect(html).not.toContain('→');
     expect(html).not.toContain('✓');
@@ -185,6 +282,16 @@ describe('BulletList', () => {
   it('renders disc bullet by default', () => {
     const html = renderToStaticMarkup(<BulletList items={['Item']} />);
     expect(html).toContain('•');
+  });
+
+  it('uses --brewsite-accent-color for bullet color', () => {
+    const html = renderToStaticMarkup(<BulletList items={['Item']} />);
+    expect(html).toContain('var(--brewsite-accent-color)');
+  });
+
+  it('uses --slide-content-gap for gap', () => {
+    const html = renderToStaticMarkup(<BulletList items={['Item']} />);
+    expect(html).toContain('var(--slide-content-gap');
   });
 
   it('has correct displayName', () => {
@@ -223,13 +330,12 @@ describe('NumberedList', () => {
 
 describe('Component identity checks (used by deckCompiler.ts)', () => {
   it('Slide function reference is stable for identity comparison', () => {
-    // deckCompiler.ts uses `element.type === Slide` for identification
     expect(typeof Slide).toBe('function');
     const ref = Slide;
     expect(ref).toBe(Slide);
   });
 
-  it('all layout component references are distinct', () => {
+  it('all legacy layout component references are distinct', () => {
     const components = [TitleLayout, TitleBodyLayout, TwoColumnLayout, FullBleedLayout, BlankLayout];
     const unique = new Set(components);
     expect(unique.size).toBe(5);

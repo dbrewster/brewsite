@@ -1,7 +1,6 @@
 // Type contracts for @brewsite/slides. No runtime or Three.js imports.
 
 import type { ReactNode } from 'react';
-import type { SceneTheme } from '@brewsite/core';
 
 // ─── Layout Variants ──────────────────────────────────────────────────────────
 
@@ -10,82 +9,191 @@ import type { SceneTheme } from '@brewsite/core';
  * Each variant maps to a fixed set of NVS-positioned TextBox regions.
  */
 export type SlideLayout =
+  // Phase 1B Core (12 layouts)
   | 'title'
-  | 'title-body'
+  | 'section'
+  | 'content'
   | 'two-column'
+  | 'image'
   | 'full-bleed'
-  | 'blank';
+  | 'blank'
+  | 'big-number'
+  | 'metric-grid'
+  | 'comparison'
+  | 'quote'
+  | 'agenda'
+  // Phase 1B+ Fast-Follow (7 layouts)
+  | 'timeline'
+  | 'process'
+  | 'team'
+  | 'closing'
+  | 'bento'
+  | 'dashboard'
+  | 'matrix';
 
-// ─── Transitions ─────────────────────────────────────────────────────────────
+// ─── Slide Transitions (expanded) ────────────────────────────────────────────
 
 /**
  * Slide transition type. Applied to the HTML overlay layer (CSS animation).
  * Three.js content between slides uses standard compiled transition specs.
- *
- * v1.0 supports 'dissolve' and 'none'.
- * v1.1 adds 'slide-left', 'slide-right', 'slide-up', 'slide-down', 'zoom-in', 'zoom-out'.
  */
-export type SlideTransition = 'dissolve' | 'none';
+export type SlideTransition =
+  | 'dissolve'
+  | 'cut'
+  | 'fade'
+  | 'push-left'
+  | 'push-right'
+  | 'push-up'
+  | 'push-down'
+  | 'zoom-in'
+  | 'zoom-out';
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
+// ─── Entrance Animations ──────────────────────────────────────────────────────
+
+/** Entrance animation type for slide region content. */
+export type EntranceType =
+  | 'fadeIn'
+  | 'slideUp'
+  | 'slideDown'
+  | 'slideLeft'
+  | 'slideRight'
+  | 'grow'
+  | 'none';
+
+/** Per-region entrance animation configuration. */
+export type SlideRegionEntrance = {
+  title?: EntranceType;
+  body?: EntranceType;
+  left?: EntranceType;
+  right?: EntranceType;
+  /** Progress delay between regions, default 0. */
+  stagger?: number;
+};
+
+// ─── SlideTheme ──────────────────────────────────────────────────────────────
 
 /**
- * Deck-level theme. A superset of @brewsite/core's SceneTheme.
- * SceneTheme fields are mapped 1:1 by themeCompiler.ts. Slide-specific
- * extensions use the '--slide-' CSS variable prefix to avoid collisions
- * with '--brewsite-' variables owned by EngineOverlayHost.
+ * Presentation-specific behavioral and density tokens.
+ * "How slides feel" — timing, density, typography scale, component sizing.
+ * Orthogonal to SceneTheme (visual) and SlideTemplate (branding).
  */
-export type DeckTheme = {
-  // ── SceneTheme-mapped fields ──────────────────────────────────────────────
-  /** Maps to SceneTheme.font.htmlFamily. Also used as body font if fonts.body is absent. */
-  fonts: {
-    heading: string;
-    body?: string;
-    mono?: string;
+export type SlideTheme = {
+  /** Animation and transition timing. */
+  readonly timing: {
+    /** Slide-to-slide CSS transition duration. Default: '300ms'. */
+    readonly transitionDuration: string;
+    /** Default entrance animation progress window [0-1]. Default: 0.3. */
+    readonly entranceDuration: number;
+    /** Default fly-in / slide-up distance. Default: '24px'. */
+    readonly entranceDistance: string;
+    /** Default stagger delay between items [0-1]. Default: 0.08. */
+    readonly staggerDelay: number;
+    /** Stat card count-up progress window [0-1]. Default: 0.6. */
+    readonly countUpDuration: number;
   };
-  /** Maps to SceneTheme.colorMode. */
-  colorMode: 'dark' | 'light';
-  /** Maps to SceneTheme.accentColor. */
-  accentColor?: string;
 
-  // ── Slide-specific CSS variable extensions ────────────────────────────────
-  background: {
-    /** Background color for the slide canvas. Also sets the <Background> DSL color. */
-    color: string;
-    /** Optional CSS gradient string injected as --slide-bg-gradient. */
-    gradient?: string;
+  /** Content density and spacing. */
+  readonly density: {
+    /** Padding inside slide regions. CSS length string. Default: '48px'. */
+    readonly contentPadding: string;
+    /** Vertical gap between elements in a region. CSS length string. Default: '16px'. */
+    readonly contentGap: string;
+    /** Title bar height as NVS fraction [0-1]. Default: 0.18. */
+    readonly titleHeight: number;
+    /** Inter-region gutter as NVS fraction [0-1]. Default: 0.02. */
+    readonly gutter: number;
   };
-  colors: {
-    /** --slide-color-heading */
-    heading: string;
-    /** --slide-color-body */
-    body: string;
-    /** --slide-color-surface (card/callout background) */
-    surface: string;
-    /** --slide-color-muted (captions, secondary text) */
-    muted: string;
+
+  /** Typography scale overrides (multiplied against --brewsite-font-size-*). */
+  readonly typography: {
+    /** Heading scale multiplier. Default: 1.2. */
+    readonly headingScale: number;
+    /** Body text scale multiplier. Default: 1.1. */
+    readonly bodyScale: number;
+    /** Caption/label scale multiplier. Default: 1.0. */
+    readonly captionScale: number;
   };
-  spacing: {
-    /** --slide-padding (default: '8%') */
-    slide: string;
-    /** --slide-gap (default: '1.5rem') */
-    stack: string;
-  };
-  border?: {
-    /** --slide-border-radius (default: '0.5rem') */
-    radius: string;
+
+  /** Graphical component sizing. */
+  readonly components: {
+    /** Stat card / callout box border width. Default: '1px'. */
+    readonly cardBorderWidth: string;
+    /** Timeline connector line thickness. Default: '2px'. */
+    readonly timelineConnectorWidth: string;
+    /** Timeline milestone dot diameter. Default: '12px'. */
+    readonly timelineDotSize: string;
+    /** Progress ring default diameter. Default: '64px'. */
+    readonly progressRingSize: string;
+    /** Progress ring stroke width. Default: '4px'. */
+    readonly progressRingThickness: string;
   };
 };
 
+// ─── SlideTemplate (forward declaration for Phase 2) ─────────────────────────
+
+/** Brand asset for template placement. */
+export type BrandAsset = {
+  readonly src: string;
+  readonly alt?: string;
+  readonly aspectRatio?: string;
+};
+
 /**
- * Resolved theme after merging with defaults. All optional fields are filled.
- * Produced by themeCompiler.ts. Never authored directly.
+ * Corporate chrome template. "Whose slides these are."
+ * Orthogonal to SceneTheme (visual) and SlideTheme (feel).
  */
-export type ResolvedDeckTheme = Required<DeckTheme> & {
-  /** Pre-derived SceneTheme for injection into SceneEngine.sceneTheme. */
-  sceneTheme: SceneTheme;
-  /** CSS custom property map injected into EngineOverlayHost via SlideMetaWidget. */
-  cssVars: Record<string, string>;
+export type SlideTemplate = {
+  /** Display name for the template. */
+  readonly name: string;
+
+  /** Brand assets — logo, wordmark, icon for placement. */
+  readonly brand?: {
+    readonly logo?: BrandAsset;
+    readonly wordmark?: BrandAsset;
+    readonly icon?: BrandAsset;
+  };
+
+  /** Master slide configuration — elements appearing on every slide. */
+  readonly master?: {
+    readonly logo?: {
+      readonly asset: 'logo' | 'wordmark' | 'icon';
+      readonly position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+      readonly size?: string;
+      readonly opacity?: number;
+      readonly excludeLayouts?: SlideLayout[];
+    };
+    readonly footer?: {
+      readonly text?: string;
+      readonly showPageNumbers?: boolean;
+      readonly showDate?: boolean;
+      readonly position?: 'bottom-left' | 'bottom-center' | 'bottom-right';
+      readonly excludeLayouts?: SlideLayout[];
+    };
+    readonly watermark?: {
+      readonly text?: string;
+      readonly image?: string;
+      readonly opacity?: number;
+    };
+  };
+
+  /** Default transition for all slides (overridable per-slide). */
+  readonly defaultTransition?: SlideTransition;
+
+  /** Default progress indicator style. */
+  readonly defaultProgressIndicator?: ProgressStyle;
+};
+
+// ─── Resolved Config ──────────────────────────────────────────────────────────
+
+/**
+ * Resolved slide configuration after merging SlideTheme with defaults.
+ * All required fields are filled. Produced by themeCompiler.ts.
+ */
+export type ResolvedSlideConfig = {
+  /** Fully resolved SlideTheme (all fields present). */
+  readonly slideTheme: Required<SlideTheme>;
+  /** CSS custom property map for --slide-* namespace. */
+  readonly cssVars: Record<string, string>;
 };
 
 // ─── Compiled Slide State ─────────────────────────────────────────────────────
@@ -152,9 +260,16 @@ export type SlideSpec = {
  */
 export type DeckSpec = {
   slides: SlideSpec[];
-  theme: ResolvedDeckTheme;
   transition: SlideTransition;
 };
+
+// ─── Graphics component types ──────────────────────────────────────────────
+
+/** Discriminated cell type for ComparisonTable. */
+export type ComparisonCellValue =
+  | { readonly kind: 'check'; readonly value: boolean }
+  | { readonly kind: 'text'; readonly value: string }
+  | { readonly kind: 'number'; readonly value: number };
 
 // ─── Imperative Handle ────────────────────────────────────────────────────────
 
@@ -224,4 +339,3 @@ export type SlideNavigationConfig = {
   /** Keyboard scope. 'window' = global listener; 'canvas' = listener on the engine container. Default: 'window'. */
   scope?: 'window' | 'canvas';
 };
-

@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-20
     author: Toolkit Product
     summary: "Addressed PM review findings: fixed 3 blockers (plugin.ts/SlidesPluginOptions, SlideMetaWidget, CSS var migration mapping), 14 should-fixes (test plans, SlidePlayer rewrite detail, heading/body color mapping, timing value consumption model, ComparisonTable cell types, useStaggeredReveal return shape, additional gotchas, explicit non-goals). Added deferred features section, ImageSlide consolidation, deck-authoring-patterns doc."
+  - date: 2026-03-20
+    author: Toolkit Product (PM Debate)
+    summary: "Applied PM debate consensus (7 items): (1) Added SlidePlayer Architecture Change section — SlidePlayer drops SceneEngine creation, removes id/plugins/onError props; (2) Added textColors (primary/secondary/muted/surface) to SceneTheme Phase 0A for per-family color expressiveness; (3) Added optional font.htmlHeadingFamily to SceneTheme Phase 0A; (4) Split Phase 1B layouts into 12 core + 7 fast-follow; (5) Confirmed useSceneProgress(): number contract in Phase 1D; (6) Clarified SlidePlayer visual stack ownership; (7) Replaced onSlideChange corePlugin wiring with VariableStore-based slide change detection."
 ---
 
 # Slides Expansion — Change Plan
@@ -91,6 +94,28 @@ type SceneTheme = {
   /** Primary brand/accent color. Defaults to '#2563eb' (blue-600). */
   readonly accentColor?: string;
 
+  /**
+   * Per-family text and surface color overrides. When present, these take
+   * precedence over the generic colorMode-derived defaults in EngineOverlayHost.
+   * When absent, EngineOverlayHost falls back to its existing derivation rules
+   * (white/#111 for primary, 60% opacity for secondary, etc.).
+   *
+   * PURPOSE: Preserves per-family color tuning that existed in DeckTheme's
+   * themeFamily.ts (e.g., enterprise dark heading=#E5EEFA blue-tinted white,
+   * darkGlass dark heading=#F2E6DE warm cream). Without this, all dark themes
+   * would map to generic white text, losing visual identity.
+   *
+   * BENEFITS ALL PACKAGES: diagram overlays, chart annotations, and model labels
+   * also consume --brewsite-text-primary/secondary, so per-family tinting
+   * improves consistency across the entire toolkit, not just slides.
+   */
+  readonly textColors?: {
+    readonly primary?: string;    // overrides --brewsite-text-primary
+    readonly secondary?: string;  // overrides --brewsite-text-secondary
+    readonly muted?: string;      // overrides --brewsite-text-muted
+    readonly surface?: string;    // overrides --brewsite-surface-elevated
+  };
+
   /** Semantic status colors derived from highlightPalette or explicit overrides. */
   readonly semanticColors?: {
     readonly success?: string;   // default: '#22c55e'
@@ -107,6 +132,21 @@ type SceneTheme = {
     readonly lg?: string;   // default: '24px'
     readonly xl?: string;   // default: '40px'
   };
+
+  readonly font: SceneThemeFontTokens & {
+    /**
+     * Optional CSS font-family string for headings. When present,
+     * EngineOverlayHost injects --brewsite-font-heading. When absent,
+     * --brewsite-font-heading falls back to font.htmlFamily.
+     *
+     * PURPOSE: Preserves the heading/body font dual-family capability
+     * that existed in DeckTheme. Currently all theme families use
+     * identical heading and body fonts, so this is not a practical
+     * regression — but the type-level capability is preserved for
+     * consumers who need distinct heading typography.
+     */
+    readonly htmlHeadingFamily?: string;
+  };
 };
 ```
 
@@ -117,9 +157,17 @@ type SceneTheme = {
 --brewsite-accent-color           /* from accentColor or '#2563eb' */
 --brewsite-accent-color-muted     /* accentColor at 15% opacity */
 
-/* Text */
---brewsite-text-muted             /* white/black at 0.4 opacity based on colorMode */
+/* Text (textColors overrides take precedence when present) */
+--brewsite-text-primary           /* from textColors.primary, or colorMode-derived white/#111 */
+--brewsite-text-secondary         /* from textColors.secondary, or colorMode-derived 60% opacity */
+--brewsite-text-muted             /* from textColors.muted, or colorMode-derived 40% opacity */
 --brewsite-text-inverse           /* opposite of text-primary */
+
+/* Surfaces (textColors.surface override takes precedence when present) */
+--brewsite-surface-elevated       /* from textColors.surface, or colorMode-derived white 0.06 / black 0.04 */
+
+/* Font (heading family override) */
+--brewsite-font-heading           /* from font.htmlHeadingFamily, or falls back to font.htmlFamily */
 
 /* Surfaces */
 --brewsite-surface-base           /* white 0.03 / black 0.02 based on colorMode */
@@ -175,6 +223,9 @@ light mode: accentColor + '1a' (hex alpha ~10%)
 - Unit test: `themeStyles` computation produces correct CSS vars for dark/light/custom themes
 - Unit test: missing optional fields fall back to defaults
 - Unit test: `highlightPalette` color extraction works when `semanticColors` is not set
+- Unit test: `textColors` overrides take precedence over colorMode-derived defaults (e.g., `textColors.primary: '#E5EEFA'` → `--brewsite-text-primary: '#E5EEFA'` instead of `'#ffffff'`)
+- Unit test: `textColors.surface` overrides `--brewsite-surface-elevated` when present
+- Unit test: `font.htmlHeadingFamily` emits `--brewsite-font-heading` when present; absent falls back to `font.htmlFamily`
 - Visual: existing example scenes render identically (no regression)
 
 ---
@@ -188,7 +239,7 @@ light mode: accentColor + '1a' (hex alpha ~10%)
 
 | File | Change |
 |------|--------|
-| `packages/themes/src/presets/scene/*.ts` | Add `accentColor` and optionally `semanticColors` to each preset |
+| `packages/themes/src/presets/scene/*.ts` | Add `accentColor`, `textColors` (per-family heading/body/surface tinting), and optionally `semanticColors` to each preset |
 
 **Per-family values:**
 
@@ -201,11 +252,86 @@ light mode: accentColor + '1a' (hex alpha ~10%)
 | lightCanvas | `'#3b82f6'` (blue-500) | Soft blue |
 | lightMinimal | `'#6366f1'` (indigo-500) | Clean indigo |
 
+**Per-family `textColors` values (from existing `themeFamily.ts` data):**
+
+| Family | Polarity | `primary` | `secondary` | `surface` |
+|--------|----------|-----------|-------------|-----------|
+| enterprise | dark | `'#E5EEFA'` | `'#A8B8CF'` | `'#1E324F'` |
+| enterprise | light | `'#1F334E'` | `'#5A6D86'` | `'#FFFFFF'` |
+| darkGlass | dark | `'#F2E6DE'` | `'#B79B8F'` | `'#1E1412'` |
+| darkGlass | light | `'#2B1F1A'` | `'#6E5750'` | `'#FFF9F5'` |
+| midnight | dark | `'#F2E7D4'` | `'#BCA180'` | `'#261A13'` |
+| midnight | light | `'#3A2A1B'` | `'#7B664C'` | `'#FFF9EE'` |
+| neonCyber | dark | `'#D8CCFF'` | `'#9688D6'` | `'#0C183A'` |
+| neonCyber | light | `'#1E2F5A'` | `'#516498'` | `'#F8FBFF'` |
+| lightCanvas | dark | `'#E8EEF7'` | `'#A8B4C4'` | `'#232F40'` |
+| lightCanvas | light | `'#1D2A3D'` | `'#5F7088'` | `'#FFFFFF'` |
+| lightMinimal | dark | `'#E8EDF5'` | `'#A8B2C2'` | `'#252C35'` |
+| lightMinimal | light | `'#223248'` | `'#6E7D92'` | `'#F3F6FB'` |
+
+These values are migrated directly from the existing `DECK_THEME_PAIRS` in `themeFamily.ts`. The `muted` field for each family maps to the existing `colors.muted` values.
+
 This is purely additive. Existing presets gain new optional fields. No `ThemeBundle` type change needed — slides consumes `SceneTheme` directly via the existing `bundle.scene` slot.
 
 ---
 
 ## Phase 1: Slides Rewrite — Theme, Layouts, Graphics
+
+### SlidePlayer Architecture Change (BREAKING)
+
+**This is the most significant structural change in the expansion.** The current `SlidePlayer` creates and owns `SceneEngine` internally. After this change, `SlidePlayer` must be rendered inside an externally-provided `SceneEngine` context.
+
+**Current architecture (v1.0):**
+```
+SlidePlayer creates:
+  <SceneEngine id={id} plugins={allPlugins} sceneTheme={resolvedTheme.sceneTheme}>
+    {sceneElements}
+    <EngineARContainer>
+      <BackgroundLayer />
+      <SceneCanvas />
+      <EngineOverlayHost />
+      <SlidePlayerInner />
+    </EngineARContainer>
+  </SceneEngine>
+```
+
+**New architecture (v2.0):**
+```
+Consumer provides:
+  <SceneEngine theme={themes.enterprise.dark} plugins={[corePlugin(), slidesPlugin()]}>
+    SlidePlayer renders:
+      {sceneElements}
+      <EngineARContainer>
+        <BackgroundLayer />
+        <SceneCanvas />
+        <EngineOverlayHost />
+        <SlidePlayerInner />
+      </EngineARContainer>
+```
+
+**SlidePlayer still owns:** EngineARContainer, BackgroundLayer, SceneCanvas, EngineOverlayHost, SlidePlayerInner, navigation UI (pointer overlay, progress indicator), fullscreen management.
+
+**SlidePlayer no longer owns:** SceneEngine creation, plugin assembly, sceneTheme injection, engine error handling.
+
+**Props removed from SlidePlayer:**
+
+| Prop | Disposition |
+|------|------------|
+| `id?: string` | Removed — consumer sets `id` on their `<SceneEngine>` |
+| `plugins?: WidgetPlugin[]` | Removed — consumer registers plugins on `<SceneEngine plugins={[...]}>` |
+| `onError` (internal) | Removed — consumer sets `onError` on their `<SceneEngine>` |
+| `theme?: Partial<DeckTheme>` | Replaced by `slideTheme?: SlideTheme` (Phase 1A) |
+
+**`useSceneEngineContext()` calls in SlidePlayerInner** now read from the externally-provided engine — this works correctly without changes since the hook reads from React context.
+
+**`onSlideChange` callback wiring change:** Currently wired through `corePlugin({ onSceneChange })` which SlidePlayer creates. Since plugins move to the external SceneEngine, SlidePlayer uses `useVariable(SLIDE_META_NAMESPACE, 'currentLogicalIndex')` + `useEffect` to detect slide changes and fire `onSlideChange`. This is architecturally cleaner — SlidePlayer reads its own widget's published state rather than hijacking a core plugin callback. `SlideMetaWidget.apply()` already publishes `currentLogicalIndex` to VariableStore (confirmed in `SlideMetaWidget.ts` line 94), so no new infrastructure is needed. The `setCurrentSlideIndex` state update (currently line 464) switches from the `corePlugin.onSceneChange` callback to the `useEffect` on the variable value.
+
+**Why this change:** Externalizing SceneEngine follows the same pattern as `@brewsite/diagram`'s DiagramCanvas — it must live inside a SceneEngine context. This enables consumers to:
+1. Share a single SceneEngine across SlidePlayer and sibling components (e.g., a custom sidebar reading engine state)
+2. Control theme selection at the page level via `<SceneEngine theme={...}>`
+3. Register additional plugins (modelPlugin, diagramPlugin, chartPlugin) at the engine level
+
+---
 
 ### 1A. Replace DeckTheme with SlideTheme + SceneTheme (BREAKING)
 
@@ -228,15 +354,16 @@ This is purely additive. Existing presets gain new optional fields. No `ThemeBun
 | `packages/slides/src/player/SlidePrintLayout.tsx` | **Update** — remove any `ResolvedDeckTheme` / `DeckTheme` references. Restyle using `--brewsite-*` variables |
 | `packages/slides/src/index.ts` | Remove all DeckTheme exports, add SlideTheme + SlideTemplate exports |
 
-**SlidePlayer.tsx integration points (5 areas that change):**
+**SlidePlayer.tsx integration points (6 areas that change):**
 
-The current `SlidePlayer.tsx` is 612 lines with five DeckTheme integration points. Each must be addressed:
+The current `SlidePlayer.tsx` is 612 lines with five DeckTheme integration points plus the SceneEngine ownership change (see "SlidePlayer Architecture Change" above). Each must be addressed:
 
-1. **Theme compilation** (currently line ~413): `compileDeckTheme(theme)` → **Delete.** No DeckTheme to resolve. `SlideTheme` is resolved by `themeCompiler.ts` into `--slide-*` CSS vars.
-2. **SceneEngine sceneTheme prop** (currently line ~540): `<SceneEngine sceneTheme={resolvedTheme.sceneTheme}>` → **Delete.** SceneTheme is now passed by the consumer on `<SceneEngine theme={...}>` outside `SlidePlayer`. SlidePlayer does not set sceneTheme.
-3. **Plugin creation** (currently line ~468): `slidesPlugin({ theme: resolvedTheme, navigation })` → **Change to** `slidesPlugin()` (zero-arg) or `slidesPlugin({ navigation })` if navigation config is still needed.
+1. **SceneEngine creation** (currently line ~537-576): `<SceneEngine id={id} plugins={allPlugins} sceneTheme={resolvedTheme.sceneTheme}>` → **Delete entirely.** SlidePlayer no longer creates SceneEngine. It renders EngineARContainer + children directly, expecting to be inside an externally-provided SceneEngine context. Remove `id`, `plugins`, and `onError` props from SlidePlayerProps. Remove the `allPlugins` memo (currently line ~460-473).
+2. **Theme compilation** (currently line ~413): `compileDeckTheme(theme)` → **Replace.** Resolve `SlideTheme` via `themeCompiler.ts` into `--slide-*` CSS vars. No DeckTheme involved.
+3. **Plugin creation** (currently line ~468): `slidesPlugin({ theme: resolvedTheme, navigation })` → **Delete from SlidePlayer.** Consumer registers `slidesPlugin()` (zero-arg) on their `<SceneEngine plugins={[...]}>`.
 4. **CSS var injection** (currently line ~493-496): Injects `--slide-*` vars from `resolvedTheme.cssVars` and manually injects `--brewsite-accent-color` → **Replace.** Inject `--slide-*` vars from resolved `SlideTheme` + `SlideTemplate`. Remove manual `--brewsite-accent-color` injection (now handled by `EngineOverlayHost` after Phase 0A).
 5. **Background color** (currently line ~503): Uses `resolvedTheme.background.color` for fullscreen background → **Delete.** Background comes from `SceneTheme.background` via `<BackgroundLayer>` or `EngineOverlayHost`'s `--brewsite-background-color`.
+6. **onSlideChange wiring** (currently line ~460-466): Wired through `corePlugin({ onSceneChange })` → **Replace** with `useVariable(SLIDE_META_NAMESPACE, 'currentLogicalIndex')` + `useEffect`. SlideMetaWidget already publishes `currentLogicalIndex` to VariableStore. SlidePlayer reads it reactively and fires `onSlideChange(index, slideKey)` when it changes. This eliminates the dependency on `corePlugin.onSceneChange` entirely.
 
 **CSS variable migration mapping:**
 
@@ -431,7 +558,11 @@ Swap `cinematicSlideTheme` → `compactSlideTheme` to change the feel. Swap `acm
 | `packages/slides/src/compiler/layoutCompiler.ts` | Rewrite — region computation for all 19 layouts |
 | `packages/slides/src/index.ts` | Updated exports |
 
-**Full layout set (19 layouts — 5 existing redesigned + 14 new):**
+**Full layout set (19 layouts — 5 existing redesigned + 14 new), shipped in two phases:**
+
+**Phase 1B Core (12 layouts — ship first):**
+
+These cover >90% of corporate deck patterns (pitch deck, QBR, all-hands). Each layout is an NVS region computation function (~30-50 lines) plus a DSL stub component (~10 lines).
 
 | Layout | Component | Regions | Description |
 |--------|-----------|---------|-------------|
@@ -445,15 +576,24 @@ Swap `cinematicSlideTheme` → `compactSlideTheme` to change the feel. Swap `acm
 | `big-number` | `<BigNumberSlide>` | 1-4 stat slots | Hero stat with optional supporting context |
 | `metric-grid` | `<MetricGridSlide>` | 3-4 cells | Row of KPI cards with labels |
 | `comparison` | `<ComparisonSlide>` | 2 columns + header labels | Side-by-side with labeled column headers |
-| `timeline` | `<TimelineSlide>` | Title + timeline body | Title bar + horizontal milestone timeline |
-| `process` | `<ProcessSlide>` | Title + steps | Title bar + sequential process steps |
 | `quote` | `<QuoteSlide>` | Quote + attribution | Large blockquote with source |
 | `agenda` | `<AgendaSlide>` | Title + list | Title bar + numbered/icon topic list |
+
+**Phase 1B+ Fast-Follow (7 layouts — ship after core is stable):**
+
+These are specialized layouts requiring more complex region computation (multi-cell grids, quadrant systems). They can be added incrementally without changing the core layout infrastructure.
+
+| Layout | Component | Regions | Description |
+|--------|-----------|---------|-------------|
+| `timeline` | `<TimelineSlide>` | Title + timeline body | Title bar + horizontal milestone timeline |
+| `process` | `<ProcessSlide>` | Title + steps | Title bar + sequential process steps |
 | `team` | `<TeamSlide>` | Title + grid | Title bar + photo/name grid |
 | `closing` | `<ClosingSlide>` | Centered CTA | Contact info, next steps, call to action |
 | `bento` | `<BentoSlide>` | 4-6 card cells | Modular asymmetric card grid |
 | `dashboard` | `<DashboardSlide>` | Title + 2-4 widget slots | Multi-chart/multi-stat data layout |
 | `matrix` | `<MatrixSlide>` | 4 quadrants + axis labels | 2x2 categorization grid |
+
+**Phasing rationale:** The 12 core layouts cover all three deck patterns in this plan (Pitch Deck, QBR, All-Hands). `closing` is deferred because `TitleSlide` serves as a stand-in for CTA/closing slides. `timeline`, `process`, `team`, `bento`, `dashboard`, and `matrix` require more complex multi-cell region computation and can ship as a fast-follow without blocking the initial release.
 
 **Naming change:** Old names (`TitleLayout`, `TitleBodyLayout`, etc.) are replaced with `*Slide` suffix for clarity — these are slide types, not generic layout primitives. This is a breaking rename.
 
@@ -646,6 +786,8 @@ function useEntrance(
 ```
 
 All hooks internally call `useSceneProgress()` from `@brewsite/core`.
+
+**`useSceneProgress` contract (verified):** `useSceneProgress(): number` returns a 0-1 number representing the current scene's progress. Defined in `packages/core/src/player/useSceneProgress.ts`. This is a simple reactive hook — no object wrapper, no metadata. The animation hooks can consume it directly as a 0-1 progress value.
 
 **Test plan for animation hooks:**
 - `useCountUp`: verify value at progress=0 returns `start`, progress=1 returns `target`, intermediate progress returns correctly eased value. Test with `decimals: 2`. Test with `delay: 0.5` (value stays at `start` until progress > 0.5).
@@ -1104,22 +1246,26 @@ The following items were identified in the research note but are intentionally o
 
 ```
 0A  Core: SceneTheme + EngineOverlayHost CSS vars ──┐
-0B  Themes: accentColor in scene presets ────────────┤
+0B  Themes: accentColor + textColors in presets ─────┤
                                                      │
-                                                     ├─→ 1A  Slides: SlideTheme + SceneTheme integration
-                                                     │    1B  Slides: Redesigned layout system (19 layouts)
-                                                     │    1C  Slides: Graphics components (13 components)
-                                                     │    1D  Slides: Animation hooks
-                                                     │    1E  Slides: Expanded transitions
+                                                     ├─→ 1A   Slides: SlideTheme + SceneTheme integration
+                                                     │         + SlidePlayer architecture change (SceneEngine externalized)
+                                                     │    1B   Slides: Core layouts (12 layouts)
+                                                     │    1C   Slides: Graphics components (13 components)
+                                                     │    1D   Slides: Animation hooks
+                                                     │    1E   Slides: Expanded transitions
                                                      │
-                                                     ├─→ 2A  Slides: SlideTemplate + brand assets
+                                                     ├─→ 1B+  Slides: Fast-follow layouts (7 layouts)
                                                      │
-                                                     └─→ 3A  Claude-author: slides/ docs directory (12 files)
-                                                          3B  Claude-author: gotchas + guide updates
+                                                     ├─→ 2A   Slides: SlideTemplate + brand assets
+                                                     │
+                                                     └─→ 3A   Claude-author: slides/ docs directory (12 files)
+                                                          3B   Claude-author: gotchas + guide updates
 ```
 
 Phase 0 items (0A, 0B) are independent and can be implemented in parallel.
-Phase 1 items: 1A should land first (establishes theme plumbing + `--slide-*` vars + CSS migration). 1B and 1D-1E can then be implemented in parallel. 1C (graphics components) should begin after 1A's `SlideTheme` type and CSS variable names are finalized — the component CSS needs stable variable names to reference, even if the injection code isn't fully wired yet.
+Phase 1 items: 1A should land first (establishes SlidePlayer architecture change + theme plumbing + `--slide-*` vars + CSS migration). 1B (core 12 layouts) and 1D-1E can then be implemented in parallel. 1C (graphics components) should begin after 1A's `SlideTheme` type and CSS variable names are finalized — the component CSS needs stable variable names to reference, even if the injection code isn't fully wired yet.
+Phase 1B+ (fast-follow 7 layouts) can ship anytime after 1B core is stable — no dependency on 1C/1D/1E.
 Phase 2 depends on Phase 1B (templates reference layouts).
 Phase 3 depends on Phases 1 and 2 being implemented — docs are written from source code, not PRDs.
 

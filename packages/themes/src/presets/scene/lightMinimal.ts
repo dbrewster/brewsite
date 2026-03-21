@@ -170,6 +170,13 @@ export const lightMinimalSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.15, brightness: 1.2, saturation: 0.2, depthMix: 0.2 },
   },
   highlightPalette: lightMinimalLightHighlights,
+  accentColor: '#6A94CD',
+  textColors: {
+    primary: '#223248',
+    secondary: '#6E7D92',
+    muted: '#A8B2C2',
+    surface: '#F3F6FB',
+  },
 };
 
 /** lightMinimal family, dark polarity. */
@@ -218,4 +225,11 @@ export const lightMinimalDarkSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.25, brightness: 1.1, saturation: 0.3, depthMix: 0.3 },
   },
   highlightPalette: lightMinimalDarkHighlights,
+  accentColor: '#7FAEEA',
+  textColors: {
+    primary: '#E8EDF5',
+    secondary: '#A8B2C2',
+    muted: '#6E7D92',
+    surface: '#252C35',
+  },
 };

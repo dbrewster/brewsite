@@ -3,8 +3,6 @@
 
 import React, { Children, isValidElement, type ReactElement } from 'react';
 import type { DeckSpec, SlideSpec, SlideTransition, SlideLayout } from '../types';
-import type { ResolvedDeckTheme } from '../types';
-import { compileDeckTheme } from './themeCompiler';
 import { compileLayout } from './layoutCompiler';
 import {
   Slide,
@@ -16,6 +14,24 @@ import {
   SlideContent,
   BulletList,
   NumberedList,
+  TitleSlide,
+  SectionSlide,
+  ContentSlide,
+  TwoColumnSlide,
+  ImageSlide,
+  FullBleedSlide,
+  BlankSlide,
+  BigNumberSlide,
+  MetricGridSlide,
+  ComparisonSlide,
+  QuoteSlide,
+  AgendaSlide,
+} from '../dsl';
+import type {
+  BigNumberSlideProps,
+  MetricGridSlideProps,
+  ComparisonSlideProps,
+  AgendaSlideProps,
 } from '../dsl';
 // DSL imports from @brewsite/core — used to construct <Scene> children
 import { TextBox, Scene, ProgressManager, Floor, Background, Lighting, Ambient, View } from '@brewsite/core';
@@ -26,8 +42,38 @@ import { SlideMetaDsl } from '../plugin';
 /** Two-column layout content — distinct from ReactNode so TypeScript narrows correctly. */
 type TwoColumnContent = { left: React.ReactNode; right: React.ReactNode };
 
+/** Title layout structured data. */
+type TitleContent = { _kind: 'title'; title: string; subtitle?: string; tagline?: string; alignment: string };
+
+/** Section layout structured data. */
+type SectionContent = { _kind: 'section'; title: string; subtitle?: string };
+
+/** Big-number layout structured data. */
+type BigNumberContent = { _kind: 'big-number'; stats: BigNumberSlideProps['stats'] };
+
+/** Metric-grid layout structured data. */
+type MetricGridContent = { _kind: 'metric-grid'; metrics: MetricGridSlideProps['metrics'] };
+
+/** Comparison layout structured data. */
+type ComparisonContent = { _kind: 'comparison'; headers: string[]; rows: ComparisonSlideProps['rows']; highlightColumn?: number };
+
+/** Quote layout structured data. */
+type QuoteContent = { _kind: 'quote'; quote: string; attribution: string; role?: string };
+
+/** Agenda layout structured data. */
+type AgendaContent = { _kind: 'agenda'; items: AgendaSlideProps['items'] };
+
 /** Union of possible contentChildren shapes produced by extractLayoutInfo. */
-type LayoutContentChildren = React.ReactNode | TwoColumnContent;
+type LayoutContentChildren =
+  | React.ReactNode
+  | TwoColumnContent
+  | TitleContent
+  | SectionContent
+  | BigNumberContent
+  | MetricGridContent
+  | ComparisonContent
+  | QuoteContent
+  | AgendaContent;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -44,6 +90,57 @@ function isTwoColumnContent(content: LayoutContentChildren): content is TwoColum
     'left' in (content as object) &&
     'right' in (content as object)
   );
+}
+
+/** Returns true when content has a _kind discriminant matching the given value. */
+function hasKind(content: LayoutContentChildren, kind: string): boolean {
+  return typeof content === 'object' && content !== null && '_kind' in (content as object) && (content as Record<string, unknown>)['_kind'] === kind;
+}
+
+/** Returns true when content is TitleContent. */
+function isTitleContent(content: LayoutContentChildren): content is TitleContent {
+  return hasKind(content, 'title');
+}
+
+/** Returns true when content is SectionContent. */
+function isSectionContent(content: LayoutContentChildren): content is SectionContent {
+  return hasKind(content, 'section');
+}
+
+/** Returns true when content is BigNumberContent. */
+function isBigNumberContent(content: LayoutContentChildren): content is BigNumberContent {
+  return hasKind(content, 'big-number');
+}
+
+/** Returns true when content is MetricGridContent. */
+function isMetricGridContent(content: LayoutContentChildren): content is MetricGridContent {
+  return hasKind(content, 'metric-grid');
+}
+
+/** Returns true when content is ComparisonContent. */
+function isComparisonContent(content: LayoutContentChildren): content is ComparisonContent {
+  return hasKind(content, 'comparison');
+}
+
+/** Returns true when content is QuoteContent. */
+function isQuoteContent(content: LayoutContentChildren): content is QuoteContent {
+  return hasKind(content, 'quote');
+}
+
+/** Returns true when content is AgendaContent. */
+function isAgendaContent(content: LayoutContentChildren): content is AgendaContent {
+  return hasKind(content, 'agenda');
+}
+
+/** Returns true when content is a structured data object (not ReactNode or TwoColumnContent). */
+function isStructuredContent(content: LayoutContentChildren): boolean {
+  return typeof content === 'object' && content !== null && '_kind' in (content as object);
+}
+
+/** Extracts ReactNode from LayoutContentChildren, returning null for structured or two-column content. */
+function asReactNode(content: LayoutContentChildren): React.ReactNode {
+  if (isTwoColumnContent(content) || isStructuredContent(content)) return null;
+  return content as React.ReactNode;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,6 +173,13 @@ function extractLayoutInfo(layoutElement: ReactElement<Record<string, unknown>>)
   hasTitle: boolean;
   contentChildren: LayoutContentChildren;
   overlayPosition?: 'top-left' | 'bottom-left' | 'top-right' | 'bottom-right' | 'center';
+  imageUrl?: string;
+  imageAlt?: string;
+  imageFit?: string;
+  imagePosition?: 'left' | 'right';
+  statCount?: number;
+  metricColumns?: number;
+  comparisonColumns?: number;
 } {
   const type = layoutElement.type;
   const props = layoutElement.props;
@@ -91,11 +195,11 @@ function extractLayoutInfo(layoutElement: ReactElement<Record<string, unknown>>)
         alignItems: alignment === 'center' ? 'center' : 'flex-start',
         justifyContent: 'center',
         height: '100%',
-        padding: 'var(--slide-padding, 8%)',
+        padding: 'var(--slide-content-padding)',
         textAlign: alignment === 'center' ? 'center' : 'left',
       }}>
-        {title && <h1 style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(2rem, 5vw, 4rem)', fontWeight: 700, color: 'var(--slide-color-heading)', margin: 0 }}>{title}</h1>}
-        {subtitle && <p style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(1rem, 2.5vw, 2rem)', color: 'var(--slide-color-body)', margin: '0.75em 0 0' }}>{subtitle}</p>}
+        {title && <h1 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(2rem, 5vw, 4rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{title}</h1>}
+        {subtitle && <p style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1rem, 2.5vw, 2rem)', color: 'var(--brewsite-text-secondary)', margin: '0.75em 0 0' }}>{subtitle}</p>}
       </div>
     );
     return { layout: 'title', title, hasTitle: !!title, contentChildren: content };
@@ -103,7 +207,7 @@ function extractLayoutInfo(layoutElement: ReactElement<Record<string, unknown>>)
 
   if (type === TitleBodyLayout) {
     const title = typeof props['title'] === 'string' ? props['title'] : undefined;
-    return { layout: 'title-body', title, hasTitle: !!title, contentChildren: props['children'] as React.ReactNode };
+    return { layout: 'content', title, hasTitle: !!title, contentChildren: props['children'] as React.ReactNode };
   }
 
   if (type === TwoColumnLayout) {
@@ -126,6 +230,115 @@ function extractLayoutInfo(layoutElement: ReactElement<Record<string, unknown>>)
     return { layout: 'blank', title: undefined, hasTitle: false, contentChildren: props['children'] as React.ReactNode };
   }
 
+  // ─── New Phase 1B Layout Components ──────────────────────────────────────
+
+  if (type === TitleSlide) {
+    const title = props['title'] as string;
+    const subtitle = props['subtitle'] as string | undefined;
+    const tagline = props['tagline'] as string | undefined;
+    const alignment = (props['alignment'] as string | undefined) ?? 'center';
+    return {
+      layout: 'title', title, hasTitle: true,
+      contentChildren: { _kind: 'title', title, subtitle, tagline, alignment },
+    };
+  }
+
+  if (type === SectionSlide) {
+    const title = props['title'] as string;
+    const subtitle = props['subtitle'] as string | undefined;
+    return { layout: 'section', title, hasTitle: true, contentChildren: { _kind: 'section', title, subtitle } };
+  }
+
+  if (type === ContentSlide) {
+    const title = props['title'] as string;
+    return { layout: 'content', title, hasTitle: true, contentChildren: props['children'] as React.ReactNode };
+  }
+
+  if (type === TwoColumnSlide) {
+    const title = props['title'] as string | undefined;
+    return {
+      layout: 'two-column', title, hasTitle: !!title,
+      contentChildren: { left: props['left'] as React.ReactNode, right: props['right'] as React.ReactNode },
+    };
+  }
+
+  if (type === ImageSlide) {
+    const title = props['title'] as string | undefined;
+    return {
+      layout: 'image', title, hasTitle: !!title,
+      contentChildren: props['children'] as React.ReactNode,
+      imageUrl: props['imageUrl'] as string,
+      imageAlt: props['imageAlt'] as string | undefined,
+      imageFit: (props['imageFit'] as string | undefined) ?? 'cover',
+      imagePosition: (props['imagePosition'] as 'left' | 'right' | undefined) ?? 'left',
+    };
+  }
+
+  if (type === FullBleedSlide) {
+    return {
+      layout: 'full-bleed', title: undefined, hasTitle: false,
+      contentChildren: props['children'] as React.ReactNode,
+      overlayPosition: props['overlayPosition'] as 'top-left' | 'bottom-left' | 'top-right' | 'bottom-right' | 'center' | undefined,
+    };
+  }
+
+  if (type === BlankSlide) {
+    return { layout: 'blank', title: undefined, hasTitle: false, contentChildren: props['children'] as React.ReactNode };
+  }
+
+  if (type === BigNumberSlide) {
+    const title = props['title'] as string | undefined;
+    return {
+      layout: 'big-number', title, hasTitle: !!title,
+      contentChildren: { _kind: 'big-number', stats: props['stats'] as BigNumberSlideProps['stats'] },
+      statCount: (props['stats'] as unknown[])?.length ?? 1,
+    };
+  }
+
+  if (type === MetricGridSlide) {
+    const title = props['title'] as string | undefined;
+    return {
+      layout: 'metric-grid', title, hasTitle: !!title,
+      contentChildren: { _kind: 'metric-grid', metrics: props['metrics'] as MetricGridSlideProps['metrics'] },
+      metricColumns: (props['columns'] as number | undefined) ?? 3,
+    };
+  }
+
+  if (type === ComparisonSlide) {
+    const title = props['title'] as string | undefined;
+    const headers = props['headers'] as string[];
+    return {
+      layout: 'comparison', title, hasTitle: !!title,
+      contentChildren: {
+        _kind: 'comparison',
+        headers,
+        rows: props['rows'] as ComparisonSlideProps['rows'],
+        highlightColumn: props['highlightColumn'] as number | undefined,
+      },
+      comparisonColumns: headers?.length,
+    };
+  }
+
+  if (type === QuoteSlide) {
+    return {
+      layout: 'quote', title: undefined, hasTitle: false,
+      contentChildren: {
+        _kind: 'quote',
+        quote: props['quote'] as string,
+        attribution: props['attribution'] as string,
+        role: props['role'] as string | undefined,
+      },
+    };
+  }
+
+  if (type === AgendaSlide) {
+    const title = props['title'] as string;
+    return {
+      layout: 'agenda', title, hasTitle: true,
+      contentChildren: { _kind: 'agenda', items: props['items'] as AgendaSlideProps['items'] },
+    };
+  }
+
   // Unknown layout — treat as blank
   return { layout: 'blank', title: undefined, hasTitle: false, contentChildren: null };
 }
@@ -137,7 +350,6 @@ function extractLayoutInfo(layoutElement: ReactElement<Record<string, unknown>>)
 function compileSlide(
   slideEl: ReactElement<Record<string, unknown>>,
   deckTransition: SlideTransition,
-  _theme: ResolvedDeckTheme,
 ): SlideSpec {
   const props = slideEl.props;
   const rawKey = typeof slideEl.key === 'string'
@@ -161,15 +373,17 @@ function compileSlide(
   const bodyContent = layoutInfo.contentChildren;
   let totalBullets: number;
   if (isTwoColumnContent(bodyContent)) {
-    // Two-column layout: count animated list items in both columns.
     totalBullets = countAnimatedListItems(bodyContent.left) + countAnimatedListItems(bodyContent.right);
+  } else if (isStructuredContent(bodyContent)) {
+    // Data-driven layouts (big-number, metric-grid, etc.) have no animated list items
+    totalBullets = 0;
   } else {
-    totalBullets = countAnimatedListItems(bodyContent);
+    totalBullets = countAnimatedListItems(bodyContent as React.ReactNode);
   }
   const hasAnimatedList = totalBullets > 0;
 
   // Determine default scrollUnits
-  const defaultScrollUnits = layoutInfo.layout === 'title' ? DEFAULT_SCROLL_UNITS_TITLE : DEFAULT_SCROLL_UNITS_BODY;
+  const defaultScrollUnits = (layoutInfo.layout === 'title' || layoutInfo.layout === 'section') ? DEFAULT_SCROLL_UNITS_TITLE : DEFAULT_SCROLL_UNITS_BODY;
   const scrollUnits = typeof props['scrollUnits'] === 'number' ? props['scrollUnits'] : defaultScrollUnits;
 
   // Compile NVS regions
@@ -177,6 +391,10 @@ function compileSlide(
     layout: layoutInfo.layout,
     hasTitle: layoutInfo.hasTitle,
     overlayPosition: layoutInfo.overlayPosition,
+    statCount: layoutInfo.statCount,
+    metricColumns: layoutInfo.metricColumns,
+    imagePosition: layoutInfo.imagePosition,
+    comparisonColumns: layoutInfo.comparisonColumns,
   });
 
   return {
@@ -199,11 +417,10 @@ function compileSlide(
  */
 export function compileDeck(
   slides: ReactElement<Record<string, unknown>>[],
-  theme: ResolvedDeckTheme,
   deckTransition: SlideTransition,
 ): DeckSpec {
-  const compiled = slides.map((s) => compileSlide(s, deckTransition, theme));
-  return { slides: compiled, theme, transition: deckTransition };
+  const compiled = slides.map((s) => compileSlide(s, deckTransition));
+  return { slides: compiled, transition: deckTransition };
 }
 
 /**
@@ -244,21 +461,52 @@ export function buildSceneElements(
     // Build TextBox children for each region
     const textBoxElements = slideSpec.regions.map((region) => {
       let regionContent: React.ReactNode = null;
+      const data = layoutInfo.contentChildren;
 
       if (slideSpec.layout === 'title') {
-        regionContent = isTwoColumnContent(layoutInfo.contentChildren) ? null : layoutInfo.contentChildren;
-      } else if (slideSpec.layout === 'title-body') {
-        if (region.id === 'title') {
+        // TitleSlide (structured data) or legacy TitleLayout (pre-rendered JSX)
+        if (isTitleContent(data)) {
           regionContent = (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-padding, 8%)' }}>
-              <h2 style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--slide-color-heading)', margin: 0 }}>{slideSpec.title}</h2>
+            <div style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: data.alignment === 'center' ? 'center' : 'flex-start',
+              justifyContent: 'center', height: '100%',
+              padding: 'var(--slide-content-padding)',
+              textAlign: data.alignment === 'center' ? 'center' : 'left',
+            }}>
+              <h1 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(2rem, 5vw, 4rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{data.title}</h1>
+              {data.subtitle && <p style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(1rem, 2.5vw, 2rem)', color: 'var(--brewsite-text-secondary)', margin: '0.75em 0 0' }}>{data.subtitle}</p>}
+              {data.tagline && <p style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)', color: 'var(--brewsite-text-muted)', margin: '0.5em 0 0' }}>{data.tagline}</p>}
             </div>
           );
         } else {
-          // body region — wrapped by SlidePlayer's SlideContentWithProgress for animated bullets
+          // Legacy TitleLayout — contentChildren is pre-rendered JSX
+          regionContent = asReactNode(data);
+        }
+      } else if (slideSpec.layout === 'section') {
+        if (isSectionContent(data)) {
+          regionContent = (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', height: '100%',
+              padding: 'var(--slide-content-padding)', textAlign: 'center',
+            }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.75rem, 4vw, 3.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{data.title}</h2>
+              {data.subtitle && <p style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(1rem, 2vw, 1.5rem)', color: 'var(--brewsite-text-secondary)', margin: '0.75em 0 0' }}>{data.subtitle}</p>}
+            </div>
+          );
+        }
+      } else if (slideSpec.layout === 'content') {
+        if (region.id === 'title') {
+          regionContent = (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
+            </div>
+          );
+        } else {
           const rawContent = (
-            <div style={{ height: '100%', padding: '0 var(--slide-padding, 8%) var(--slide-padding, 8%)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-gap, 1.5rem)' }}>
-              {isTwoColumnContent(layoutInfo.contentChildren) ? null : layoutInfo.contentChildren}
+            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
+              {asReactNode(data)}
             </div>
           );
           regionContent = wrapBodyContent
@@ -268,28 +516,212 @@ export function buildSceneElements(
       } else if (slideSpec.layout === 'two-column') {
         if (region.id === 'title') {
           regionContent = (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-padding, 8%)' }}>
-              <h2 style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--slide-color-heading)', margin: 0 }}>{slideSpec.title}</h2>
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
             </div>
           );
         } else {
-          const twoColContent = isTwoColumnContent(layoutInfo.contentChildren) ? layoutInfo.contentChildren : null;
+          const twoColContent = isTwoColumnContent(data) ? data : null;
           const colContent = region.id === 'left' ? twoColContent?.left : twoColContent?.right;
           regionContent = (
-            <div style={{ height: '100%', padding: '0 var(--slide-padding, 8%) var(--slide-padding, 8%)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-gap, 1.5rem)' }}>
+            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
               {colContent}
             </div>
           );
         }
+      } else if (slideSpec.layout === 'image') {
+        if (region.id === 'image') {
+          regionContent = (
+            <img
+              src={layoutInfo.imageUrl ?? ''}
+              alt={layoutInfo.imageAlt ?? ''}
+              style={{ width: '100%', height: '100%', objectFit: (layoutInfo.imageFit as 'cover' | 'contain') ?? 'cover' }}
+            />
+          );
+        } else if (region.id === 'title') {
+          regionContent = (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
+            </div>
+          );
+        } else {
+          // body region
+          const rawContent = (
+            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
+              {asReactNode(data)}
+            </div>
+          );
+          regionContent = wrapBodyContent
+            ? wrapBodyContent(slideSpec.key, slideSpec.totalBullets, rawContent)
+            : rawContent;
+        }
       } else if (slideSpec.layout === 'full-bleed') {
         regionContent = (
-          <div style={{ padding: 'var(--slide-padding, 8%)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            {isTwoColumnContent(layoutInfo.contentChildren) ? null : layoutInfo.contentChildren}
+          <div style={{ padding: 'var(--slide-content-padding)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {asReactNode(data)}
           </div>
         );
       } else if (slideSpec.layout === 'blank') {
-        // Blank layout — author's children fill the entire slide with no chrome.
-        regionContent = isTwoColumnContent(layoutInfo.contentChildren) ? null : layoutInfo.contentChildren;
+        regionContent = asReactNode(data);
+      } else if (slideSpec.layout === 'big-number') {
+        if (region.id === 'title') {
+          regionContent = (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
+            </div>
+          );
+        } else if (isBigNumberContent(data)) {
+          // stat-N regions
+          const statMatch = region.id.match(/^stat-(\d+)$/);
+          const statIndex = statMatch ? parseInt(statMatch[1], 10) : 0;
+          const stat = data.stats[statIndex];
+          if (stat) {
+            regionContent = (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', height: '100%', textAlign: 'center',
+                padding: 'var(--brewsite-spacing-md)',
+              }}>
+                <span style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(2rem, 6vw, 4.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', lineHeight: 1.1 }}>{stat.value}</span>
+                <span style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'var(--brewsite-font-size-body)', color: 'var(--brewsite-text-secondary)', marginTop: 'var(--brewsite-spacing-sm)' }}>{stat.label}</span>
+                {stat.trend && (
+                  <span style={{
+                    fontFamily: 'var(--brewsite-font-family)', fontSize: 'var(--brewsite-font-size-caption)',
+                    color: stat.trendDirection === 'up' ? 'var(--brewsite-color-success)'
+                         : stat.trendDirection === 'down' ? 'var(--brewsite-color-error)'
+                         : 'var(--brewsite-text-muted)',
+                    marginTop: 'var(--brewsite-spacing-xs)',
+                  }}>{stat.trend}</span>
+                )}
+              </div>
+            );
+          }
+        }
+      } else if (slideSpec.layout === 'metric-grid') {
+        if (region.id === 'title') {
+          regionContent = (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
+            </div>
+          );
+        } else if (isMetricGridContent(data)) {
+          const metricMatch = region.id.match(/^metric-(\d+)$/);
+          const metricIndex = metricMatch ? parseInt(metricMatch[1], 10) : 0;
+          const metric = data.metrics[metricIndex];
+          if (metric) {
+            regionContent = (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', height: '100%', textAlign: 'center',
+                padding: 'var(--brewsite-spacing-md)',
+                background: 'var(--brewsite-surface-elevated)',
+                borderRadius: 'var(--brewsite-radius-md)',
+                border: '1px solid var(--brewsite-border-subtle)',
+              }}>
+                {metric.icon && <div style={{ marginBottom: 'var(--brewsite-spacing-sm)', fontSize: '1.5rem' }}>{metric.icon}</div>}
+                <span style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)' }}>{metric.value}</span>
+                <span style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'var(--brewsite-font-size-caption)', color: 'var(--brewsite-text-secondary)', marginTop: 'var(--brewsite-spacing-xs)' }}>{metric.label}</span>
+              </div>
+            );
+          }
+        }
+      } else if (slideSpec.layout === 'comparison') {
+        if (region.id === 'title') {
+          regionContent = (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
+            </div>
+          );
+        } else if (isComparisonContent(data)) {
+          regionContent = (
+            <div style={{ height: '100%', padding: 'var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--brewsite-font-family)' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: 'var(--brewsite-spacing-sm) var(--brewsite-spacing-md)', color: 'var(--brewsite-text-muted)', fontSize: 'var(--brewsite-font-size-caption)', borderBottom: '1px solid var(--brewsite-border-subtle)' }}></th>
+                    {data.headers.map((h: string, hi: number) => (
+                      <th key={hi} style={{
+                        textAlign: 'center', padding: 'var(--brewsite-spacing-sm) var(--brewsite-spacing-md)',
+                        color: hi === data.highlightColumn ? 'var(--brewsite-accent-color)' : 'var(--brewsite-text-primary)',
+                        fontSize: 'var(--brewsite-font-size-body)', fontWeight: 600,
+                        borderBottom: '1px solid var(--brewsite-border-subtle)',
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.rows.map((row, ri: number) => (
+                    <tr key={ri}>
+                      <td style={{ padding: 'var(--brewsite-spacing-sm) var(--brewsite-spacing-md)', color: 'var(--brewsite-text-primary)', fontSize: 'var(--brewsite-font-size-body)' }}>{row.feature}</td>
+                      {row.values.map((cell, ci: number) => (
+                        <td key={ci} style={{
+                          textAlign: 'center', padding: 'var(--brewsite-spacing-sm) var(--brewsite-spacing-md)',
+                          color: ci === data.highlightColumn ? 'var(--brewsite-accent-color)' : 'var(--brewsite-text-secondary)',
+                        }}>
+                          {cell.kind === 'check' ? (cell.value ? '\u2713' : '\u2717') : String(cell.value)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+      } else if (slideSpec.layout === 'quote') {
+        if (isQuoteContent(data)) {
+          if (region.id === 'quote') {
+            regionContent = (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                height: '100%', padding: 'var(--slide-content-padding)', textAlign: 'center',
+              }}>
+                <blockquote style={{
+                  fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.25rem, 2.5vw, 2rem)',
+                  fontWeight: 400, fontStyle: 'italic', color: 'var(--brewsite-text-primary)',
+                  margin: 0, lineHeight: 1.5, position: 'relative',
+                  paddingLeft: '1.5em', borderLeft: '3px solid var(--brewsite-accent-color)',
+                }}>
+                  {data.quote}
+                </blockquote>
+              </div>
+            );
+          } else if (region.id === 'attribution') {
+            regionContent = (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', height: '100%' }}>
+                <span style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'var(--brewsite-font-size-body)', color: 'var(--brewsite-text-secondary)' }}>
+                  — {data.attribution}{data.role ? `, ${data.role}` : ''}
+                </span>
+              </div>
+            );
+          }
+        }
+      } else if (slideSpec.layout === 'agenda') {
+        if (region.id === 'title') {
+          regionContent = (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', padding: '0 var(--slide-content-padding)' }}>
+              <h2 style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--brewsite-text-primary)', margin: 0 }}>{slideSpec.title}</h2>
+            </div>
+          );
+        } else if (isAgendaContent(data)) {
+          regionContent = (
+            <div style={{
+              height: '100%', padding: 'var(--slide-content-padding)', overflow: 'hidden',
+              display: 'flex', flexDirection: 'column', justifyContent: 'center',
+              gap: 'var(--slide-content-gap)',
+            }}>
+              {data.items.map((item, ai: number) => (
+                <div key={ai} style={{ display: 'flex', gap: 'var(--brewsite-spacing-md)', alignItems: 'flex-start' }}>
+                  <span style={{ fontFamily: 'var(--brewsite-font-heading)', fontSize: 'var(--brewsite-font-size-body)', fontWeight: 600, color: 'var(--brewsite-accent-color)', minWidth: '2rem' }}>{ai + 1}.</span>
+                  <div>
+                    <span style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'var(--brewsite-font-size-body)', color: 'var(--brewsite-text-primary)', fontWeight: 500 }}>{item.label}</span>
+                    {item.description && <p style={{ fontFamily: 'var(--brewsite-font-family)', fontSize: 'var(--brewsite-font-size-caption)', color: 'var(--brewsite-text-secondary)', margin: '0.25em 0 0' }}>{item.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        }
       }
 
       return React.createElement(
@@ -311,11 +743,10 @@ export function buildSceneElements(
       Scene,
       { key: slideSpec.key, id: slideSpec.key },
       React.createElement(ProgressManager, { key: 'pm', scrollUnits: slideSpec.scrollUnits }),
-      // Inject scene environment: disable floor, set background from theme, provide ambient light.
-      // Without these, the default floor (enabled grid) and missing background would render
-      // unwanted 3D artefacts behind the slide overlay.
+      // Inject scene environment: disable floor, set theme-driven background, provide ambient light.
+      // Background with no color prop is a no-op — BackgroundLayer handles SceneTheme-driven backgrounds.
       React.createElement(Floor, { key: 'floor', enabled: false }),
-      React.createElement(Background, { key: 'bg', color: spec.theme.background.color }),
+      React.createElement(Background, { key: 'bg' }),
       React.createElement(Lighting, { key: 'lighting' },
         React.createElement(Ambient, { key: 'ambient', intensity: 1, color: '#ffffff' }),
       ),
@@ -332,13 +763,6 @@ export function buildSceneElements(
       }),
       ...textBoxElements,
       // Inject author's 3D scene DSL (Diagram, Chart, Camera overrides, etc.)
-      // Wrapped in a fullscreen <View> so the scene view constraint never fires.
-      // Without this, SlideMetaDsl + a spatial element (Diagram, BarChart) would
-      // be two direct Scene children, triggering the "multiple spatial elements"
-      // error. The View is fullscreen (0,0,1,1) so child NVS positions compose
-      // through as-is. Ambient children (Camera, Lighting, Floor) compile normally
-      // inside the View — their NodeHandlers write to api.state which delegates
-      // to the parent scene context.
       ...(slideSpec.sceneDsl
         ? [React.createElement(
             View,
@@ -356,6 +780,3 @@ export function buildSceneElements(
     );
   });
 }
-
-// Re-export compileDeckTheme for convenience — SlidePlayer imports from here
-export { compileDeckTheme };

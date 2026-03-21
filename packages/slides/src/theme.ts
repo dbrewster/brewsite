@@ -1,56 +1,140 @@
-// Built-in DeckTheme instances and factory function.
+// SlideTheme defaults, named presets, and factory function.
 
-import type { DeckTheme } from './types';
+import type { SlideTheme } from './types';
 
-export const defaultDeckTheme: DeckTheme = {
-  fonts: {
-    heading: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  },
-  colorMode: 'light',
-  accentColor: '#2563eb',
-  background: { color: '#ffffff' },
-  colors: {
-    heading: '#111111',
-    body: '#374151',
-    surface: '#f3f4f6',
-    muted: '#9ca3af',
-  },
-  spacing: { slide: '8%', stack: '1.5rem' },
-  border: { radius: '0.5rem' },
+/** Utility type for deep-partial overrides. */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
-export const darkDeckTheme: DeckTheme = {
-  fonts: {
-    heading: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+// ─── Default SlideTheme ──────────────────────────────────────────────────────
+
+/** Default SlideTheme — balanced for general-purpose presentations. */
+export const defaultSlideTheme: SlideTheme = {
+  timing: {
+    transitionDuration: '300ms',
+    entranceDuration: 0.3,
+    entranceDistance: '24px',
+    staggerDelay: 0.08,
+    countUpDuration: 0.6,
   },
-  colorMode: 'dark',
-  accentColor: '#60a5fa',
-  background: { color: '#0f172a' },
-  colors: {
-    heading: '#f8fafc',
-    body: '#cbd5e1',
-    surface: '#1e293b',
-    muted: '#64748b',
+  density: {
+    contentPadding: '48px',
+    contentGap: '16px',
+    titleHeight: 0.18,
+    gutter: 0.02,
   },
-  spacing: { slide: '8%', stack: '1.5rem' },
-  border: { radius: '0.5rem' },
+  typography: {
+    headingScale: 1.2,
+    bodyScale: 1.1,
+    captionScale: 1.0,
+  },
+  components: {
+    cardBorderWidth: '1px',
+    timelineConnectorWidth: '2px',
+    timelineDotSize: '12px',
+    progressRingSize: '64px',
+    progressRingThickness: '4px',
+  },
 };
 
-/**
- * Creates a DeckTheme by merging partial overrides with the default light theme.
- * Deep-merges nested objects; top-level fields from overrides win.
- */
-export function createDeckTheme(overrides: Partial<DeckTheme>): DeckTheme {
-  const border: DeckTheme['border'] = {
-    radius: overrides.border?.radius ?? defaultDeckTheme.border?.radius ?? '0.5rem',
-  };
+// ─── Named Presets ───────────────────────────────────────────────────────────
+
+/** Tight, fast. McKinsey / data-heavy decks. */
+export const compactSlideTheme: SlideTheme = {
+  timing: {
+    transitionDuration: '200ms',
+    entranceDuration: 0.2,
+    entranceDistance: '16px',
+    staggerDelay: 0.05,
+    countUpDuration: 0.4,
+  },
+  density: {
+    contentPadding: '32px',
+    contentGap: '12px',
+    titleHeight: 0.14,
+    gutter: 0.015,
+  },
+  typography: {
+    headingScale: 1.0,
+    bodyScale: 1.0,
+    captionScale: 0.9,
+  },
+  components: {
+    cardBorderWidth: '1px',
+    timelineConnectorWidth: '1.5px',
+    timelineDotSize: '10px',
+    progressRingSize: '56px',
+    progressRingThickness: '3px',
+  },
+};
+
+/** Spacious, slow. Apple keynote feel. */
+export const cinematicSlideTheme: SlideTheme = {
+  timing: {
+    transitionDuration: '500ms',
+    entranceDuration: 0.5,
+    entranceDistance: '32px',
+    staggerDelay: 0.12,
+    countUpDuration: 0.8,
+  },
+  density: {
+    contentPadding: '64px',
+    contentGap: '24px',
+    titleHeight: 0.22,
+    gutter: 0.03,
+  },
+  typography: {
+    headingScale: 1.4,
+    bodyScale: 1.15,
+    captionScale: 1.0,
+  },
+  components: {
+    cardBorderWidth: '1px',
+    timelineConnectorWidth: '2px',
+    timelineDotSize: '14px',
+    progressRingSize: '72px',
+    progressRingThickness: '5px',
+  },
+};
+
+/** Clean, snappy. No stagger, fast transitions. */
+export const minimalSlideTheme: SlideTheme = {
+  timing: {
+    transitionDuration: '250ms',
+    entranceDuration: 0.25,
+    entranceDistance: '20px',
+    staggerDelay: 0,
+    countUpDuration: 0.5,
+  },
+  density: {
+    contentPadding: '40px',
+    contentGap: '14px',
+    titleHeight: 0.16,
+    gutter: 0.02,
+  },
+  typography: {
+    headingScale: 1.1,
+    bodyScale: 1.0,
+    captionScale: 1.0,
+  },
+  components: {
+    cardBorderWidth: '1px',
+    timelineConnectorWidth: '2px',
+    timelineDotSize: '12px',
+    progressRingSize: '64px',
+    progressRingThickness: '4px',
+  },
+};
+
+// ─── Factory ─────────────────────────────────────────────────────────────────
+
+/** Creates a SlideTheme by deep-merging overrides into defaultSlideTheme. */
+export function createSlideTheme(overrides: DeepPartial<SlideTheme>): SlideTheme {
   return {
-    ...defaultDeckTheme,
-    ...overrides,
-    fonts: { ...defaultDeckTheme.fonts, ...overrides.fonts },
-    background: { ...defaultDeckTheme.background, ...overrides.background },
-    colors: { ...defaultDeckTheme.colors, ...overrides.colors },
-    spacing: { ...defaultDeckTheme.spacing, ...overrides.spacing },
-    border,
+    timing: { ...defaultSlideTheme.timing, ...overrides.timing },
+    density: { ...defaultSlideTheme.density, ...overrides.density },
+    typography: { ...defaultSlideTheme.typography, ...overrides.typography },
+    components: { ...defaultSlideTheme.components, ...overrides.components },
   };
 }

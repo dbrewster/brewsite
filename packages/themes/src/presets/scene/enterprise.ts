@@ -168,6 +168,13 @@ export const enterpriseSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.5, brightness: .2, saturation: 0.7 },
   },
   highlightPalette: enterpriseDarkHighlights,
+  accentColor: '#4F76B8',
+  textColors: {
+    primary: '#E5EEFA',
+    secondary: '#A8B8CF',
+    muted: '#5A6D86',
+    surface: '#1E324F',
+  },
 };
 
 /** Enterprise family, light polarity. */
@@ -216,4 +223,11 @@ export const enterpriseLightSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.35, brightness: 1.2 },
   },
   highlightPalette: enterpriseLightHighlights,
+  accentColor: '#5E7EA9',
+  textColors: {
+    primary: '#1F334E',
+    secondary: '#5A6D86',
+    muted: '#A8B8CF',
+    surface: '#FFFFFF',
+  },
 };

@@ -170,6 +170,13 @@ export const neonCyberSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.6, iridescence: 0.2, brightness: .3, iridescenceIOR: 0.8 },
   },
   highlightPalette: neonCyberDarkHighlights,
+  accentColor: '#8A3DFF',
+  textColors: {
+    primary: '#D8CCFF',
+    secondary: '#9688D6',
+    muted: '#516498',
+    surface: '#0C183A',
+  },
 };
 
 /** neonCyber family, light polarity. */
@@ -217,4 +224,11 @@ export const neonCyberLightSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.6, brightness: 0.85, saturation: 1.4, iridescence: 0.75 },
   },
   highlightPalette: neonCyberLightHighlights,
+  accentColor: '#11C9E8',
+  textColors: {
+    primary: '#1E2F5A',
+    secondary: '#516498',
+    muted: '#9688D6',
+    surface: '#F8FBFF',
+  },
 };

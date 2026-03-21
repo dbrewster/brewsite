@@ -6,8 +6,13 @@ import { describe, it, expect } from 'vitest';
 import type {
   SlideLayout,
   SlideTransition,
-  DeckTheme,
-  ResolvedDeckTheme,
+  SlideTheme,
+  SlideTemplate,
+  BrandAsset,
+  ResolvedSlideConfig,
+  EntranceType,
+  SlideRegionEntrance,
+  ComparisonCellValue,
   SlideRegion,
   SlideSpec,
   DeckSpec,
@@ -18,16 +23,50 @@ import type {
 } from '../types';
 
 describe('SlideLayout', () => {
-  it('accepts all valid variants', () => {
-    const layouts: SlideLayout[] = ['title', 'title-body', 'two-column', 'full-bleed', 'blank'];
-    expect(layouts).toHaveLength(5);
+  it('accepts all 19 valid variants', () => {
+    const layouts: SlideLayout[] = [
+      'title', 'section', 'content', 'two-column', 'image', 'full-bleed', 'blank',
+      'big-number', 'metric-grid', 'comparison', 'quote', 'agenda',
+      'timeline', 'process', 'team', 'closing', 'bento', 'dashboard', 'matrix',
+    ];
+    expect(layouts).toHaveLength(19);
   });
 });
 
 describe('SlideTransition', () => {
-  it('accepts all valid variants', () => {
-    const transitions: SlideTransition[] = ['dissolve', 'none'];
-    expect(transitions).toHaveLength(2);
+  it('accepts all 9 valid variants', () => {
+    const transitions: SlideTransition[] = [
+      'dissolve', 'cut', 'fade', 'push-left', 'push-right',
+      'push-up', 'push-down', 'zoom-in', 'zoom-out',
+    ];
+    expect(transitions).toHaveLength(9);
+  });
+});
+
+describe('EntranceType', () => {
+  it('accepts all 7 valid variants', () => {
+    const entrances: EntranceType[] = [
+      'fadeIn', 'slideUp', 'slideDown', 'slideLeft', 'slideRight', 'grow', 'none',
+    ];
+    expect(entrances).toHaveLength(7);
+  });
+});
+
+describe('SlideRegionEntrance', () => {
+  it('accepts empty object', () => {
+    const entrance: SlideRegionEntrance = {};
+    expect(entrance.stagger).toBeUndefined();
+  });
+
+  it('accepts fully specified config', () => {
+    const entrance: SlideRegionEntrance = {
+      title: 'fadeIn',
+      body: 'slideUp',
+      left: 'slideLeft',
+      right: 'slideRight',
+      stagger: 0.1,
+    };
+    expect(entrance.stagger).toBe(0.1);
   });
 });
 
@@ -38,43 +77,113 @@ describe('ProgressStyle', () => {
   });
 });
 
-describe('DeckTheme', () => {
+describe('SlideTheme', () => {
   it('accepts a fully specified theme', () => {
-    const theme: DeckTheme = {
-      fonts: { heading: 'Inter, sans-serif', body: 'Georgia', mono: 'Menlo' },
-      colorMode: 'dark',
-      accentColor: '#6b48ff',
-      background: { color: '#0a0a14', gradient: 'linear-gradient(180deg, #000, #111)' },
-      colors: {
-        heading: '#ffffff',
-        body: '#cccccc',
-        surface: '#1a1a2e',
-        muted: '#888888',
+    const theme: SlideTheme = {
+      timing: {
+        transitionDuration: '300ms',
+        entranceDuration: 0.3,
+        entranceDistance: '24px',
+        staggerDelay: 0.08,
+        countUpDuration: 0.6,
       },
-      spacing: { slide: '10%', stack: '2rem' },
-      border: { radius: '0.75rem' },
+      density: {
+        contentPadding: '48px',
+        contentGap: '16px',
+        titleHeight: 0.18,
+        gutter: 0.02,
+      },
+      typography: {
+        headingScale: 1.2,
+        bodyScale: 1.1,
+        captionScale: 1.0,
+      },
+      components: {
+        cardBorderWidth: '1px',
+        timelineConnectorWidth: '2px',
+        timelineDotSize: '12px',
+        progressRingSize: '64px',
+        progressRingThickness: '4px',
+      },
     };
-    expect(theme.colorMode).toBe('dark');
-    expect(theme.fonts.heading).toBe('Inter, sans-serif');
+    expect(theme.timing.transitionDuration).toBe('300ms');
+  });
+});
+
+describe('SlideTemplate', () => {
+  it('accepts a fully specified template', () => {
+    const template: SlideTemplate = {
+      name: 'Corporate',
+      brand: {
+        logo: { src: '/logo.svg', alt: 'Logo' },
+        wordmark: { src: '/wordmark.svg' },
+        icon: { src: '/icon.svg', aspectRatio: '1/1' },
+      },
+      master: {
+        logo: { asset: 'logo', position: 'top-left', size: '40px', opacity: 0.8 },
+        footer: { text: '© 2026', showPageNumbers: true, position: 'bottom-right' },
+        watermark: { text: 'Draft', opacity: 0.1 },
+      },
+      defaultTransition: 'dissolve',
+      defaultProgressIndicator: 'dots',
+    };
+    expect(template.name).toBe('Corporate');
   });
 
-  it('accepts a minimal theme (no optional fields)', () => {
-    const theme: DeckTheme = {
-      fonts: { heading: 'system-ui' },
-      colorMode: 'light',
-      background: { color: '#ffffff' },
-      colors: {
-        heading: '#000000',
-        body: '#333333',
-        surface: '#f0f0f0',
-        muted: '#999999',
+  it('accepts a minimal template', () => {
+    const template: SlideTemplate = { name: 'Minimal' };
+    expect(template.name).toBe('Minimal');
+  });
+});
+
+describe('BrandAsset', () => {
+  it('accepts required and optional fields', () => {
+    const asset: BrandAsset = { src: '/logo.svg', alt: 'Logo', aspectRatio: '16/9' };
+    expect(asset.src).toBe('/logo.svg');
+  });
+});
+
+describe('ResolvedSlideConfig', () => {
+  it('has slideTheme and cssVars', () => {
+    const config: ResolvedSlideConfig = {
+      slideTheme: {
+        timing: {
+          transitionDuration: '300ms',
+          entranceDuration: 0.3,
+          entranceDistance: '24px',
+          staggerDelay: 0.08,
+          countUpDuration: 0.6,
+        },
+        density: { contentPadding: '48px', contentGap: '16px', titleHeight: 0.18, gutter: 0.02 },
+        typography: { headingScale: 1.2, bodyScale: 1.1, captionScale: 1.0 },
+        components: {
+          cardBorderWidth: '1px',
+          timelineConnectorWidth: '2px',
+          timelineDotSize: '12px',
+          progressRingSize: '64px',
+          progressRingThickness: '4px',
+        },
       },
-      spacing: { slide: '8%', stack: '1.5rem' },
+      cssVars: { '--slide-content-padding': '48px' },
     };
-    expect(theme.colorMode).toBe('light');
-    expect(theme.fonts.body).toBeUndefined();
-    expect(theme.border).toBeUndefined();
-    expect(theme.accentColor).toBeUndefined();
+    expect(config.cssVars['--slide-content-padding']).toBe('48px');
+  });
+});
+
+describe('ComparisonCellValue', () => {
+  it('accepts check variant', () => {
+    const cell: ComparisonCellValue = { kind: 'check', value: true };
+    expect(cell.kind).toBe('check');
+  });
+
+  it('accepts text variant', () => {
+    const cell: ComparisonCellValue = { kind: 'text', value: 'Yes' };
+    expect(cell.kind).toBe('text');
+  });
+
+  it('accepts number variant', () => {
+    const cell: ComparisonCellValue = { kind: 'number', value: 42 };
+    expect(cell.kind).toBe('number');
   });
 });
 
@@ -90,10 +199,6 @@ describe('SlideRegion', () => {
     };
     expect(region.id).toBe('title');
     expect(typeof region.x).toBe('number');
-    expect(typeof region.y).toBe('number');
-    expect(typeof region.w).toBe('number');
-    expect(typeof region.h).toBe('number');
-    expect(typeof region.layer).toBe('number');
   });
 });
 
@@ -101,7 +206,7 @@ describe('SlideSpec', () => {
   it('has all required fields', () => {
     const spec: SlideSpec = {
       key: 'intro',
-      layout: 'title-body',
+      layout: 'content',
       transition: 'dissolve',
       notes: 'Talk about the problem',
       scrollUnits: 400,
@@ -118,7 +223,7 @@ describe('SlideSpec', () => {
     const spec: SlideSpec = {
       key: 'blank',
       layout: 'blank',
-      transition: 'none',
+      transition: 'cut',
       notes: undefined,
       scrollUnits: 100,
       regions: [],
@@ -128,6 +233,18 @@ describe('SlideSpec', () => {
     };
     expect(spec.notes).toBeUndefined();
     expect(spec.title).toBeUndefined();
+  });
+});
+
+describe('DeckSpec', () => {
+  it('has slides and transition but no theme', () => {
+    const deck: DeckSpec = {
+      slides: [],
+      transition: 'dissolve',
+    };
+    expect(deck.slides).toHaveLength(0);
+    expect(deck.transition).toBe('dissolve');
+    expect('theme' in deck).toBe(false);
   });
 });
 
@@ -170,37 +287,6 @@ describe('SlidePlayerHandle interface shape', () => {
       captureSlideSnapshots: (): Promise<Map<string, string>> => Promise.resolve(new Map()),
     };
     expect(typeof handle.goTo).toBe('function');
-    expect(typeof handle.next).toBe('function');
-    expect(typeof handle.prev).toBe('function');
     expect(typeof handle.captureSlideSnapshots).toBe('function');
-  });
-});
-
-describe('ResolvedDeckTheme', () => {
-  it('extends DeckTheme with sceneTheme and cssVars', () => {
-    // Construct a minimal ResolvedDeckTheme — if type is wrong, this won't compile
-    const resolved: ResolvedDeckTheme = {
-      fonts: { heading: 'Inter', body: 'Georgia', mono: 'Menlo' },
-      colorMode: 'light',
-      accentColor: '#000000',
-      background: { color: '#fff', gradient: undefined },
-      colors: { heading: '#000', body: '#333', surface: '#f0f0f0', muted: '#999' },
-      spacing: { slide: '8%', stack: '1.5rem' },
-      border: { radius: '0.5rem' },
-      sceneTheme: {
-        colorMode: 'light',
-        font: { htmlFamily: 'Inter' },
-        fontSize: {
-          heading: 2.4,
-          body: 1.0,
-          label: 1.0,
-          caption: 1.0,
-          annotation: 0.7,
-        },
-      },
-      cssVars: { '--slide-padding': '8%' },
-    };
-    expect(resolved.sceneTheme.colorMode).toBe('light');
-    expect(resolved.cssVars['--slide-padding']).toBe('8%');
   });
 });

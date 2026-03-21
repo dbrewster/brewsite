@@ -3,7 +3,7 @@ title: Common Gotchas
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-19
+updated: 2026-03-20
 ---
 
 ## Entry Transition on the Wrong Scene
@@ -448,4 +448,165 @@ const bounds = api.composeBounds(localBounds);
 const z = api.composeZ(props.z ?? 0);
 const opacity = api.composeOpacity(props.opacity ?? 1);
 api.setWidgetState(widgetId, { ...state, bounds, z, opacity });
+```
+
+---
+
+## Slide Layout Children Are Not React Renders
+
+**Symptom:** Content passed as children to a layout component (e.g., `<ContentSlide>`) doesn't appear, or appears unstyled outside the slide region.
+
+**Cause:** Layout components (`<ContentSlide>`, `<TitleSlide>`, etc.) return `null` — they are compiled by the deck compiler, not rendered as React components. Children are extracted during compilation and placed into the computed NVS regions.
+
+**Rule:** Layout components are DSL stubs. Place text primitives (`<Heading>`, `<BulletList>`, `<Body>`) or graphics components (`<StatCard>`, `<Timeline>`) as children. Do not wrap them in custom `<div>` containers with positioning — the layout compiler handles positioning.
+
+**Wrong:**
+```tsx
+<Slide key="data">
+  <ContentSlide title="Revenue">
+    <div style={{ position: 'absolute', top: 100 }}>  {/* Don't position manually */}
+      <StatCard value="$12M" label="Revenue" />
+    </div>
+  </ContentSlide>
+</Slide>
+```
+
+**Correct:**
+```tsx
+<Slide key="data">
+  <ContentSlide title="Revenue">
+    <StatCard value="$12M" label="Revenue" />  {/* Layout compiler handles positioning */}
+  </ContentSlide>
+</Slide>
+```
+
+---
+
+## SceneTheme vs SlideTheme Confusion
+
+**Symptom:** Changing `slideTheme` doesn't affect colors or fonts. Changing `SceneTheme` doesn't affect animation timing or content density.
+
+**Cause:** Mixing up the three customization axes.
+
+**Rule:** `SceneTheme` (on `<SceneEngine>`) controls colors, fonts, spacing — all `--brewsite-*` CSS variables. `SlideTheme` (on `<SlidePlayer slideTheme={...}>`) controls timing, density, typography scale — all `--slide-*` CSS variables. `SlideTemplate` (on `<SlidePlayer template={...}>`) controls corporate branding. They are independent — each controls a different concern.
+
+**Wrong:**
+```tsx
+// Expecting slideTheme to change colors — it won't
+<SlidePlayer slideTheme={createSlideTheme({ /* no color fields exist here */ })}>
+```
+
+**Correct:**
+```tsx
+// Colors come from SceneTheme on the parent SceneEngine
+<SceneEngine theme="darkGlass" plugins={[corePlugin(), slidesPlugin()]}>
+  {/* Timing/density come from SlideTheme on SlidePlayer */}
+  <SlidePlayer slideTheme={compactSlideTheme}>
+    ...
+  </SlidePlayer>
+</SceneEngine>
+```
+
+---
+
+## Using sceneDsl Without Camera or Lighting
+
+**Symptom:** 3D content (diagrams, charts, models) inside a slide via `sceneDsl` appears black, unlit, or positioned incorrectly.
+
+**Cause:** The `sceneDsl` prop injects 3D elements into the scene, but SlidePlayer does not provide default Camera or Lighting. Without them, the 3D content has no viewpoint and no illumination.
+
+**Rule:** Always include `<Camera>` and `<Lighting>` inside `sceneDsl` when adding 3D content to a slide.
+
+**Wrong:**
+```tsx
+<Slide key="arch" sceneDsl={<Diagram id="arch"><DiagramNode id="api" label="API" /></Diagram>}>
+  <ContentSlide title="Architecture"><Body>Our system.</Body></ContentSlide>
+</Slide>
+```
+
+**Correct:**
+```tsx
+<Slide key="arch" sceneDsl={
+  <>
+    <Camera mode="world" position={[0, 1.5, 5]} target={[0, 0.5, 0]} />
+    <Lighting><Ambient intensity={0.8} /></Lighting>
+    <Diagram id="arch"><DiagramNode id="api" label="API" size={[0.15, 0.08]} /></Diagram>
+  </>
+}>
+  <ContentSlide title="Architecture"><Body>Our system.</Body></ContentSlide>
+</Slide>
+```
+
+---
+
+## Graphics Components Must Be Inside Layout Children
+
+**Symptom:** A `<StatCard>` or `<Timeline>` placed directly inside `<Slide>` (not inside a layout component) doesn't appear, or renders as raw overlay content outside slide regions.
+
+**Cause:** Graphics components are real React components, but they must be placed as children of a layout component (`<ContentSlide>`, `<BigNumberSlide>`, etc.) so the deck compiler places them into the correct NVS region.
+
+**Rule:** Always wrap graphics components in a layout. Use `<BlankSlide>` for full manual control.
+
+**Wrong:**
+```tsx
+<Slide key="stats">
+  <StatCard value="99.9%" label="Uptime" />  {/* Not inside a layout — won't be positioned */}
+</Slide>
+```
+
+**Correct:**
+```tsx
+<Slide key="stats">
+  <ContentSlide title="Performance">
+    <StatCard value="99.9%" label="Uptime" />  {/* Inside a layout — positioned correctly */}
+  </ContentSlide>
+</Slide>
+```
+
+---
+
+## SlideTheme Timing Values Are Progress Fractions, Not Milliseconds
+
+**Symptom:** Setting `entranceDuration: 300` on a `SlideTheme` causes elements to never appear (the animation window extends from 0% to 30,000% of progress — effectively infinite).
+
+**Cause:** `SlideTheme.timing.entranceDuration`, `.staggerDelay`, and `.countUpDuration` are progress fractions [0-1], not milliseconds. `0.3` means "30% of the slide's progress window."
+
+**Rule:** Use values between 0 and 1 for all `SlideTheme.timing` fields except `transitionDuration` (which IS a CSS time string like `'300ms'`).
+
+**Wrong:**
+```tsx
+createSlideTheme({ timing: { entranceDuration: 300 } })  // 300 is not a valid progress fraction
+```
+
+**Correct:**
+```tsx
+createSlideTheme({ timing: { entranceDuration: 0.3 } })  // Entrance completes at 30% progress
+```
+
+---
+
+## Entrance Animation Without scrollUnits
+
+**Symptom:** Entrance animations (`entrance` prop on layouts, `animateEntrance` on `<BulletList>`) fire instantly instead of revealing progressively as the user navigates.
+
+**Cause:** The slide has no scroll budget — `sceneProgress` jumps from 0 to 1 on entry.
+
+**Rule:** Entrance animations are driven by `sceneProgress`. For them to be visible, the slide needs a scroll budget. The default `scrollUnits` for non-title slides is 400, which provides enough progress range. Title slides default to 100 (fast pass-through). If you override `scrollUnits` to a very small value, entrance animations will fire too quickly to see.
+
+**Wrong:**
+```tsx
+<Slide key="data" scrollUnits={1}>  {/* Too small — entrance animations invisible */}
+  <ContentSlide title="Data" entrance={{ body: 'slideUp' }}>
+    <BulletList items={['A', 'B', 'C']} animateEntrance />
+  </ContentSlide>
+</Slide>
+```
+
+**Correct:**
+```tsx
+<Slide key="data" scrollUnits={400}>  {/* Default — enough progress for visible animations */}
+  <ContentSlide title="Data" entrance={{ body: 'slideUp' }}>
+    <BulletList items={['A', 'B', 'C']} animateEntrance />
+  </ContentSlide>
+</Slide>
 ```

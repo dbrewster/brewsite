@@ -1,11 +1,9 @@
-// packages/slides/src/plugin.ts
-// slidesPlugin() — registers slide widgets and DSL handlers into a WidgetPlugin.
+// slidesPlugin() — registers slide widgets and DSL handlers.
 
 import { registerNode } from '@brewsite/core';
 import type { WidgetPlugin } from '@brewsite/core';
 import { SlideMetaWidget } from './widget/SlideMetaWidget';
 import { SlideNavWidget } from './widget/SlideNavWidget';
-import type { ResolvedDeckTheme, SlideNavigationConfig } from './types';
 
 // ─── SlideMetaDsl (internal marker component) ────────────────────────────────
 
@@ -32,41 +30,20 @@ export type SlideMetaDslProps = {
 export const SlideMetaDsl = (_props: SlideMetaDslProps): null => null;
 SlideMetaDsl.displayName = 'SlideMetaDsl';
 
-// ─── Plugin options ───────────────────────────────────────────────────────────
-
 /**
- * Options passed to `slidesPlugin()`.
- */
-export type SlidesPluginOptions = {
-  /** Resolved deck theme (produced by themeCompiler.ts). */
-  theme: ResolvedDeckTheme;
-  /** Optional navigation configuration forwarded from SlidePlayer. */
-  navigation?: SlideNavigationConfig;
-};
-
-/**
- * WidgetPlugin factory for `@brewsite/slides`.
+ * WidgetPlugin factory for @brewsite/slides.
+ * Registers SlideMetaWidget and SlideNavWidget.
  *
- * Registers `SlideMetaWidget` (publishes per-slide metadata to VariableStore)
- * and `SlideNavWidget` (registry anchor for the slide navigation widgetId).
- *
- * Usage:
- * ```tsx
- * <SceneEngine
- *   plugins={[corePlugin(), slidesPlugin({ theme: resolvedTheme })]}
- * />
- * ```
+ * Takes no arguments — visual tokens come from SceneTheme via core's ThemeContext.
+ * Behavioral tokens come from SlideTheme via SlidePlayer's container CSS vars.
  */
-export function slidesPlugin(options: SlidesPluginOptions): WidgetPlugin {
+export function slidesPlugin(): WidgetPlugin {
   const metaWidget = new SlideMetaWidget();
 
   return {
     createWidgets: () => [metaWidget, new SlideNavWidget()],
 
     registerHandlers: () => {
-      // category: 'ambient' — SlideMetaDsl is metadata, not spatial geometry.
-      // Without this, the scene view constraint treats it as a spatial element
-      // and errors when a Diagram or BarChart is also present in the same Scene.
       registerNode(SlideMetaDsl, (node, api) => {
         const props = node.props as SlideMetaDslProps;
         api.setWidgetState(metaWidget.widgetId, {
@@ -83,21 +60,6 @@ export function slidesPlugin(options: SlidesPluginOptions): WidgetPlugin {
 
     configureRegistry: (_registry) => {
       // No registry configuration needed.
-      //
-      // ARCHITECTURE NOTE: Slide navigation (keyboard, pointer, touch) is implemented
-      // at the React layer inside SlidePlayerInner via useEffect + onClick handlers
-      // (see §8 SlidePlayer.tsx). It does NOT use <InputController> DSL or the 3D
-      // input pipeline. Reasons:
-      //
-      // 1. Slide navigation is a pure React concern — it calls engine.scrollToProgress(),
-      //    not a Three.js camera action.
-      // 2. SceneEngine uses inputModePolicy="direct", so the engine's scroll-based
-      //    scene advancement is disabled. No InputController actions needed.
-      // 3. <InputController> speaks in terms of camera actions (orbit, dolly, focus).
-      //    "next slide" is not a camera action — it is a React navigation callback.
-      //
-      // SlideNavWidget is registered as a plain IWidget (registry anchor only);
-      // it does not participate in the SceneTrack pipeline.
     },
   };
 }

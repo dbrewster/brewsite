@@ -3,7 +3,7 @@ title: Embedding Modes
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-20
 ---
 
 ## Scroll-Driven Mode
@@ -323,11 +323,70 @@ function ProductViewerScene() {
 
 ---
 
+## Slide Deck Mode
+
+A presentation deck with slide-to-slide navigation (keyboard, pointer, touch). Best for corporate presentations, pitch decks, and data-driven slide shows.
+
+`SlidePlayer` from `@brewsite/slides` renders inside a parent `<SceneEngine>`. It compiles `<Slide>` children into `<Scene>` elements and wires all navigation automatically — no `InputController`, `ScrollStage`, or manual engine setup required.
+
+**Required components:** `SceneEngine` (with `corePlugin()` + `slidesPlugin()`) → `SlidePlayer` → `<Slide>` children
+
+### Complete Example
+
+```tsx
+import { SceneEngine, corePlugin } from '@brewsite/core';
+import {
+  SlidePlayer, Slide, TitleSlide, ContentSlide, BigNumberSlide,
+  Body, BulletList, slidesPlugin, compactSlideTheme,
+} from '@brewsite/slides';
+
+function QuarterlyDeck() {
+  return (
+    <SceneEngine plugins={[corePlugin(), slidesPlugin()]}>
+      <SlidePlayer slideTheme={compactSlideTheme} transition="dissolve">
+        <Slide key="title">
+          <TitleSlide title="Q4 Results" subtitle="Acme Corporation" />
+        </Slide>
+        <Slide key="revenue">
+          <BigNumberSlide
+            title="Revenue"
+            stats={[
+              { value: '$12.4M', label: 'Total Revenue', trend: '+18%', trendDirection: 'up' },
+              { value: '847', label: 'Customers', trend: '+24%', trendDirection: 'up' },
+            ]}
+          />
+        </Slide>
+        <Slide key="details" notes="Walk through each principle.">
+          <ContentSlide title="Key Principles">
+            <BulletList
+              items={['Revenue growth accelerating', 'Customer retention at 95%', 'New markets opened']}
+              animateEntrance
+            />
+          </ContentSlide>
+        </Slide>
+      </SlidePlayer>
+    </SceneEngine>
+  );
+}
+```
+
+`SlidePlayer` provides: keyboard navigation (arrow keys, Space, Enter, Home/End), pointer navigation (click next, right-click prev), touch swipe, fullscreen toggle (F key), progress indicator, and slide transitions — all pre-wired. Configure via `navigation`, `progressIndicator`, and `transition` props.
+
+Three independent customization axes:
+- **SceneTheme** (on `SceneEngine`) — colors, fonts, spacing
+- **SlideTheme** (on `SlidePlayer.slideTheme`) — animation timing, content density, typography scale
+- **SlideTemplate** (on `SlidePlayer.template`) — corporate chrome: logos, footers, watermarks
+
+For full documentation, search for `slides-overview`.
+
+---
+
 ## Choosing a Mode
 
 Ask these questions in order:
 
-1. **Should the user scroll to progress through scenes?** → Scroll-driven mode (`ScrollStage` + `InputCoordinator`)
-2. **Should it play automatically without user interaction?** → Embedded player mode (`SceneReel` + `InputCoordinator` with `ProgressManager` `autoAdvance`)
-3. **Does external UI (buttons, tabs, routing) control which scene is shown?** → Programmatic mode (`SceneReel` or raw `SceneEngine` + `useGoToScene` / `ControlledInput`)
-4. **Is it a single interactive 3D region with no scene progression?** → Canvas region mode (`SceneReel` + `InputController` in DSL)
+1. **Is this a slide deck / presentation?** → Slide deck mode (`SceneEngine` + `SlidePlayer` from `@brewsite/slides`)
+2. **Should the user scroll to progress through scenes?** → Scroll-driven mode (`ScrollStage` + `InputCoordinator`)
+3. **Should it play automatically without user interaction?** → Embedded player mode (`SceneReel` + `InputCoordinator` with `ProgressManager` `autoAdvance`)
+4. **Does external UI (buttons, tabs, routing) control which scene is shown?** → Programmatic mode (`SceneReel` or raw `SceneEngine` + `useGoToScene` / `ControlledInput`)
+5. **Is it a single interactive 3D region with no scene progression?** → Canvas region mode (`SceneReel` + `InputController` in DSL)

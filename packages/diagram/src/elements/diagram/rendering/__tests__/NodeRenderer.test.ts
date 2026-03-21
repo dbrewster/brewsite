@@ -308,7 +308,7 @@ describe('NodeRenderer', () => {
       parent,
     );
     expect(entry.border).toBeInstanceOf(THREE.Mesh);
-    const wallMat = (entry.border!.material as THREE.Material[])[1] as THREE.MeshStandardMaterial;
+    const wallMat = entry.border!.material as THREE.MeshStandardMaterial;
     expect(wallMat.color.getHexString()).toBe('ff00ff');
     expect(wallMat.opacity).toBeCloseTo(0.2);
   });

@@ -391,7 +391,7 @@ export class NodeRenderer {
 
     // Update border material color/opacity when not fully rebuilt
     if (!borderGeometryChanged && entry.border) {
-      const wallMat = (entry.border.material as THREE.Material[])[1] as THREE.MeshStandardMaterial;
+      const wallMat = entry.border.material as THREE.MeshStandardMaterial;
       if (!prev || prev.borderColor !== state.borderColor) {
         const borderParsed = parseHexColor(state.borderColor);
         wallMat.color.set(borderParsed.rgb);

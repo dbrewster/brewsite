@@ -170,6 +170,13 @@ export const darkGlassSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.7, brightness: 0.5, saturation: 0.6, depthMix: 0.8 },
   },
   highlightPalette: darkGlassDarkHighlights,
+  accentColor: '#B33A2B',
+  textColors: {
+    primary: '#F2E6DE',
+    secondary: '#B79B8F',
+    muted: '#6E5750',
+    surface: '#1E1412',
+  },
 };
 
 /** darkGlass family, light polarity. */
@@ -218,4 +225,11 @@ export const darkGlassLightSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.4, brightness: 1.1 },
   },
   highlightPalette: darkGlassLightHighlights,
+  accentColor: '#E36A2E',
+  textColors: {
+    primary: '#2B1F1A',
+    secondary: '#6E5750',
+    muted: '#B79B8F',
+    surface: '#FFF9F5',
+  },
 };

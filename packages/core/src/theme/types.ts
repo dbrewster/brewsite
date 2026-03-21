@@ -370,7 +370,13 @@ export type SceneTheme = {
    */
   readonly colorMode: SceneColorMode;
   /** Font tokens for HTML and WebGL rendering. */
-  readonly font: SceneThemeFontTokens;
+  readonly font: SceneThemeFontTokens & {
+    /**
+     * Optional CSS font-family string for headings. EngineOverlayHost injects
+     * --brewsite-font-heading. Falls back to font.htmlFamily when absent.
+     */
+    readonly htmlHeadingFamily?: string;
+  };
   /** Semantic font size scale. Use 1.0 for the identity scale (no change). */
   readonly fontSize: SceneThemeFontSizeScale;
   /** Optional background fill and effects configuration. */
@@ -383,6 +389,42 @@ export type SceneTheme = {
   readonly highlightPalette?: SceneThemeHighlightPalette;
   /** Default highlight configuration when no variant is specified. */
   readonly highlightDefaults?: SceneThemeHighlightDefaults;
+
+  /** Primary brand/accent color. Default: '#2563eb' (blue-600). */
+  readonly accentColor?: string;
+
+  /**
+   * Per-family text and surface color overrides. When present, take precedence
+   * over colorMode-derived defaults in EngineOverlayHost. When absent,
+   * EngineOverlayHost falls back to existing derivation rules.
+   */
+  readonly textColors?: {
+    /** Overrides --brewsite-text-primary */
+    readonly primary?: string;
+    /** Overrides --brewsite-text-secondary */
+    readonly secondary?: string;
+    /** Overrides --brewsite-text-muted (new variable) */
+    readonly muted?: string;
+    /** Overrides --brewsite-surface-elevated */
+    readonly surface?: string;
+  };
+
+  /** Semantic status colors. Falls back to highlightPalette colors or hardcoded defaults. */
+  readonly semanticColors?: {
+    readonly success?: string;   // default: '#22c55e'
+    readonly warning?: string;   // default: '#f59e0b'
+    readonly error?: string;     // default: '#ef4444'
+    readonly info?: string;      // default: '#3b82f6'
+  };
+
+  /** Spacing scale for HTML overlay content. Values are CSS length strings. */
+  readonly spacing?: {
+    readonly xs?: string;   // default: '4px'
+    readonly sm?: string;   // default: '8px'
+    readonly md?: string;   // default: '16px'
+    readonly lg?: string;   // default: '24px'
+    readonly xl?: string;   // default: '40px'
+  };
 };
 
 /**

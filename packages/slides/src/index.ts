@@ -5,7 +5,7 @@
 export { SlidePlayer } from './player/SlidePlayer';
 export type { SlidePlayerProps } from './player/SlidePlayer';
 
-// ─── DSL Components ───────────────────────────────────────────────────────────
+// ─── DSL Components (legacy + new) ───────────────────────────────────────────
 export {
   Slide,
   TitleLayout,
@@ -31,12 +31,47 @@ export type {
   NumberedListProps,
 } from './dsl';
 
+// ─── New Phase 1B Layout DSL Components ──────────────────────────────────────
+export {
+  TitleSlide,
+  SectionSlide,
+  ContentSlide,
+  TwoColumnSlide,
+  ImageSlide,
+  FullBleedSlide,
+  BlankSlide,
+  BigNumberSlide,
+  MetricGridSlide,
+  ComparisonSlide,
+  QuoteSlide,
+  AgendaSlide,
+} from './dsl';
+export type {
+  TitleSlideProps,
+  SectionSlideProps,
+  ContentSlideProps,
+  TwoColumnSlideProps,
+  ImageSlideProps,
+  FullBleedSlideProps,
+  BlankSlideProps,
+  BigNumberSlideProps,
+  MetricGridSlideProps,
+  ComparisonSlideProps,
+  QuoteSlideProps,
+  AgendaSlideProps,
+} from './dsl';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type {
   SlideLayout,
   SlideTransition,
-  DeckTheme,
-  ResolvedDeckTheme,
+  SlideTheme,
+  SlideTemplate,
+  BrandAsset,
+  ResolvedSlideConfig,
+  EntranceType,
+  SlideRegionEntrance,
+  ComparisonCellValue,
   SlideRegion,
   SlideSpec,
   DeckSpec,
@@ -47,16 +82,21 @@ export type {
 } from './types';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
-export { defaultDeckTheme, darkDeckTheme, createDeckTheme } from './theme';
 export {
-  DECK_THEME_PAIRS,
-  getDeckThemeForFamily,
-  createDeckThemeForFamily,
-} from './themeFamily';
+  defaultSlideTheme,
+  compactSlideTheme,
+  cinematicSlideTheme,
+  minimalSlideTheme,
+  createSlideTheme,
+} from './theme';
+export type { DeepPartial } from './theme';
+
+// ─── Template ─────────────────────────────────────────────────────────────────
+export { resolveTemplate } from './template';
+export type { ResolvedTemplate } from './template';
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 export { slidesPlugin } from './plugin';
-export type { SlidesPluginOptions } from './plugin';
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export {
@@ -65,3 +105,19 @@ export {
 } from './player/useSlideNavigation';
 export { useSlideNotes } from './player/useSlideNotes';
 export type { SlideNavigationState } from './player/useSlideNavigation';
+
+// ─── Animation hooks ─────────────────────────────────────────────────────────
+export { useCountUp, useStaggeredReveal, useProgressWindow, useEntrance } from './animation';
+export { easeOutCubic, easeInOutCubic, easeOutQuart, linear } from './animation';
+
+// ─── Graphics components ─────────────────────────────────────────────────────
+export {
+  StatCard, Timeline, ProcessSteps, IconGrid, ComparisonTable,
+  ProgressRing, ProgressBar, CalloutBox, QuoteBlock, MetricRow,
+  Badge, Divider,
+} from './graphics';
+export type {
+  StatCardProps, TimelineProps, ProcessStepsProps, IconGridProps,
+  ComparisonTableProps, ProgressRingProps, ProgressBarProps,
+  CalloutBoxProps, QuoteBlockProps, MetricRowProps, BadgeProps, DividerProps,
+} from './graphics';

@@ -3,7 +3,7 @@ title: BrewSite Overview
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-20
 ---
 
 ## What BrewSite Is
@@ -42,6 +42,7 @@ Full details for each mode: search for `embedding-modes`.
 | `@brewsite/diagram` | `Diagram`, `DiagramCanvas`, `ImagePanel`, `Screen` DSL elements; diagram theming and rendering |
 | `@brewsite/model` | `Model`, `Playback`, `Animation`, `LabelItem`, `LabelPositioner` DSL; GLTF model loading and label system |
 | `@brewsite/charts` | `ChartWidget` and chart DSL elements; 3D chart rendering |
+| `@brewsite/slides` | `SlidePlayer`, `Slide`, layout DSL (`TitleSlide`, `ContentSlide`, `BigNumberSlide`, etc.), graphics components (`StatCard`, `Timeline`, `ProgressRing`, etc.), animation hooks (`useCountUp`, `useStaggeredReveal`), `slidesPlugin` |
 
 Import DSL components from their owning package. Do not cross-import between packages from scene files — let the engine wire them together through `plugins`.
 
@@ -98,4 +99,11 @@ Search for specific topics using the brewsite_docs tool. Key topics:
 - `diagram-dsl` — Diagram nodes, edges, groups, theming
 - `model-dsl` — GLTF models, animations, labels
 - `charts-dsl` — 3D chart elements
+- `slides-overview` — Slide deck package: SlidePlayer, layouts, graphics, animation hooks
+- `slide-layouts` — All 19 layout archetypes with props and examples
+- `slide-graphics` — Graphics components: StatCard, Timeline, ProgressRing, etc.
+- `slide-animation` — Animation hooks: useCountUp, useStaggeredReveal, useEntrance
+- `slide-themes` — SlideTheme system, presets, CSS variable reference
+- `slide-templates` — SlideTemplate for corporate branding
+- `deck-patterns` — Common corporate deck patterns and recipes
 - `common-gotchas` — Most frequent mistakes and how to avoid them

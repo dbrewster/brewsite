@@ -1,128 +1,74 @@
 // apps/examples/src/slides-demo/deck.tsx
 // Enterprise slide deck: "Nexus Platform — Q3 2026 Strategy & Product Update"
-// Showcases all layout variants, animated reveals, rich custom layouts,
-// speaker notes, and styled content primitives.
+// Showcases all new Phase 1B layout DSL components, graphics components,
+// entrance animations, section dividers, and 3D sceneDsl content.
 
-import type {CSSProperties, ReactElement} from 'react';
-import {BlankLayout, Body, BulletList, FullBleedLayout, Heading, NumberedList, Slide, TitleBodyLayout, TitleLayout, TwoColumnLayout,} from '@brewsite/slides';
-import {Ambient, Camera, Directional, Floor, Lighting, View} from '@brewsite/core';
-import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout,} from '@brewsite/diagram';
-import {BarChart, ChartAxis, ChartData, ChartLegend, ChartSeries,} from '@brewsite/charts';
+import type { ReactElement } from 'react';
+import {
+  Slide,
+  // Phase 1B Layout DSL
+  TitleSlide,
+  SectionSlide,
+  ContentSlide,
+  TwoColumnSlide,
+  FullBleedSlide,
+  BlankSlide,
+  BigNumberSlide,
+  ComparisonSlide,
+  QuoteSlide,
+  AgendaSlide,
+  // Text Primitives
+  Heading,
+  Body,
+  BulletList,
+  NumberedList,
+  // Graphics Components
+  StatCard,
+  Timeline,
+  ProcessSteps,
+  Badge,
+  Divider,
+  CalloutBox,
+  QuoteBlock,
+  MetricRow,
+} from '@brewsite/slides';
+import type { ComparisonCellValue } from '@brewsite/slides';
+import { Ambient, Camera, Directional, Floor, Lighting, View } from '@brewsite/core';
+import {
+  Diagram,
+  DiagramEdge,
+  DiagramGroup,
+  DiagramNode,
+  FlowLayout,
+  GridLayout,
+} from '@brewsite/diagram';
+import {
+  BarChart,
+  ChartAxis,
+  ChartData,
+  ChartLegend,
+  ChartSeries,
+} from '@brewsite/charts';
 
-// ─── Reusable styled building blocks ────────────────────────────────────────
+// ─── 3D scene boilerplate — shared by slides with sceneDsl ──────────────────
 
-const accent = 'var(--brewsite-accent-color, #4F76B8)';
-const surface = 'var(--slide-color-surface, #1E324F)';
-const heading = 'var(--slide-color-heading)';
-const body = 'var(--slide-color-body)';
-const muted = 'var(--slide-color-muted)';
-const font = 'var(--brewsite-font-family)';
+const sceneLighting = (
+  <>
+    <Lighting>
+      <Ambient intensity={2.5} color="#d7e5ff" />
+      <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]} />
+    </Lighting>
+    <Floor variant="grid" />
+  </>
+);
 
-/** Styled metric card for KPI dashboards */
-function MetricCard({value, label, delta, positive = true}: {
-  value: string; label: string; delta?: string; positive?: boolean;
-}): ReactElement {
-  return (
-    <div style={{
-      background: surface,
-      borderRadius: '0.75rem',
-      padding: 'clamp(1rem, 2vw, 1.5rem)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.25rem',
-      border: `1px solid ${accent}22`,
-      flex: 1,
-      minWidth: 0,
-    }}>
-      <span style={{fontFamily: font, fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', fontWeight: 700, color: heading, lineHeight: 1.1}}>
-        {value}
-      </span>
-      <span style={{fontFamily: font, fontSize: 'clamp(0.75rem, 1.2vw, 0.95rem)', color: muted, letterSpacing: '0.04em', textTransform: 'uppercase' as const}}>
-        {label}
-      </span>
-      {delta && (
-        <span style={{fontFamily: font, fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', color: positive ? '#34D399' : '#F87171', fontWeight: 600}}>
-          {positive ? '\u25B2' : '\u25BC'} {delta}
-        </span>
-      )}
-    </div>
-  );
-}
+const sceneCamera = (
+  <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36} />
+);
 
-/** Styled badge/chip */
-function Badge({children, variant = 'default'}: { children: string; variant?: 'default' | 'success' | 'warning' }): ReactElement {
-  const colors = {
-    default: {bg: `${accent}22`, fg: accent},
-    success: {bg: '#34D39922', fg: '#34D399'},
-    warning: {bg: '#FBBF2422', fg: '#FBBF24'},
-  };
-  const c = colors[variant];
-  return (
-    <span style={{
-      fontFamily: font,
-      fontSize: 'clamp(0.65rem, 0.9vw, 0.8rem)',
-      fontWeight: 600,
-      color: c.fg,
-      background: c.bg,
-      padding: '0.2em 0.65em',
-      borderRadius: '9999px',
-      letterSpacing: '0.03em',
-    }}>
-      {children}
-    </span>
-  );
-}
-
-/** Styled divider with optional label */
-function Divider({label}: { label?: string }): ReactElement {
-  return (
-    <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%'}}>
-      <div style={{flex: 1, height: 1, background: `${muted}33`}}/>
-      {label && (
-        <span style={{fontFamily: font, fontSize: 'clamp(0.6rem, 0.8vw, 0.7rem)', color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, flexShrink: 0}}>
-          {label}
-        </span>
-      )}
-      <div style={{flex: 1, height: 1, background: `${muted}33`}}/>
-    </div>
-  );
-}
-
-/** Styled feature row for comparison tables */
-function FeatureRow({feature, before, after}: { feature: string; before: string; after: string }): ReactElement {
-  const cellBase: CSSProperties = {
-    fontFamily: font,
-    fontSize: 'clamp(0.75rem, 1vw, 0.9rem)',
-    padding: 'clamp(0.4rem, 0.7vw, 0.6rem) 0',
-    borderBottom: `1px solid ${muted}22`,
-    lineHeight: 1.4,
-  };
-  return (
-    <div style={{display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr', gap: '1rem', alignItems: 'baseline'}}>
-      <span style={{...cellBase, color: heading, fontWeight: 500}}>{feature}</span>
-      <span style={{...cellBase, color: muted}}>{before}</span>
-      <span style={{...cellBase, color: '#34D399', fontWeight: 500}}>{after}</span>
-    </div>
-  );
-}
-
-/** Big quote callout */
-function QuoteCallout({quote, attribution}: { quote: string; attribution: string }): ReactElement {
-  return (
-    <div style={{
-      borderLeft: `3px solid ${accent}`,
-      paddingLeft: 'clamp(1rem, 2vw, 1.5rem)',
-      margin: 'clamp(0.5rem, 1vw, 1rem) 0',
-    }}>
-      <p style={{fontFamily: font, fontSize: 'clamp(1rem, 1.8vw, 1.5rem)', color: heading, fontStyle: 'italic', margin: 0, lineHeight: 1.5}}>
-        &ldquo;{quote}&rdquo;
-      </p>
-      <p style={{fontFamily: font, fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', color: muted, margin: '0.5rem 0 0'}}>
-        &mdash; {attribution}
-      </p>
-    </div>
-  );
-}
+const sceneCameraFlat = (
+  <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={36} />
+);
 
 // ─── Slide 1: Title ─────────────────────────────────────────────────────────
 
@@ -133,10 +79,12 @@ const titleSlide = (
     scrollUnits={100}
     notes="Welcome everyone. Today we're covering Q3 strategy, product milestones, and the go-to-market plan for Nexus Platform."
   >
-    <TitleLayout
+    <TitleSlide
       title="Nexus Platform"
       subtitle="Q3 2026 Strategy & Product Update"
+      tagline="Confidential"
       alignment="center"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.12 }}
     />
   </Slide>
 );
@@ -145,28 +93,42 @@ const titleSlide = (
 
 const agendaSlide = (
   <Slide key="agenda" title="Agenda" scrollUnits={200}>
-    <TitleBodyLayout title="Today's Agenda">
-      <NumberedList
-        animateEntrance
-        items={[
-          'Market context & competitive landscape',
-          'Product vision & architecture',
-          'Platform metrics & traction',
-          'Go-to-market strategy',
-          'Engineering roadmap & milestones',
-          'Customer case study: Meridian Health',
-          'Q3 priorities & resource asks',
-        ]}
-      />
-    </TitleBodyLayout>
+    <AgendaSlide
+      title="Today's Agenda"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.08 }}
+      items={[
+        { label: 'Market Context', description: 'Competitive landscape & industry trends' },
+        { label: 'Product Vision', description: 'Architecture & platform strategy' },
+        { label: 'Platform Metrics', description: 'KPIs, traction & growth' },
+        { label: 'Go-to-Market', description: 'Land, expand & revenue targets' },
+        { label: 'Engineering Roadmap', description: 'Milestones through Q1 2027' },
+        { label: 'Customer Case Study', description: 'Meridian Health migration' },
+        { label: 'Q3 Priorities', description: 'Resource asks & next steps' },
+      ]}
+    />
   </Slide>
 );
 
-// ─── Slide 3: Market Context ────────────────────────────────────────────────
+// ─── Slide 3: Section Divider — Market ──────────────────────────────────────
+
+const marketSectionSlide = (
+  <Slide key="section-market" title="Market Context" transition="push-left">
+    <SectionSlide
+      title="Market Context"
+      subtitle="The data infrastructure inflection point"
+      entrance={{ title: 'fadeIn', body: 'slideUp' }}
+    />
+  </Slide>
+);
+
+// ─── Slide 4: Market Context ────────────────────────────────────────────────
 
 const marketSlide = (
   <Slide key="market" title="Market Context" scrollUnits={500}>
-    <TitleBodyLayout title="The Data Infrastructure Inflection Point">
+    <ContentSlide
+      title="The Data Infrastructure Inflection Point"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.1 }}
+    >
       <BulletList
         animateEntrance
         bulletStyle="arrow"
@@ -178,265 +140,322 @@ const marketSlide = (
           'Regulatory pressure (EU AI Act, DORA) demands full data lineage and auditability',
         ]}
       />
-    </TitleBodyLayout>
+    </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 4: Competitive Landscape ─────────────────────────────────────────
+// ─── Slide 5: Competitive Landscape ─────────────────────────────────────────
 
 const competitiveLandscapeSlide = (
   <Slide key="competitive" title="Competitive Landscape" scrollUnits={400}>
-    <TwoColumnLayout
+    <ComparisonSlide
       title="Competitive Landscape"
-      left={
-        <>
-          <Heading level={3}>Legacy Platforms</Heading>
-          <BulletList
-            bulletStyle="disc"
-            items={[
-              'Snowflake — strong analytics, weak streaming',
-              'Databricks — ML-first, complex for ops teams',
-              'Confluent — streaming-native, no analytics layer',
-              'Fivetran — batch ELT only, no real-time path',
-            ]}
-          />
-        </>
-      }
-      right={
-        <>
-          <Heading level={3}>Nexus Advantage</Heading>
-          <BulletList
-            bulletStyle="checkmark"
-            items={[
-              'Unified batch + streaming in one engine',
-              'Zero-copy multi-cloud data mesh',
-              'Built-in governance & lineage from day one',
-              'Sub-second query latency at petabyte scale',
-            ]}
-          />
-        </>
-      }
+      headers={['Legacy Platforms', 'Nexus Advantage']}
+      highlightColumn={1}
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.1 }}
+      rows={[
+        {
+          feature: 'Batch + Streaming',
+          values: [
+            { kind: 'text', value: 'Separate systems' },
+            { kind: 'text', value: 'Unified engine' },
+          ],
+        },
+        {
+          feature: 'Multi-Cloud',
+          values: [
+            { kind: 'check', value: false },
+            { kind: 'text', value: 'Zero-copy data mesh' },
+          ],
+        },
+        {
+          feature: 'Governance & Lineage',
+          values: [
+            { kind: 'text', value: 'Bolt-on' },
+            { kind: 'text', value: 'Built-in from day one' },
+          ],
+        },
+        {
+          feature: 'Query Latency',
+          values: [
+            { kind: 'text', value: '2-5 seconds' },
+            { kind: 'text', value: 'Sub-second at PB scale' },
+          ],
+        },
+        {
+          feature: 'ML Pipeline',
+          values: [
+            { kind: 'text', value: 'External tooling' },
+            { kind: 'text', value: 'Native inference' },
+          ],
+        },
+      ]}
     />
   </Slide>
 );
 
-// ─── Slide 5: Product Vision (Full-bleed with overlay) ──────────────────────
+// ─── Slide 6: Product Vision (Full-bleed) ───────────────────────────────────
 
 const visionSlide = (
   <Slide
     key="vision"
     title="Product Vision"
     scrollUnits={200}
+    transition="zoom-in"
     notes="This is our north star. Every feature decision ladders up to this vision."
   >
-    <FullBleedLayout overlayPosition="center">
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 'clamp(1rem, 2vw, 1.5rem)',
-        textAlign: 'center',
-        maxWidth: '40rem',
-      }}>
-        <Badge variant="default">PRODUCT VISION</Badge>
-        <h2 style={{
-          fontFamily: font,
-          fontSize: 'clamp(1.5rem, 3.5vw, 2.8rem)',
-          fontWeight: 700,
-          color: heading,
-          margin: 0,
-          lineHeight: 1.2,
-        }}>
-          One platform for every data workload &mdash; from ingestion to insight.
-        </h2>
-        <p style={{
-          fontFamily: font,
-          fontSize: 'clamp(0.85rem, 1.3vw, 1.1rem)',
-          color: body,
-          margin: 0,
-          lineHeight: 1.6,
-          maxWidth: '32rem',
-        }}>
-          Nexus eliminates the integration tax by unifying streaming, batch processing,
-          analytics, and governance into a single control plane that scales with your business.
-        </p>
-      </div>
-    </FullBleedLayout>
+    <QuoteSlide
+      quote="One platform for every data workload — from ingestion to insight."
+      attribution="Nexus Platform"
+      role="Product Vision"
+      entrance={{ title: 'fadeIn' }}
+    />
   </Slide>
 );
 
-// ─── Slide 6: Architecture ──────────────────────────────────────────────────
+// ─── Slide 7: Section Divider — Product ─────────────────────────────────────
+
+const productSectionSlide = (
+  <Slide key="section-product" title="Product & Architecture" transition="push-left">
+    <SectionSlide
+      title="Product & Architecture"
+      subtitle="Platform design and technical depth"
+    />
+  </Slide>
+);
+
+// ─── Slide 8: Architecture (3D Diagram) ─────────────────────────────────────
 
 const architectureSlide = (
   <Slide
     key="architecture"
     title="Platform Architecture"
     scrollUnits={300}
-    sceneDsl={<>
-      <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36}/>
-      <Lighting>
-        <Ambient intensity={2.5} color="#d7e5ff"/>
-        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
-      </Lighting>
-      <Floor variant="grid"/>
+    sceneDsl={
+      <>
+        {sceneCamera}
+        {sceneLighting}
+        <Diagram id="arch-layers" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
+          <FlowLayout direction="top-down" gap={0.06} />
 
-      <Diagram id="arch-layers" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
-        <FlowLayout direction="top-down" gap={0.06}/>
+          <DiagramNode
+            id="apps"
+            label="Applications"
+            sublabel="Analytics · Catalog · Lineage"
+            shape="rectangle"
+            icon="ui:squares-2x2"
+            size={[0.15, 0.12]}
+            thickness={0.030}
+          />
 
-        <DiagramNode id="apps" label="Applications" sublabel="Analytics · Catalog · Lineage"
-                     shape="rectangle" icon="ui:squares-2x2" size={[0.15, 0.12]} thickness={0.030}/>
+          <DiagramNode
+            id="api"
+            label="API Gateway"
+            sublabel="REST · gRPC · WebSocket"
+            shape="hexagon"
+            icon="net:internet"
+            size={[0.18, 0.13]}
+            thickness={0.030}
+          />
 
-        <DiagramNode id="api" label="API Gateway" sublabel="REST · gRPC · WebSocket"
-                     shape="hexagon" icon="net:internet" size={[0.18, 0.13]} thickness={0.030}/>
+          <DiagramGroup id="engine" label="Processing Engine" variant="container">
+            <GridLayout columns={3} spacing={[0.04, 0.03]} />
+            <DiagramNode
+              id="stream"
+              label="Stream"
+              sublabel="Real-time"
+              icon="data:stream"
+              shape="circle"
+              size={[0.13, 0.13]}
+              thickness={0.030}
+            />
+            <DiagramNode
+              id="batch"
+              label="Batch"
+              sublabel="Scheduled"
+              icon="data:warehouse"
+              shape="circle"
+              size={[0.13, 0.13]}
+              thickness={0.030}
+            />
+            <DiagramNode
+              id="ml"
+              label="ML Pipeline"
+              sublabel="Inference"
+              icon="ui:cpu-chip"
+              shape="circle"
+              size={[0.13, 0.13]}
+              thickness={0.030}
+            />
+          </DiagramGroup>
 
-        <DiagramGroup id="engine" label="Processing Engine" variant="container">
-          <GridLayout columns={3} spacing={[0.04, 0.03]}/>
-          <DiagramNode id="stream" label="Stream" sublabel="Real-time" icon="data:stream" shape="circle" size={[0.13, 0.13]} thickness={0.030}/>
-          <DiagramNode id="batch" label="Batch" sublabel="Scheduled" icon="data:warehouse" shape="circle" size={[0.13, 0.13]} thickness={0.030}/>
-          <DiagramNode id="ml" label="ML Pipeline" sublabel="Inference" icon="ui:cpu-chip" shape="circle" size={[0.13, 0.13]} thickness={0.030}/>
-        </DiagramGroup>
+          <DiagramNode
+            id="storage"
+            label="Storage Layer"
+            sublabel="Columnar · Object Lake · KV"
+            shape="octagon"
+            icon="data:warehouse"
+            size={[0.18, 0.13]}
+            thickness={0.030}
+          />
 
-        <DiagramNode id="storage" label="Storage Layer" sublabel="Columnar · Object Lake · KV"
-                     shape="octagon" icon="data:warehouse" size={[0.18, 0.13]} thickness={0.030}/>
+          <DiagramNode
+            id="infra"
+            label="Infrastructure"
+            sublabel="Multi-Cloud · Auto-Scale"
+            shape="rectangle"
+            icon="security:shield"
+            size={[0.15, 0.12]}
+            thickness={0.030}
+          />
 
-        <DiagramNode id="infra" label="Infrastructure" sublabel="Multi-Cloud · Auto-Scale"
-                     shape="rectangle" icon="security:shield" size={[0.15, 0.12]} thickness={0.030}/>
-
-        <DiagramEdge from="apps" to="api" routing="flow" flow="forward"/>
-        <DiagramEdge from="api" to="stream" routing="flow" flow="forward"/>
-        <DiagramEdge from="api" to="batch" routing="flow" flow="forward"/>
-        <DiagramEdge from="api" to="ml" routing="flow" flow="forward"/>
-        <DiagramEdge from="stream" to="storage" routing="flow" flow="forward" thickness={0.0105}/>
-        <DiagramEdge from="batch" to="storage" routing="flow" flow="forward"/>
-        <DiagramEdge from="ml" to="storage" routing="flow" flow="forward"/>
-        <DiagramEdge from="storage" to="infra" routing="flow" flow="forward"/>
-      </Diagram>
-    </>}
+          <DiagramEdge from="apps" to="api" routing="flow" flow="forward" />
+          <DiagramEdge from="api" to="stream" routing="flow" flow="forward" />
+          <DiagramEdge from="api" to="batch" routing="flow" flow="forward" />
+          <DiagramEdge from="api" to="ml" routing="flow" flow="forward" />
+          <DiagramEdge from="stream" to="storage" routing="flow" flow="forward" thickness={0.0105} />
+          <DiagramEdge from="batch" to="storage" routing="flow" flow="forward" />
+          <DiagramEdge from="ml" to="storage" routing="flow" flow="forward" />
+          <DiagramEdge from="storage" to="infra" routing="flow" flow="forward" />
+        </Diagram>
+      </>
+    }
   >
-    <BlankLayout/>
+    <BlankSlide />
   </Slide>
 );
 
-// ─── Slide 7: Platform Metrics (KPI Dashboard) ─────────────────────────────
+// ─── Slide 9: Section Divider — Metrics ─────────────────────────────────────
 
-const metricsSlide = (
+const metricsSectionSlide = (
+  <Slide key="section-metrics" title="Platform Metrics" transition="push-left">
+    <SectionSlide
+      title="Platform Metrics"
+      subtitle="Traction, growth, and key performance indicators"
+    />
+  </Slide>
+);
+
+// ─── Slide 10: Big Number KPIs ──────────────────────────────────────────────
+
+const kpiSlide = (
+  <Slide key="kpis" title="Key Metrics" scrollUnits={200}>
+    <BigNumberSlide
+      title="Q2 2026 Performance"
+      entrance={{ title: 'fadeIn', body: 'grow', stagger: 0.1 }}
+      stats={[
+        { value: '2.4M', label: 'Events / second', trend: '+34% QoQ', trendDirection: 'up' },
+        { value: '847', label: 'Enterprise customers', trend: '+127 this quarter', trendDirection: 'up' },
+        { value: '$68M', label: 'ARR', trend: '+42% YoY', trendDirection: 'up' },
+        { value: '99.997%', label: 'Uptime (12mo)', trend: '5-nines target', trendDirection: 'up' },
+      ]}
+    />
+  </Slide>
+);
+
+// ─── Slide 11: Platform Metrics with 3D Chart ──────────────────────────────
+
+const metricsChartSlide = (
   <Slide
-    key="metrics"
-    title="Platform Metrics"
-    scrollUnits={200}
-    sceneDsl={<>
-      <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36}/>
-      <Lighting>
-        <Ambient intensity={2.5} color="#d7e5ff"/>
-        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
-      </Lighting>
-      <Floor variant="grid"/>
-
-      <View id='c1' x={0.52} y={0.1} w={0.44} h={0.8}>
-        <BarChart
-          id="metrics-chart"
-          data={[
-            {quarter: 'Q1', events: 1.2, customers: 580, arr: 38},
-            {quarter: 'Q2', events: 1.8, customers: 720, arr: 48},
-            {quarter: 'Q3', events: 2.1, customers: 790, arr: 58},
-            {quarter: 'Q4', events: 2.4, customers: 847, arr: 68},
-          ]}
-          x={0.52} y={0.1} w={0.44} h={0.8}
-          depth={0.4}
-          animateEntry
-        >
-          <ChartData keyField="quarter"/>
-          <ChartAxis axis="x" field="quarter" label="Quarter"/>
-          <ChartAxis axis="y" field="arr" label="ARR ($M)"/>
-          <ChartSeries field="arr" label="ARR"/>
-          <ChartSeries field="events" label="Events/s (M)"/>
-          <ChartLegend visible position="right"/>
-        </BarChart>
-      </View>
-    </>}
+    key="metrics-chart"
+    title="Revenue Growth"
+    scrollUnits={300}
+    sceneDsl={
+      <>
+        {sceneCamera}
+        {sceneLighting}
+        <View id="c1" x={0.52} y={0.1} w={0.44} h={0.8}>
+          <BarChart
+            id="metrics-chart"
+            data={[
+              { quarter: 'Q1', events: 1.2, customers: 580, arr: 38 },
+              { quarter: 'Q2', events: 1.8, customers: 720, arr: 48 },
+              { quarter: 'Q3', events: 2.1, customers: 790, arr: 58 },
+              { quarter: 'Q4', events: 2.4, customers: 847, arr: 68 },
+            ]}
+            x={0.52}
+            y={0.1}
+            w={0.44}
+            h={0.8}
+            depth={0.4}
+            animateEntry
+          >
+            <ChartData keyField="quarter" />
+            <ChartAxis axis="x" field="quarter" label="Quarter" />
+            <ChartAxis axis="y" field="arr" label="ARR ($M)" />
+            <ChartSeries field="arr" label="ARR" />
+            <ChartSeries field="events" label="Events/s (M)" />
+            <ChartLegend visible position="right" />
+          </BarChart>
+        </View>
+      </>
+    }
   >
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(0.75rem, 1.5vw, 1rem)',
-        justifyContent: 'center',
-        maxWidth: '48%',
-      }}>
-        <Heading level={2}>Platform Metrics</Heading>
-        <Body>Key performance indicators through Q2 2026</Body>
-
-        <div style={{display: 'flex', flexDirection: 'column', gap: 'clamp(0.5rem, 1vw, 0.75rem)'}}>
-          <MetricCard value="2.4M" label="Events / second" delta="+34% QoQ" positive/>
-          <MetricCard value="847" label="Enterprise customers" delta="+127 this quarter" positive/>
-          <MetricCard value="$68M" label="ARR" delta="+42% YoY" positive/>
-          <MetricCard value="99.997%" label="Uptime (12mo)" delta="5-nines target" positive/>
-        </div>
-      </div>
-    </BlankLayout>
+    <ContentSlide title="Revenue Trajectory">
+      <Body>Key performance indicators through Q2 2026</Body>
+      <Divider variant="gradient" />
+      <MetricRow
+        items={[
+          { value: '$68M', label: 'ARR' },
+          { value: '2.4M', label: 'Events/s' },
+          { value: '847', label: 'Customers' },
+        ]}
+      />
+    </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 8: Performance Improvements ──────────────────────────────────────
+// ─── Slide 12: Performance Improvements ─────────────────────────────────────
 
 const performanceSlide = (
   <Slide key="performance" title="Performance Gains" scrollUnits={300}>
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(0.5rem, 1vw, 0.75rem)',
-        justifyContent: 'center',
-      }}>
-        <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem'}}>
-          <Heading level={2}>v2.4 Performance Gains</Heading>
-          <Badge variant="success">SHIPPED</Badge>
-        </div>
-
-        {/* Table header */}
-        <div style={{display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr', gap: '1rem', padding: '0 0 0.25rem'}}>
-          <span
-            style={{fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const}}>Capability</span>
-          <span
-            style={{fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const}}>Before (v2.3)</span>
-          <span style={{
-            fontFamily: font,
-            fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)',
-            color: '#34D399',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase' as const
-          }}>After (v2.4)</span>
-        </div>
-
-        <FeatureRow feature="Cold query startup" before="320ms" after="45ms  (\u22127x)"/>
-        <FeatureRow feature="Stream ingestion throughput" before="1.8M events/s" after="2.4M events/s"/>
-        <FeatureRow feature="Cross-region replication lag" before="850ms" after="120ms"/>
-        <FeatureRow feature="Batch job P99 completion" before="47 min" after="12 min"/>
-        <FeatureRow feature="Concurrent query capacity" before="2,400" after="8,100"/>
-        <FeatureRow feature="Memory footprint per node" before="64 GB" after="38 GB"/>
-        <FeatureRow feature="Time to first query (new tenant)" before="14 min" after="90 sec"/>
-
-        <div style={{marginTop: 'clamp(0.25rem, 0.5vw, 0.5rem)'}}>
-          <QuoteCallout
-            quote="The v2.4 cold start improvement alone saved us $1.2M in compute costs last month."
-            attribution="Sarah Chen, VP Platform Engineering, Meridian Health"
-          />
-        </div>
-      </div>
-    </BlankLayout>
+    <ContentSlide
+      title="v2.4 Performance Gains"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.08 }}
+    >
+      <Badge label="SHIPPED" variant="success" />
+      <Divider variant="gradient" />
+      <BulletList
+        animateEntrance
+        bulletStyle="checkmark"
+        items={[
+          'Cold query startup: 320ms → 45ms (∼7x improvement)',
+          'Stream ingestion throughput: 1.8M → 2.4M events/s',
+          'Cross-region replication lag: 850ms → 120ms',
+          'Batch job P99 completion: 47 min → 12 min',
+          'Concurrent query capacity: 2,400 → 8,100',
+          'Memory footprint per node: 64 GB → 38 GB',
+          'Time to first query (new tenant): 14 min → 90 sec',
+        ]}
+      />
+      <Divider variant="gradient" />
+      <QuoteBlock
+        quote="The v2.4 cold start improvement alone saved us $1.2M in compute costs last month."
+        attribution="Sarah Chen"
+        role="VP Platform Engineering, Meridian Health"
+      />
+    </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 9: Go-to-Market Strategy ─────────────────────────────────────────
+// ─── Slide 13: Section Divider — GTM ────────────────────────────────────────
+
+const gtmSectionSlide = (
+  <Slide key="section-gtm" title="Go-to-Market" transition="push-left">
+    <SectionSlide
+      title="Go-to-Market Strategy"
+      subtitle="Land, expand, and revenue targets"
+    />
+  </Slide>
+);
+
+// ─── Slide 14: Go-to-Market Strategy ────────────────────────────────────────
 
 const gtmSlide = (
   <Slide key="gtm" title="Go-to-Market" scrollUnits={500}>
-    <TwoColumnLayout
+    <TwoColumnSlide
       title="Go-to-Market Strategy"
+      entrance={{ left: 'slideLeft', right: 'slideRight', stagger: 0.15 }}
       left={
         <>
           <Heading level={3}>Land</Heading>
@@ -450,7 +469,7 @@ const gtmSlide = (
               'Developer advocate content: tutorials, templates, SDKs',
             ]}
           />
-          <div style={{height: '0.5rem'}}/>
+          <Divider variant="gradient" />
           <Heading level={3}>Expand</Heading>
           <BulletList
             bulletStyle="arrow"
@@ -467,13 +486,13 @@ const gtmSlide = (
           <Heading level={3}>Revenue Targets</Heading>
           <NumberedList
             items={[
-              '$68M ARR \u2192 $95M by end of Q4',
+              '$68M ARR → $95M by end of Q4',
               'Net new logos: 200 enterprise accounts',
-              'Land-to-expand conversion: 35% \u2192 48%',
-              'Average deal size: $82K \u2192 $110K',
+              'Land-to-expand conversion: 35% → 48%',
+              'Average deal size: $82K → $110K',
             ]}
           />
-          <div style={{height: '0.5rem'}}/>
+          <Divider variant="gradient" />
           <Heading level={3}>Key Bets</Heading>
           <BulletList
             bulletStyle="checkmark"
@@ -489,44 +508,66 @@ const gtmSlide = (
   </Slide>
 );
 
-// ─── Slide 10: Roadmap Timeline ─────────────────────────────────────────────
+// ─── Slide 15: Roadmap Timeline (3D Diagram) ───────────────────────────────
 
 const roadmapSlide = (
   <Slide
     key="roadmap"
     title="Engineering Roadmap"
     scrollUnits={300}
-    sceneDsl={<>
-      <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={36}/>
-      <Lighting>
-        <Ambient intensity={2.5} color="#d7e5ff"/>
-        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
-      </Lighting>
-      <Floor variant="grid"/>
+    sceneDsl={
+      <>
+        {sceneCameraFlat}
+        {sceneLighting}
+        <Diagram id="roadmap-timeline" x={0.05} y={0.02} w={0.9} h={0.96} tilt={-0.25}>
+          <FlowLayout direction="top-down" gap={0.08} />
 
-      <Diagram id="roadmap-timeline" x={0.05} y={0.02} w={0.9} h={0.96} tilt={-.25}>
-        <FlowLayout direction="top-down" gap={0.08}/>
+          <DiagramNode
+            id="q2"
+            label="Q2 — v2.4"
+            sublabel="Performance Release"
+            shape="hexagon"
+            icon="ui:cpu-chip"
+            size={[0.40, 0.30]}
+            glow={{ intensity: 0.2 }}
+          />
+          <DiagramNode
+            id="q3"
+            label="Q3 — v2.5"
+            sublabel="Intelligence Layer"
+            shape="hexagon"
+            icon="ui:cpu-chip"
+            size={[0.40, 0.30]}
+          />
+          <DiagramNode
+            id="q4"
+            label="Q4 — v3.0"
+            sublabel="Data Mesh GA"
+            shape="hexagon"
+            icon="data:warehouse"
+            size={[0.40, 0.30]}
+          />
+          <DiagramNode
+            id="q1-27"
+            label="Q1 '27 — v3.1"
+            sublabel="Real-Time ML"
+            shape="hexagon"
+            icon="data:stream"
+            size={[0.40, 0.30]}
+          />
 
-        <DiagramNode id="q2" label={"Q2 \u2014 v2.4"} sublabel="Performance Release"
-                     shape="hexagon" icon="ui:cpu-chip" size={[0.40, 0.30]}  glow={{intensity: 0.2}}/>
-        <DiagramNode id="q3" label={"Q3 \u2014 v2.5"} sublabel="Intelligence Layer"
-                     shape="hexagon" icon="ui:cpu-chip" size={[0.40, 0.30]} />
-        <DiagramNode id="q4" label={"Q4 \u2014 v3.0"} sublabel="Data Mesh GA"
-                     shape="hexagon" icon="data:warehouse" size={[0.40, 0.30]} />
-        <DiagramNode id="q1-27" label={"Q1 '27 \u2014 v3.1"} sublabel="Real-Time ML"
-                     shape="hexagon" icon="data:stream" size={[0.40, 0.30]} />
-
-        <DiagramEdge from="q2" to="q3" routing="flow" flow="forward"/>
-        <DiagramEdge from="q3" to="q4" routing="flow" flow="forward"/>
-        <DiagramEdge from="q4" to="q1-27" routing="flow" flow="forward"/>
-      </Diagram>
-    </>}
+          <DiagramEdge from="q2" to="q3" routing="flow" flow="forward" />
+          <DiagramEdge from="q3" to="q4" routing="flow" flow="forward" />
+          <DiagramEdge from="q4" to="q1-27" routing="flow" flow="forward" />
+        </Diagram>
+      </>
+    }
   >
-    <BlankLayout/>
+    <BlankSlide />
   </Slide>
 );
 
-// ─── Slide 11: Case Study ───────────────────────────────────────────────────
+// ─── Slide 16: Case Study (3D Diagram + Content) ───────────────────────────
 
 const caseStudySlide = (
   <Slide
@@ -534,43 +575,73 @@ const caseStudySlide = (
     title="Case Study: Meridian Health"
     scrollUnits={500}
     notes="Meridian is our largest healthcare customer. They migrated from a Snowflake + Kafka + Airflow stack to Nexus in 4 months."
-    sceneDsl={<>
-      <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36}/>
-      <Lighting>
-        <Ambient intensity={2.5} color="#d7e5ff"/>
-        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
-      </Lighting>
-      <Floor variant="grid"/>
+    sceneDsl={
+      <>
+        {sceneCamera}
+        {sceneLighting}
+        <Diagram id="case-study-migration" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
+          <FlowLayout direction="top-down" gap={0.12} />
 
-      <Diagram id="case-study-migration" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
-        <FlowLayout direction="top-down" gap={0.12}/>
+          <DiagramGroup id="before" label="Before: 3 Separate Systems" variant="container">
+            <GridLayout columns={3} spacing={[0.04, 0.02]} />
+            <DiagramNode
+              id="snowflake"
+              label="Snowflake"
+              sublabel="Analytics"
+              icon="data:warehouse"
+              shape="diamond"
+              size={[0.15, 0.15]}
+              thickness={0.030}
+            />
+            <DiagramNode
+              id="kafka"
+              label="Kafka"
+              sublabel="Streaming"
+              icon="data:stream"
+              shape="diamond"
+              size={[0.15, 0.15]}
+              thickness={0.030}
+            />
+            <DiagramNode
+              id="airflow"
+              label="Airflow"
+              sublabel="Orchestration"
+              icon="ui:arrow-path"
+              shape="diamond"
+              size={[0.15, 0.15]}
+              thickness={0.030}
+            />
+          </DiagramGroup>
 
-        <DiagramGroup id="before" label="Before: 3 Separate Systems" variant="container">
-          <GridLayout columns={3} spacing={[0.04, 0.02]}/>
-          <DiagramNode id="snowflake" label="Snowflake" sublabel="Analytics" icon="data:warehouse" shape="diamond" size={[0.15, 0.15]} thickness={0.030}/>
-          <DiagramNode id="kafka" label="Kafka" sublabel="Streaming" icon="data:stream" shape="diamond" size={[0.15, 0.15]} thickness={0.030}/>
-          <DiagramNode id="airflow" label="Airflow" sublabel="Orchestration" icon="ui:arrow-path" shape="diamond" size={[0.15, 0.15]} thickness={0.030}/>
-        </DiagramGroup>
+          <DiagramNode
+            id="nexus"
+            label="Nexus Platform"
+            sublabel="Unified Infrastructure"
+            icon="ui:cpu-chip"
+            shape="hexagon"
+            size={[0.18, 0.18]}
+            thickness={0.045}
+            glow={{ intensity: 0.2 }}
+          />
 
-        <DiagramNode id="nexus" label="Nexus Platform" sublabel="Unified Infrastructure"
-                     icon="ui:cpu-chip" shape="hexagon" size={[0.18, 0.18]} thickness={0.045} glow={{intensity: 0.2}}/>
-
-        <DiagramEdge from="snowflake" to="nexus" routing="flow" flow="forward"/>
-        <DiagramEdge from="kafka" to="nexus" routing="flow" flow="forward"/>
-        <DiagramEdge from="airflow" to="nexus" routing="flow" flow="forward"/>
-      </Diagram>
-    </>}
+          <DiagramEdge from="snowflake" to="nexus" routing="flow" flow="forward" />
+          <DiagramEdge from="kafka" to="nexus" routing="flow" flow="forward" />
+          <DiagramEdge from="airflow" to="nexus" routing="flow" flow="forward" />
+        </Diagram>
+      </>
+    }
   >
-    <BlankLayout/>
+    <BlankSlide />
   </Slide>
 );
 
-// ─── Slide 12: Security & Compliance ────────────────────────────────────────
+// ─── Slide 17: Security & Compliance ────────────────────────────────────────
 
 const securitySlide = (
   <Slide key="security" title="Security & Compliance" scrollUnits={400}>
-    <TwoColumnLayout
+    <TwoColumnSlide
       title="Security & Compliance"
+      entrance={{ left: 'slideLeft', right: 'slideRight', stagger: 0.12 }}
       left={
         <>
           <Heading level={3}>Certifications</Heading>
@@ -607,11 +678,25 @@ const securitySlide = (
   </Slide>
 );
 
-// ─── Slide 13: Q3 Priorities ────────────────────────────────────────────────
+// ─── Slide 18: Section Divider — Priorities ─────────────────────────────────
+
+const prioritiesSectionSlide = (
+  <Slide key="section-priorities" title="Q3 Priorities" transition="push-left">
+    <SectionSlide
+      title="Q3 Priorities"
+      subtitle="What we need to deliver and what we need to get there"
+    />
+  </Slide>
+);
+
+// ─── Slide 19: Q3 Priorities ────────────────────────────────────────────────
 
 const prioritiesSlide = (
   <Slide key="priorities" title="Q3 Priorities" scrollUnits={500}>
-    <TitleBodyLayout title="Q3 2026 Priorities">
+    <ContentSlide
+      title="Q3 2026 Priorities"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.08 }}
+    >
       <BulletList
         animateEntrance
         bulletStyle="arrow"
@@ -624,144 +709,76 @@ const prioritiesSlide = (
           'Reduce customer median time-to-value from 14 days to 5 days',
         ]}
       />
-    </TitleBodyLayout>
+      <CalloutBox variant="info" title="Key Dependency">
+        GPU cluster approval required by June 15 to hit Q3 ML inference targets.
+      </CalloutBox>
+    </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 14: Resource Ask ─────────────────────────────────────────────────
+// ─── Slide 20: Resource Asks ────────────────────────────────────────────────
 
 const resourceAskSlide = (
   <Slide key="resources" title="Resource Asks" scrollUnits={300}>
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(0.75rem, 1.5vw, 1.25rem)',
-        justifyContent: 'center',
-      }}>
-        <Heading level={2}>Resource Asks</Heading>
-        <Body>To hit our Q3 targets, we need approval on three investments.</Body>
-
-        <div style={{display: 'flex', gap: 'clamp(0.75rem, 1.5vw, 1rem)', marginTop: '0.5rem'}}>
-          {[
-            {
-              number: '01',
-              title: 'Headcount: +22 Engineers',
-              description: 'Focused on AI runtime (8), query engine (6), platform (4), and developer experience (4). Estimated cost: $4.8M fully loaded.',
-              badge: '$4.8M',
-              badgeVariant: 'warning' as const,
-            },
-            {
-              number: '02',
-              title: 'Infrastructure: GPU Cluster',
-              description: 'Dedicated A100 cluster for AI query optimization training and inference. 3-year reserved instance commitment.',
-              badge: '$2.1M',
-              badgeVariant: 'warning' as const,
-            },
-            {
-              number: '03',
-              title: 'Go-to-Market: Sales Expansion',
-              description: 'Expand enterprise sales team by 6 AEs focused on healthcare and finserv verticals. Plus $800K for developer marketing.',
-              badge: '$3.2M',
-              badgeVariant: 'warning' as const,
-            },
-          ].map((item) => (
-            <div key={item.number} style={{
-              background: surface,
-              borderRadius: '0.75rem',
-              padding: 'clamp(1rem, 2vw, 1.5rem)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.5rem',
-              flex: 1,
-              border: `1px solid ${accent}22`,
-            }}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                <span style={{fontFamily: font, fontSize: 'clamp(1.5rem, 2.5vw, 2rem)', fontWeight: 700, color: `${accent}66`}}>
-                  {item.number}
-                </span>
-                <Badge variant={item.badgeVariant}>{item.badge}</Badge>
-              </div>
-              <span style={{fontFamily: font, fontSize: 'clamp(0.85rem, 1.2vw, 1rem)', fontWeight: 600, color: heading}}>
-                {item.title}
-              </span>
-              <span style={{fontFamily: font, fontSize: 'clamp(0.7rem, 0.95vw, 0.85rem)', color: muted, lineHeight: 1.5}}>
-                {item.description}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <Divider/>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <span style={{fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: body}}>
-            Total investment ask
-          </span>
-          <span style={{fontFamily: font, fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', fontWeight: 700, color: heading}}>
-            $10.1M
-          </span>
-        </div>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <span style={{fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: body}}>
-            Projected Q4 ARR with investment
-          </span>
-          <span style={{fontFamily: font, fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', fontWeight: 700, color: '#34D399'}}>
-            $95M &nbsp;(+40% YoY)
-          </span>
-        </div>
-      </div>
-    </BlankLayout>
+    <ContentSlide
+      title="Resource Asks"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.1 }}
+    >
+      <Body>To hit our Q3 targets, we need approval on three investments.</Body>
+      <Divider variant="gradient" />
+      <ProcessSteps
+        activeStep={0}
+        steps={[
+          {
+            title: 'Headcount: +22 Engineers',
+            description: 'ML/AI (8), query engine (6), platform (4), DevEx (4). $4.8M fully loaded.',
+          },
+          {
+            title: 'Infrastructure: GPU Cluster',
+            description: 'Dedicated A100 cluster for AI query optimization. 3-year reserved. $2.1M.',
+          },
+          {
+            title: 'GTM: Sales Expansion',
+            description: '6 AEs for healthcare + finserv. $800K developer marketing. $3.2M total.',
+          },
+        ]}
+      />
+      <Divider variant="gradient" />
+      <MetricRow
+        items={[
+          { value: '$10.1M', label: 'Total Investment' },
+          { value: '$95M', label: 'Projected Q4 ARR' },
+          { value: '+40%', label: 'YoY Growth' },
+        ]}
+      />
+    </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 15: Closing ──────────────────────────────────────────────────────
+// ─── Slide 21: Customer Testimonial ─────────────────────────────────────────
+
+const testimonialSlide = (
+  <Slide key="testimonial" title="Customer Voice" transition="zoom-in">
+    <QuoteSlide
+      quote="Nexus eliminated three separate data systems and gave us real-time visibility we never had before. The migration paid for itself in the first quarter."
+      attribution="Sarah Chen"
+      role="VP Platform Engineering, Meridian Health"
+      entrance={{ title: 'fadeIn' }}
+    />
+  </Slide>
+);
+
+// ─── Slide 22: Closing ──────────────────────────────────────────────────────
 
 const closingSlide = (
-  <Slide key="closing" title="Thank You" scrollUnits={100}>
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        gap: 'clamp(1rem, 2vw, 1.5rem)',
-        textAlign: 'center',
-        padding: 'var(--slide-padding, 8%)',
-      }}>
-        <h1 style={{
-          fontFamily: font,
-          fontSize: 'clamp(2rem, 5vw, 4rem)',
-          fontWeight: 700,
-          color: heading,
-          margin: 0,
-          lineHeight: 1.2,
-        }}>
-          Thank you.
-        </h1>
-        <p style={{
-          fontFamily: font,
-          fontSize: 'clamp(0.9rem, 1.5vw, 1.2rem)',
-          color: body,
-          margin: 0,
-          maxWidth: '28rem',
-          lineHeight: 1.6,
-        }}>
-          Questions? Reach the Nexus team at <span style={{color: accent, fontWeight: 600}}>platform@nexus.dev</span>
-        </p>
-        <Divider/>
-        <p style={{
-          fontFamily: font,
-          fontSize: 'clamp(0.7rem, 1vw, 0.85rem)',
-          color: muted,
-          margin: 0,
-        }}>
-          Nexus Platform &middot; Q3 2026 Strategy &middot; Confidential
-        </p>
-      </div>
-    </BlankLayout>
+  <Slide key="closing" title="Thank You" scrollUnits={100} transition="zoom-in">
+    <TitleSlide
+      title="Thank you."
+      subtitle="Questions? Reach the Nexus team at platform@nexus.dev"
+      tagline="Nexus Platform · Q3 2026 Strategy · Confidential"
+      alignment="center"
+      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.15 }}
+    />
   </Slide>
 );
 
@@ -770,17 +787,29 @@ const closingSlide = (
 export const demoSlides: ReactElement[] = [
   titleSlide,
   agendaSlide,
+  // Section 1: Market
+  marketSectionSlide,
   marketSlide,
   competitiveLandscapeSlide,
   visionSlide,
+  // Section 2: Product
+  productSectionSlide,
   architectureSlide,
-  metricsSlide,
+  // Section 3: Metrics
+  metricsSectionSlide,
+  kpiSlide,
+  metricsChartSlide,
   performanceSlide,
+  // Section 4: GTM
+  gtmSectionSlide,
   gtmSlide,
   roadmapSlide,
   caseStudySlide,
   securitySlide,
+  // Section 5: Priorities
+  prioritiesSectionSlide,
   prioritiesSlide,
   resourceAskSlide,
+  testimonialSlide,
   closingSlide,
 ];

@@ -4,6 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { compileLayout } from '../layoutCompiler';
 
 describe('compileLayout', () => {
+  // ─── title ──────────────────────────────────────────────────────────────────
+
   describe('title layout', () => {
     it('returns a single full-viewport region', () => {
       const regions = compileLayout({ layout: 'title', hasTitle: true });
@@ -11,51 +13,62 @@ describe('compileLayout', () => {
       expect(regions[0]).toMatchObject({ id: 'title', x: 0, y: 0, w: 1, h: 1, layer: 1 });
     });
 
-    it('returns same result when hasTitle is false (layout always fills viewport)', () => {
+    it('returns same result when hasTitle is false', () => {
       const regions = compileLayout({ layout: 'title', hasTitle: false });
       expect(regions).toHaveLength(1);
       expect(regions[0]!.id).toBe('title');
     });
   });
 
-  describe('title-body layout', () => {
+  // ─── section ────────────────────────────────────────────────────────────────
+
+  describe('section layout', () => {
+    it('returns a single full-viewport region', () => {
+      const regions = compileLayout({ layout: 'section', hasTitle: true });
+      expect(regions).toHaveLength(1);
+      expect(regions[0]).toMatchObject({ id: 'title', x: 0, y: 0, w: 1, h: 1, layer: 1 });
+    });
+  });
+
+  // ─── content ────────────────────────────────────────────────────────────────
+
+  describe('content layout', () => {
     it('returns two regions: title and body', () => {
-      const regions = compileLayout({ layout: 'title-body', hasTitle: true });
+      const regions = compileLayout({ layout: 'content', hasTitle: true });
       expect(regions).toHaveLength(2);
-      const title = regions.find((r) => r.id === 'title');
-      const body = regions.find((r) => r.id === 'body');
-      expect(title).toBeDefined();
-      expect(body).toBeDefined();
+      expect(regions.find((r) => r.id === 'title')).toBeDefined();
+      expect(regions.find((r) => r.id === 'body')).toBeDefined();
     });
 
-    it('title region spans full width', () => {
-      const regions = compileLayout({ layout: 'title-body', hasTitle: true });
+    it('title region spans full width at correct NVS position', () => {
+      const regions = compileLayout({ layout: 'content', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
       expect(title.x).toBe(0);
       expect(title.w).toBe(1);
+      expect(title.y).toBeCloseTo(0.02);
+      expect(title.h).toBeCloseTo(0.16);
+      expect(title.layer).toBe(1);
     });
 
-    it('body is positioned below the title', () => {
-      const regions = compileLayout({ layout: 'title-body', hasTitle: true });
+    it('body is positioned below the title with gutter', () => {
+      const regions = compileLayout({ layout: 'content', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
       const body = regions.find((r) => r.id === 'body')!;
+      expect(body.y).toBeCloseTo(0.20); // titleH + gutter = 0.18 + 0.02
       expect(body.y).toBeGreaterThan(title.y + title.h);
-    });
-
-    it('title has higher layer than body', () => {
-      const regions = compileLayout({ layout: 'title-body', hasTitle: true });
-      const title = regions.find((r) => r.id === 'title')!;
-      const body = regions.find((r) => r.id === 'body')!;
-      expect(title.layer).toBeGreaterThan(body.layer);
-    });
-
-    it('body spans full width', () => {
-      const regions = compileLayout({ layout: 'title-body', hasTitle: true });
-      const body = regions.find((r) => r.id === 'body')!;
-      expect(body.x).toBe(0);
       expect(body.w).toBe(1);
+      expect(body.layer).toBe(0);
+    });
+
+    it('body fills remaining space minus bottom gutter', () => {
+      const regions = compileLayout({ layout: 'content', hasTitle: true });
+      const body = regions.find((r) => r.id === 'body')!;
+      // bodyH = 1 - 0.20 - 0.02 = 0.78
+      expect(body.h).toBeCloseTo(0.78);
     });
   });
+
+  // ─── two-column ─────────────────────────────────────────────────────────────
 
   describe('two-column layout with title', () => {
     it('returns three regions: title, left, right', () => {
@@ -86,6 +99,14 @@ describe('compileLayout', () => {
       expect(right.x).toBeGreaterThan(left.x + left.w);
     });
 
+    it('uses double gutter for column gap', () => {
+      const regions = compileLayout({ layout: 'two-column', hasTitle: true });
+      const left = regions.find((r) => r.id === 'left')!;
+      const right = regions.find((r) => r.id === 'right')!;
+      const gap = right.x - (left.x + left.w);
+      expect(gap).toBeCloseTo(0.04); // gutter * 2
+    });
+
     it('columns are below the title', () => {
       const regions = compileLayout({ layout: 'two-column', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
@@ -112,6 +133,49 @@ describe('compileLayout', () => {
     });
   });
 
+  // ─── image ──────────────────────────────────────────────────────────────────
+
+  describe('image layout', () => {
+    it('returns two regions: image and body', () => {
+      const regions = compileLayout({ layout: 'image', hasTitle: false });
+      expect(regions).toHaveLength(2);
+      expect(regions.find((r) => r.id === 'image')).toBeDefined();
+      expect(regions.find((r) => r.id === 'body')).toBeDefined();
+    });
+
+    it('image region is 55% wide by default', () => {
+      const regions = compileLayout({ layout: 'image', hasTitle: false });
+      const image = regions.find((r) => r.id === 'image')!;
+      expect(image.w).toBeCloseTo(0.55);
+      expect(image.h).toBe(1);
+    });
+
+    it('defaults to image on the left', () => {
+      const regions = compileLayout({ layout: 'image', hasTitle: false });
+      const image = regions.find((r) => r.id === 'image')!;
+      const body = regions.find((r) => r.id === 'body')!;
+      expect(image.x).toBe(0);
+      expect(body.x).toBeCloseTo(0.55 + 0.02); // imgW + gutter
+    });
+
+    it('places image on the right when imagePosition is right', () => {
+      const regions = compileLayout({ layout: 'image', hasTitle: false, imagePosition: 'right' });
+      const image = regions.find((r) => r.id === 'image')!;
+      const body = regions.find((r) => r.id === 'body')!;
+      expect(body.x).toBe(0);
+      expect(image.x).toBeGreaterThan(body.x + body.w);
+    });
+
+    it('body text region accounts for gutter padding', () => {
+      const regions = compileLayout({ layout: 'image', hasTitle: false });
+      const body = regions.find((r) => r.id === 'body')!;
+      expect(body.y).toBeCloseTo(0.02);
+      expect(body.h).toBeCloseTo(0.96); // 1 - gutter * 2
+    });
+  });
+
+  // ─── full-bleed ─────────────────────────────────────────────────────────────
+
   describe('full-bleed layout', () => {
     it('returns one overlay region', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false });
@@ -122,7 +186,6 @@ describe('compileLayout', () => {
     it('defaults to bottom-left when overlayPosition is not specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false });
       const overlay = regions[0]!;
-      // bottom-left: x = PAD (0.04), y = 1 - OVERLAY_H - PAD
       expect(overlay.x).toBeCloseTo(0.04);
       expect(overlay.y).toBeGreaterThan(0.5);
     });
@@ -134,10 +197,23 @@ describe('compileLayout', () => {
       expect(overlay.y).toBeCloseTo(0.04);
     });
 
+    it('positions overlay at top-right when specified', () => {
+      const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'top-right' });
+      const overlay = regions[0]!;
+      expect(overlay.x).toBeCloseTo(1 - 0.4 - 0.04);
+      expect(overlay.y).toBeCloseTo(0.04);
+    });
+
+    it('positions overlay at bottom-right when specified', () => {
+      const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'bottom-right' });
+      const overlay = regions[0]!;
+      expect(overlay.x).toBeCloseTo(1 - 0.4 - 0.04);
+      expect(overlay.y).toBeCloseTo(1 - 0.3 - 0.04);
+    });
+
     it('positions overlay at center when specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'center' });
       const overlay = regions[0]!;
-      // center: x = (1 - 0.4) / 2 = 0.3, y = (1 - 0.3) / 2 = 0.35
       expect(overlay.x).toBeCloseTo(0.3);
       expect(overlay.y).toBeCloseTo(0.35);
     });
@@ -147,6 +223,8 @@ describe('compileLayout', () => {
       expect(regions[0]!.layer).toBe(1);
     });
   });
+
+  // ─── blank ──────────────────────────────────────────────────────────────────
 
   describe('blank layout', () => {
     it('returns a single full-size body region', () => {
@@ -159,6 +237,231 @@ describe('compileLayout', () => {
       const regions = compileLayout({ layout: 'blank', hasTitle: true });
       expect(regions).toHaveLength(1);
       expect(regions[0]!.id).toBe('body');
+    });
+  });
+
+  // ─── big-number ─────────────────────────────────────────────────────────────
+
+  describe('big-number layout', () => {
+    it('returns 1 stat region by default', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false });
+      expect(regions).toHaveLength(1);
+      expect(regions[0]!.id).toBe('stat-0');
+    });
+
+    it('returns 2 stat regions when statCount is 2', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 2 });
+      expect(regions).toHaveLength(2);
+      expect(regions[0]!.id).toBe('stat-0');
+      expect(regions[1]!.id).toBe('stat-1');
+    });
+
+    it('returns 3 stat regions when statCount is 3', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 3 });
+      expect(regions).toHaveLength(3);
+    });
+
+    it('returns 4 stat regions when statCount is 4', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 4 });
+      expect(regions).toHaveLength(4);
+    });
+
+    it('clamps statCount to min 1', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 0 });
+      expect(regions).toHaveLength(1);
+    });
+
+    it('clamps statCount to max 4', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 10 });
+      expect(regions).toHaveLength(4);
+    });
+
+    it('stat regions are vertically centered', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 1 });
+      const stat = regions[0]!;
+      expect(stat.h).toBeCloseTo(0.5);
+      expect(stat.y).toBeCloseTo(0.25); // (1 - 0.5) / 2
+    });
+
+    it('stat regions have equal width with gaps', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 3 });
+      const widths = regions.map((r) => r.w);
+      expect(widths[0]).toBeCloseTo(widths[1]!);
+      expect(widths[1]).toBeCloseTo(widths[2]!);
+    });
+
+    it('adds title region when hasTitle is true', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: true, statCount: 2 });
+      expect(regions).toHaveLength(3); // title + 2 stats
+      expect(regions[0]!.id).toBe('title');
+      expect(regions[0]!.layer).toBe(1);
+    });
+
+    it('title region height is 70% of standard title height', () => {
+      const regions = compileLayout({ layout: 'big-number', hasTitle: true, statCount: 1 });
+      const title = regions.find((r) => r.id === 'title')!;
+      expect(title.h).toBeCloseTo(0.18 * 0.7);
+    });
+  });
+
+  // ─── metric-grid ────────────────────────────────────────────────────────────
+
+  describe('metric-grid layout', () => {
+    it('returns 3 metric columns by default with title', () => {
+      const regions = compileLayout({ layout: 'metric-grid', hasTitle: true });
+      expect(regions).toHaveLength(4); // title + 3 metrics
+      expect(regions[0]!.id).toBe('title');
+      expect(regions[1]!.id).toBe('metric-0');
+      expect(regions[2]!.id).toBe('metric-1');
+      expect(regions[3]!.id).toBe('metric-2');
+    });
+
+    it('returns 4 metric columns when metricColumns is 4', () => {
+      const regions = compileLayout({ layout: 'metric-grid', hasTitle: false, metricColumns: 4 });
+      expect(regions).toHaveLength(4);
+      expect(regions[3]!.id).toBe('metric-3');
+    });
+
+    it('metric columns have equal width', () => {
+      const regions = compileLayout({ layout: 'metric-grid', hasTitle: false, metricColumns: 3 });
+      const widths = regions.map((r) => r.w);
+      expect(widths[0]).toBeCloseTo(widths[1]!);
+      expect(widths[1]).toBeCloseTo(widths[2]!);
+    });
+
+    it('metric columns are positioned below title when hasTitle is true', () => {
+      const regions = compileLayout({ layout: 'metric-grid', hasTitle: true });
+      const title = regions.find((r) => r.id === 'title')!;
+      const metric0 = regions.find((r) => r.id === 'metric-0')!;
+      expect(metric0.y).toBeGreaterThan(title.y + title.h);
+    });
+
+    it('metric columns start at gutter when hasTitle is false', () => {
+      const regions = compileLayout({ layout: 'metric-grid', hasTitle: false });
+      const metric0 = regions.find((r) => r.id === 'metric-0')!;
+      expect(metric0.y).toBeCloseTo(0.02);
+    });
+  });
+
+  // ─── comparison ─────────────────────────────────────────────────────────────
+
+  describe('comparison layout', () => {
+    it('returns two regions: title and body', () => {
+      const regions = compileLayout({ layout: 'comparison', hasTitle: true });
+      expect(regions).toHaveLength(2);
+      expect(regions[0]!.id).toBe('title');
+      expect(regions[1]!.id).toBe('body');
+    });
+
+    it('has same region geometry as content layout', () => {
+      const comparison = compileLayout({ layout: 'comparison', hasTitle: true });
+      const content = compileLayout({ layout: 'content', hasTitle: true });
+      expect(comparison).toEqual(content);
+    });
+  });
+
+  // ─── quote ──────────────────────────────────────────────────────────────────
+
+  describe('quote layout', () => {
+    it('returns two regions: quote and attribution', () => {
+      const regions = compileLayout({ layout: 'quote', hasTitle: false });
+      expect(regions).toHaveLength(2);
+      expect(regions[0]!.id).toBe('quote');
+      expect(regions[1]!.id).toBe('attribution');
+    });
+
+    it('quote region is horizontally centered with 10% margin', () => {
+      const regions = compileLayout({ layout: 'quote', hasTitle: false });
+      const quote = regions.find((r) => r.id === 'quote')!;
+      expect(quote.x).toBeCloseTo(0.1);
+      expect(quote.w).toBeCloseTo(0.8);
+    });
+
+    it('quote region is 60% tall', () => {
+      const regions = compileLayout({ layout: 'quote', hasTitle: false });
+      const quote = regions.find((r) => r.id === 'quote')!;
+      expect(quote.h).toBeCloseTo(0.6);
+    });
+
+    it('attribution is below the quote region', () => {
+      const regions = compileLayout({ layout: 'quote', hasTitle: false });
+      const quote = regions.find((r) => r.id === 'quote')!;
+      const attribution = regions.find((r) => r.id === 'attribution')!;
+      expect(attribution.y).toBeGreaterThan(quote.y + quote.h);
+    });
+
+    it('attribution has 10% height', () => {
+      const regions = compileLayout({ layout: 'quote', hasTitle: false });
+      const attribution = regions.find((r) => r.id === 'attribution')!;
+      expect(attribution.h).toBeCloseTo(0.1);
+    });
+
+    it('quote has layer 1, attribution has layer 0', () => {
+      const regions = compileLayout({ layout: 'quote', hasTitle: false });
+      const quote = regions.find((r) => r.id === 'quote')!;
+      const attribution = regions.find((r) => r.id === 'attribution')!;
+      expect(quote.layer).toBe(1);
+      expect(attribution.layer).toBe(0);
+    });
+  });
+
+  // ─── agenda ─────────────────────────────────────────────────────────────────
+
+  describe('agenda layout', () => {
+    it('returns two regions: title and body', () => {
+      const regions = compileLayout({ layout: 'agenda', hasTitle: true });
+      expect(regions).toHaveLength(2);
+      expect(regions[0]!.id).toBe('title');
+      expect(regions[1]!.id).toBe('body');
+    });
+
+    it('has same region geometry as content layout', () => {
+      const agenda = compileLayout({ layout: 'agenda', hasTitle: true });
+      const content = compileLayout({ layout: 'content', hasTitle: true });
+      expect(agenda).toEqual(content);
+    });
+  });
+
+  // ─── unknown / default ──────────────────────────────────────────────────────
+
+  describe('unknown layout', () => {
+    it('returns fallback blank region for unknown layout', () => {
+      // Cast to bypass type checking for unknown layout string
+      const regions = compileLayout({ layout: 'unknown-future' as never, hasTitle: false });
+      expect(regions).toHaveLength(1);
+      expect(regions[0]).toEqual({ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 });
+    });
+  });
+
+  // ─── NVS coordinate sanity ──────────────────────────────────────────────────
+
+  describe('NVS coordinate constraints', () => {
+    const allLayouts = [
+      { layout: 'title' as const, hasTitle: true },
+      { layout: 'section' as const, hasTitle: true },
+      { layout: 'content' as const, hasTitle: true },
+      { layout: 'two-column' as const, hasTitle: true },
+      { layout: 'two-column' as const, hasTitle: false },
+      { layout: 'image' as const, hasTitle: false },
+      { layout: 'full-bleed' as const, hasTitle: false },
+      { layout: 'blank' as const, hasTitle: false },
+      { layout: 'big-number' as const, hasTitle: false, statCount: 2 },
+      { layout: 'metric-grid' as const, hasTitle: true, metricColumns: 3 },
+      { layout: 'comparison' as const, hasTitle: true },
+      { layout: 'quote' as const, hasTitle: false },
+      { layout: 'agenda' as const, hasTitle: true },
+    ];
+
+    it.each(allLayouts)('all regions for $layout have coordinates in [0, 1]', (input) => {
+      const regions = compileLayout(input);
+      for (const r of regions) {
+        expect(r.x).toBeGreaterThanOrEqual(0);
+        expect(r.y).toBeGreaterThanOrEqual(0);
+        expect(r.w).toBeGreaterThan(0);
+        expect(r.h).toBeGreaterThan(0);
+        expect(r.x + r.w).toBeLessThanOrEqual(1.001); // small tolerance for float math
+        expect(r.y + r.h).toBeLessThanOrEqual(1.001);
+      }
     });
   });
 });

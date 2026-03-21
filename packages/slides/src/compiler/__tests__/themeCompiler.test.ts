@@ -1,152 +1,183 @@
-// Tests for compileDeckTheme() — merge with defaults, SceneTheme derivation, CSS vars.
+// Tests for resolveSlideConfig() — merge with defaults, CSS variable output.
 
 import { describe, it, expect } from 'vitest';
-import { compileDeckTheme } from '../themeCompiler';
-import { defaultDeckTheme } from '../../theme';
+import { resolveSlideConfig } from '../themeCompiler';
+import {
+  defaultSlideTheme,
+  compactSlideTheme,
+  cinematicSlideTheme,
+  minimalSlideTheme,
+} from '../../theme';
 
-describe('compileDeckTheme', () => {
+describe('resolveSlideConfig', () => {
   describe('defaults', () => {
-    it('uses defaultDeckTheme values when no argument is provided', () => {
-      const result = compileDeckTheme();
-      expect(result.colorMode).toBe(defaultDeckTheme.colorMode);
-      expect(result.fonts.heading).toBe(defaultDeckTheme.fonts.heading);
-      expect(result.background.color).toBe(defaultDeckTheme.background.color);
+    it('uses defaultSlideTheme values when no argument is provided', () => {
+      const result = resolveSlideConfig();
+      expect(result.slideTheme.timing.transitionDuration).toBe('300ms');
+      expect(result.slideTheme.density.contentPadding).toBe('48px');
+      expect(result.slideTheme.typography.headingScale).toBe(1.2);
+      expect(result.slideTheme.components.cardBorderWidth).toBe('1px');
     });
 
-    it('populates all required colors from defaults', () => {
-      const result = compileDeckTheme();
-      expect(result.colors.heading).toBe(defaultDeckTheme.colors.heading);
-      expect(result.colors.body).toBe(defaultDeckTheme.colors.body);
-      expect(result.colors.surface).toBe(defaultDeckTheme.colors.surface);
-      expect(result.colors.muted).toBe(defaultDeckTheme.colors.muted);
+    it('fills all timing fields from defaults', () => {
+      const result = resolveSlideConfig();
+      expect(result.slideTheme.timing).toEqual(defaultSlideTheme.timing);
     });
 
-    it('populates spacing defaults', () => {
-      const result = compileDeckTheme();
-      expect(result.spacing.slide).toBe(defaultDeckTheme.spacing.slide);
-      expect(result.spacing.stack).toBe(defaultDeckTheme.spacing.stack);
-    });
-  });
-
-  describe('SceneTheme derivation', () => {
-    it('maps colorMode to sceneTheme.colorMode', () => {
-      const result = compileDeckTheme({ colorMode: 'dark' });
-      expect(result.sceneTheme.colorMode).toBe('dark');
+    it('fills all density fields from defaults', () => {
+      const result = resolveSlideConfig();
+      expect(result.slideTheme.density).toEqual(defaultSlideTheme.density);
     });
 
-    it('maps fonts.heading to sceneTheme.font.htmlFamily', () => {
-      const result = compileDeckTheme({ fonts: { heading: 'Inter, sans-serif' } });
-      expect(result.sceneTheme.font.htmlFamily).toBe('Inter, sans-serif');
+    it('fills all typography fields from defaults', () => {
+      const result = resolveSlideConfig();
+      expect(result.slideTheme.typography).toEqual(defaultSlideTheme.typography);
     });
 
-    it('populates all required fontSize scale fields', () => {
-      const result = compileDeckTheme();
-      expect(result.sceneTheme.fontSize.heading).toBeGreaterThan(1);
-      expect(result.sceneTheme.fontSize.body).toBe(1.0);
-      expect(result.sceneTheme.fontSize.label).toBeGreaterThan(0);
-      expect(result.sceneTheme.fontSize.caption).toBeGreaterThan(0);
-      expect(result.sceneTheme.fontSize.annotation).toBeGreaterThan(0);
-    });
-
-    it('uses default font family when fonts.heading is not overridden', () => {
-      const result = compileDeckTheme();
-      expect(result.sceneTheme.font.htmlFamily).toBe(defaultDeckTheme.fonts.heading);
+    it('fills all component fields from defaults', () => {
+      const result = resolveSlideConfig();
+      expect(result.slideTheme.components).toEqual(defaultSlideTheme.components);
     });
   });
 
-  describe('CSS variable map', () => {
-    it('produces --slide-padding from spacing.slide', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-padding']).toBe(defaultDeckTheme.spacing.slide);
+  describe('partial overrides', () => {
+    it('merges partial timing overrides, preserving defaults', () => {
+      const result = resolveSlideConfig({
+        timing: { transitionDuration: '500ms' },
+      } as Partial<import('../../types').SlideTheme>);
+      expect(result.slideTheme.timing.transitionDuration).toBe('500ms');
+      expect(result.slideTheme.timing.entranceDuration).toBe(0.3);
     });
 
-    it('produces --slide-gap from spacing.stack', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-gap']).toBe(defaultDeckTheme.spacing.stack);
+    it('merges partial density overrides', () => {
+      const result = resolveSlideConfig({
+        density: { contentPadding: '32px' },
+      } as Partial<import('../../types').SlideTheme>);
+      expect(result.slideTheme.density.contentPadding).toBe('32px');
+      expect(result.slideTheme.density.contentGap).toBe('16px');
     });
 
-    it('produces --slide-color-heading', () => {
-      const result = compileDeckTheme({ colors: { heading: '#abc123', body: '#000', surface: '#fff', muted: '#999' } });
-      expect(result.cssVars['--slide-color-heading']).toBe('#abc123');
-    });
-
-    it('produces --slide-color-body', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-color-body']).toBe(defaultDeckTheme.colors.body);
-    });
-
-    it('produces --slide-color-surface', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-color-surface']).toBe(defaultDeckTheme.colors.surface);
-    });
-
-    it('produces --slide-color-muted', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-color-muted']).toBe(defaultDeckTheme.colors.muted);
-    });
-
-    it('produces --slide-border-radius from border.radius', () => {
-      const result = compileDeckTheme({ border: { radius: '1rem' } });
-      expect(result.cssVars['--slide-border-radius']).toBe('1rem');
-    });
-
-    it('uses fallback border radius when border is not provided', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-border-radius']).toBeDefined();
-    });
-
-    it('does NOT include --slide-font-body when fonts.body is absent', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-font-body']).toBeUndefined();
-    });
-
-    it('includes --slide-font-body when fonts.body is provided', () => {
-      const result = compileDeckTheme({ fonts: { heading: 'Inter', body: 'Georgia, serif' } });
-      expect(result.cssVars['--slide-font-body']).toBe('Georgia, serif');
-    });
-
-    it('does NOT include --slide-font-mono when fonts.mono is absent', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-font-mono']).toBeUndefined();
-    });
-
-    it('includes --slide-font-mono when fonts.mono is provided', () => {
-      const result = compileDeckTheme({ fonts: { heading: 'Inter', mono: 'JetBrains Mono' } });
-      expect(result.cssVars['--slide-font-mono']).toBe('JetBrains Mono');
-    });
-
-    it('includes --slide-bg-gradient when background.gradient is provided', () => {
-      const result = compileDeckTheme({ background: { color: '#000', gradient: 'linear-gradient(#000, #111)' } });
-      expect(result.cssVars['--slide-bg-gradient']).toBe('linear-gradient(#000, #111)');
-    });
-
-    it('does NOT include --slide-bg-gradient when absent', () => {
-      const result = compileDeckTheme();
-      expect(result.cssVars['--slide-bg-gradient']).toBeUndefined();
+    it('merges partial typography overrides', () => {
+      const result = resolveSlideConfig({
+        typography: { headingScale: 1.5 },
+      } as Partial<import('../../types').SlideTheme>);
+      expect(result.slideTheme.typography.headingScale).toBe(1.5);
+      expect(result.slideTheme.typography.bodyScale).toBe(1.1);
     });
   });
 
-  describe('deep merge', () => {
-    it('merges partial colors, preserving unoverridden defaults', () => {
-      const result = compileDeckTheme({
-        colors: { heading: '#custom', body: '#b', surface: '#s', muted: '#m' },
-      });
-      expect(result.colors.heading).toBe('#custom');
-      // other fields come from defaults
-      expect(result.colors.body).toBe('#b');
+  describe('CSS variable output', () => {
+    it('produces --slide-transition-duration from timing', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-transition-duration']).toBe('300ms');
     });
 
-    it('merges partial fonts, preserving defaults', () => {
-      const result = compileDeckTheme({ fonts: { heading: 'Custom Font' } });
-      expect(result.fonts.heading).toBe('Custom Font');
-      // body/mono remain undefined (not in defaults either)
-      expect(result.fonts.body).toBeUndefined();
+    it('produces --slide-entrance-duration as string', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-entrance-duration']).toBe('0.3');
     });
 
-    it('overriding colorMode to dark gives dark sceneTheme', () => {
-      const result = compileDeckTheme({ colorMode: 'dark' });
-      expect(result.sceneTheme.colorMode).toBe('dark');
-      expect(result.colorMode).toBe('dark');
+    it('produces --slide-entrance-distance', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-entrance-distance']).toBe('24px');
+    });
+
+    it('produces --slide-stagger-delay', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-stagger-delay']).toBe('0.08');
+    });
+
+    it('produces --slide-count-up-duration', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-count-up-duration']).toBe('0.6');
+    });
+
+    it('produces --slide-content-padding from density', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-content-padding']).toBe('48px');
+    });
+
+    it('produces --slide-content-gap', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-content-gap']).toBe('16px');
+    });
+
+    it('produces --slide-title-height as string', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-title-height']).toBe('0.18');
+    });
+
+    it('produces --slide-gutter', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-gutter']).toBe('0.02');
+    });
+
+    it('produces --slide-heading-scale', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-heading-scale']).toBe('1.2');
+    });
+
+    it('produces --slide-body-scale', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-body-scale']).toBe('1.1');
+    });
+
+    it('produces --slide-caption-scale', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-caption-scale']).toBe('1');
+    });
+
+    it('produces --slide-card-border-width', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-card-border-width']).toBe('1px');
+    });
+
+    it('produces --slide-timeline-connector-width', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-timeline-connector-width']).toBe('2px');
+    });
+
+    it('produces --slide-timeline-dot-size', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-timeline-dot-size']).toBe('12px');
+    });
+
+    it('produces --slide-progress-ring-size', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-progress-ring-size']).toBe('64px');
+    });
+
+    it('produces --slide-progress-ring-thickness', () => {
+      const result = resolveSlideConfig();
+      expect(result.cssVars['--slide-progress-ring-thickness']).toBe('4px');
+    });
+  });
+
+  describe('named presets resolve correctly', () => {
+    it('compact preset resolves with its values', () => {
+      const result = resolveSlideConfig(compactSlideTheme);
+      expect(result.slideTheme.timing.transitionDuration).toBe('200ms');
+      expect(result.slideTheme.density.contentPadding).toBe('32px');
+      expect(result.cssVars['--slide-transition-duration']).toBe('200ms');
+    });
+
+    it('cinematic preset resolves with its values', () => {
+      const result = resolveSlideConfig(cinematicSlideTheme);
+      expect(result.slideTheme.timing.transitionDuration).toBe('500ms');
+      expect(result.slideTheme.density.contentPadding).toBe('64px');
+      expect(result.cssVars['--slide-transition-duration']).toBe('500ms');
+    });
+
+    it('minimal preset resolves with its values', () => {
+      const result = resolveSlideConfig(minimalSlideTheme);
+      expect(result.slideTheme.timing.transitionDuration).toBe('250ms');
+      expect(result.slideTheme.timing.staggerDelay).toBe(0);
+      expect(result.cssVars['--slide-stagger-delay']).toBe('0');
+    });
+
+    it('default preset resolves with default values', () => {
+      const result = resolveSlideConfig(defaultSlideTheme);
+      expect(result.slideTheme).toEqual(defaultSlideTheme);
     });
   });
 });

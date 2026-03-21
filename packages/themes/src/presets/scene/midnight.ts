@@ -170,6 +170,13 @@ export const midnightSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.5, brightness: 0.7, saturation: 0.8 },
   },
   highlightPalette: midnightDarkHighlights,
+  accentColor: '#E2A33A',
+  textColors: {
+    primary: '#F2E7D4',
+    secondary: '#BCA180',
+    muted: '#7B664C',
+    surface: '#261A13',
+  },
 };
 
 /** midnight family, light polarity. */
@@ -218,4 +225,11 @@ export const midnightLightSceneTheme: SceneTheme = {
     materialApplication: { colorMix: 0.35, brightness: 1.0 },
   },
   highlightPalette: midnightLightHighlights,
+  accentColor: '#A7793A',
+  textColors: {
+    primary: '#3A2A1B',
+    secondary: '#7B664C',
+    muted: '#BCA180',
+    surface: '#FFF9EE',
+  },
 };
