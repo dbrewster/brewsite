@@ -3,7 +3,7 @@ title: "@brewsite/screens — ImagePanel, Screen, and MediaScreen"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## Package Clarification
@@ -36,12 +36,12 @@ No widget pre-declaration needed. All three element types (`Screen`, `MediaScree
 interface ImagePanelProps {
   id: string;               // Required. Unique, stable across scenes.
   src: string;              // Public asset URL. E.g. '/screenshots/dashboard.png'
-  x?: number;               // NVS horizontal center [0..1]. Default: 0.5
-  y?: number;               // NVS vertical center [0..1]. Default: 0.5
+  x?: SceneLength;          // NVS horizontal center. Default: "50%"
+  y?: SceneLength;          // NVS vertical center. Default: "50%"
   z?: number;               // World-space depth. Default: 0
-  width?: number;           // NVS width fraction [0..1]. Default: 0.6
-  height?: number;          // NVS height fraction [0..1]. Derived from aspect ratio if omitted.
-  rotation?: [number, number, number]; // Euler [x, y, z] in radians. Default: [0, 0, 0]
+  width?: SceneLength;      // NVS width fraction. Default: "60%"
+  height?: SceneLength;     // NVS height fraction. Derived from aspect ratio if omitted.
+  rotation?: [SceneAngle, SceneAngle, SceneAngle]; // Euler [x, y, z]. Default: [0, 0, 0]
   scale?: number;           // Uniform scale. Default: 1
   bezel?: ImagePanelBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'. Default: 'dark'
   bezelThickness?: number;  // World units. Default: 0.3
@@ -57,7 +57,7 @@ interface ImagePanelProps {
 }
 ```
 
-**NVS positioning:** `x` and `y` are the center point of the panel, not the top-left corner. `x=0.5, y=0.5` centers the panel in the viewport. The `width` prop is a fraction of the AR container width (e.g. `width={0.6}` = 60% of viewport width). Height derives from image aspect ratio unless explicitly set.
+**NVS positioning:** `x` and `y` are the center point of the panel, not the top-left corner. `x={"50%"}, y={"50%"}` centers the panel in the viewport. The `width` prop is a `SceneLength` (e.g. `width={"60%"}` = 60% of viewport width). Height derives from image aspect ratio unless explicitly set.
 
 **Rotation:** A Y-axis tilt gives a natural perspective feel:
 
@@ -65,10 +65,10 @@ interface ImagePanelProps {
 <ImagePanel
   id="app-screenshot"
   src="/screenshots/dashboard.png"
-  x={0.55}
-  y={0.5}
-  width={0.55}
-  rotation={[0, -0.25, 0]}  // slight Y tilt
+  x={"55%"}
+  y={"50%"}
+  width={"55%"}
+  rotation={[0, "-0.25rad", 0]}  // slight Y tilt
   bezel="dark"
   gloss={0.5}
   glow
@@ -83,9 +83,9 @@ interface ImagePanelProps {
 <ImagePanel
   id="product-photo"
   src="/photos/product.jpg"
-  x={0.5}
-  y={0.5}
-  width={0.5}
+  x={"50%"}
+  y={"50%"}
+  width={"50%"}
   bezel="none"
   gloss={0.2}
   selfIllumination={0}
@@ -99,9 +99,9 @@ interface ImagePanelProps {
 <ImagePanel
   id="saas-mockup"
   src="/mockups/app-ui.png"
-  x={0.5}
-  y={0.5}
-  width={0.65}
+  x={"50%"}
+  y={"50%"}
+  width={"65%"}
   bezel="chrome"
   bezelThickness={0.04}
   gloss={0.7}
@@ -136,10 +136,10 @@ export const SceneProductScreenshot = (): JSX.Element => (
     <ImagePanel
       id="dashboard-screenshot"
       src="/screenshots/dashboard.png"
-      x={0.5}
-      y={0.5}
-      width={0.7}
-      rotation={[0, -0.15, 0]}
+      x={"50%"}
+      y={"50%"}
+      width={"70%"}
+      rotation={[0, "-0.15rad", 0]}
       bezel="dark"
       bezelThickness={0.03}
       gloss={0.55}
@@ -166,12 +166,12 @@ Use `<Screen>` when you want to embed a live product URL or localhost dev server
 interface ScreenProps {
   id: string;               // Required. Unique, stable across scenes.
   src: string;              // URL loaded in the iframe.
-  x?: number;               // NVS horizontal center [0..1]. Default: 0.5
-  y?: number;               // NVS vertical center [0..1]. Default: 0.5
+  x?: SceneLength;          // NVS horizontal center. Default: "50%"
+  y?: SceneLength;          // NVS vertical center. Default: "50%"
   z?: number;               // World-space depth. Default: 0
-  width?: number;           // NVS width fraction [0..1]. Default: 0.625
-  height?: number;          // NVS height fraction. Defaults to width × 9/16.
-  rotation?: [number, number, number]; // Euler [x, y, z] radians. Default: [0, 0, 0]
+  width?: SceneLength;      // NVS width fraction. Default: "62.5%"
+  height?: SceneLength;     // NVS height fraction. Defaults to width × 9/16.
+  rotation?: [SceneAngle, SceneAngle, SceneAngle]; // Euler [x, y, z]. Default: [0, 0, 0]
   scale?: number;           // Uniform scale. Default: 1
   bezel?: ScreenBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'. Default: 'dark'
   bezelThickness?: number;  // World units. Default: 0.3
@@ -190,9 +190,9 @@ interface ScreenProps {
 <Screen
   id="product-demo"
   src="https://app.example.com/demo"
-  x={0.5}
-  y={0.5}
-  width={0.6}
+  x={"50%"}
+  y={"50%"}
+  width={"60%"}
   bezel="dark"
   bezelThickness={0.03}
   glow
@@ -215,12 +215,12 @@ interface MediaScreenProps {
   autoPlay?: boolean;       // Auto-play video on load. Default: true
   loop?: boolean;           // Loop video playback. Default: true
   muted?: boolean;          // Mute video audio. Default: true (important for browser autoplay policies)
-  x?: number;               // NVS center X. Default: 0.5
-  y?: number;               // NVS center Y. Default: 0.5
+  x?: SceneLength;          // NVS center X. Default: "50%"
+  y?: SceneLength;          // NVS center Y. Default: "50%"
   z?: number;               // World-space depth. Default: 0
-  width?: number;           // NVS width fraction [0..1]. Default: 0.625
-  height?: number;          // NVS height fraction [0..1]. Derived from aspect ratio if omitted.
-  rotation?: [number, number, number]; // Euler [x, y, z] radians. Default: [0, 0, 0]
+  width?: SceneLength;      // NVS width fraction. Default: "62.5%"
+  height?: SceneLength;     // NVS height fraction. Derived from aspect ratio if omitted.
+  rotation?: [SceneAngle, SceneAngle, SceneAngle]; // Euler [x, y, z]. Default: [0, 0, 0]
   scale?: number;           // Uniform scale. Default: 1
   bezel?: MediaScreenBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'. Default: 'dark'
   bezelThickness?: number;  // World units. Default: 0.3
@@ -245,9 +245,9 @@ interface MediaScreenProps {
   autoPlay
   loop
   muted
-  x={0.5}
-  y={0.5}
-  width={0.65}
+  x={"50%"}
+  y={"50%"}
+  width={"65%"}
   bezel="dark"
   bezelThickness={0.03}
   gloss={0.4}
@@ -271,9 +271,9 @@ const stream = captureCanvasStream(canvasEl, 'my-canvas-stream', 30); // auto-re
 <MediaScreen
   id="canvas-screen"
   streamId="my-canvas-stream"
-  x={0.5}
-  y={0.5}
-  width={0.5}
+  x={"50%"}
+  y={"50%"}
+  width={"50%"}
   bezel="dark"
   glow
   glowColor="#44ff88"
@@ -360,9 +360,9 @@ export const SceneScreenshotCarousel = () => (
         <ImagePanel
           id="screenshot-1"
           src="/screenshots/overview.png"
-          x={0.5}
-          y={0.5}
-          width={0.65}
+          x={"50%"}
+          y={"50%"}
+          width={"65%"}
           bezel="dark"
           gloss={0.55}
           selfIllumination={0.25}
@@ -376,9 +376,9 @@ export const SceneScreenshotCarousel = () => (
         <ImagePanel
           id="screenshot-2"
           src="/screenshots/analytics.png"
-          x={0.5}
-          y={0.5}
-          width={0.65}
+          x={"50%"}
+          y={"50%"}
+          width={"65%"}
           bezel="dark"
           gloss={0.55}
           selfIllumination={0.25}
@@ -392,9 +392,9 @@ export const SceneScreenshotCarousel = () => (
         <ImagePanel
           id="screenshot-3"
           src="/screenshots/settings.png"
-          x={0.5}
-          y={0.5}
-          width={0.65}
+          x={"50%"}
+          y={"50%"}
+          width={"65%"}
           bezel="dark"
           gloss={0.55}
           selfIllumination={0.25}

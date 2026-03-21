@@ -190,7 +190,8 @@ export function chartPlugin(): ChartPluginInstance {
         const props = node.props as BarChartDSL;
         const chartId = props.id;
         if (!chartId) throw new Error('<BarChart> requires an "id" prop.');
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
+        const reg = api.context.widgetRegistry ?? registry;
+        if (!reg.get(chartId)) registerChartWidget(reg, chartId);
 
         const children = helpers.collectChildren(node);
         const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
@@ -217,7 +218,8 @@ export function chartPlugin(): ChartPluginInstance {
         const props = node.props as LineChartDSL;
         const chartId = props.id;
         if (!chartId) throw new Error('<LineChart> requires an "id" prop.');
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
+        const reg = api.context.widgetRegistry ?? registry;
+        if (!reg.get(chartId)) registerChartWidget(reg, chartId);
 
         const children = helpers.collectChildren(node);
         const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
@@ -244,7 +246,8 @@ export function chartPlugin(): ChartPluginInstance {
         const props = node.props as ScatterPlotChartDSL;
         const chartId = props.id;
         if (!chartId) throw new Error('<ScatterPlotChart> requires an "id" prop.');
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
+        const reg = api.context.widgetRegistry ?? registry;
+        if (!reg.get(chartId)) registerChartWidget(reg, chartId);
 
         const children = helpers.collectChildren(node);
         const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
@@ -271,7 +274,8 @@ export function chartPlugin(): ChartPluginInstance {
         const props = node.props as PieChartDSL;
         const chartId = props.id;
         if (!chartId) throw new Error('<PieChart> requires an "id" prop.');
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
+        const reg = api.context.widgetRegistry ?? registry;
+        if (!reg.get(chartId)) registerChartWidget(reg, chartId);
 
         const children = helpers.collectChildren(node);
         const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
@@ -298,7 +302,8 @@ export function chartPlugin(): ChartPluginInstance {
         const props = node.props as AreaChartDSL;
         const chartId = props.id;
         if (!chartId) throw new Error('<AreaChart> requires an "id" prop.');
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
+        const reg = api.context.widgetRegistry ?? registry;
+        if (!reg.get(chartId)) registerChartWidget(reg, chartId);
 
         const children = helpers.collectChildren(node);
         const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
@@ -325,7 +330,8 @@ export function chartPlugin(): ChartPluginInstance {
         const props = node.props as HeatMapChartDSL;
         const chartId = props.id;
         if (!chartId) throw new Error('<HeatMapChart> requires an "id" prop.');
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
+        const reg = api.context.widgetRegistry ?? registry;
+        if (!reg.get(chartId)) registerChartWidget(reg, chartId);
 
         const children = helpers.collectChildren(node);
         const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =

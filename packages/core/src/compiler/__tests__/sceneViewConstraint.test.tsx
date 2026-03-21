@@ -136,7 +136,7 @@ it('compiles a spatial child inside an explicit View without errors', () => {
   const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   const result = compile(
     <Scene id="s1">
-      <View id="main" x={0} y={0} w={1} h={1}>
+      <View id="main" x={0} y={0} w={'100%'} h={'100%'}>
         <SpatialWidget />
       </View>
     </Scene>
@@ -169,8 +169,8 @@ it('accepts multiple sibling Views as direct Scene children', () => {
   const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   compile(
     <Scene id="s1">
-      <View id="left" x={0} y={0} w={0.5} h={1}><SpatialWidget /></View>
-      <View id="right" x={0.5} y={0} w={0.5} h={1}><SpatialWidget /></View>
+      <View id="left" x={0} y={0} w={'50%'} h={'100%'}><SpatialWidget /></View>
+      <View id="right" x={'50%'} y={0} w={'50%'} h={'100%'}><SpatialWidget /></View>
     </Scene>
   );
   expect(errorSpy).not.toHaveBeenCalled();

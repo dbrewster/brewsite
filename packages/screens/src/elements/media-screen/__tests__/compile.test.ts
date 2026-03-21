@@ -63,11 +63,14 @@ describe('compileMediaScreen', () => {
     expect(state.glowScale).toBe(1.4);
   });
 
-  it('compiles large rotation values without warning', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const state = compileMediaScreen({ id: 'ms', src: '/video.mp4', rotation: [0, 1.0, 0] });
-    expect(warnSpy).not.toHaveBeenCalled();
+  it('compiles rotation with angle units', () => {
+    const state = compileMediaScreen({ id: 'ms', src: '/video.mp4', rotation: [0, '1rad', 0] });
     expect(state.rotation[1]).toBe(1.0);
+  });
+
+  it('compiles rotation with degree units', () => {
+    const state = compileMediaScreen({ id: 'ms', src: '/video.mp4', rotation: [0, '90deg', 0] });
+    expect(state.rotation[1]).toBeCloseTo(Math.PI / 2);
   });
 
   it('nvsHeight is undefined by default', () => {
@@ -78,5 +81,22 @@ describe('compileMediaScreen', () => {
   it('nvsWidth defaults to 0.625', () => {
     const state = compileMediaScreen({ id: 'ms', src: '/video.mp4' });
     expect(state.nvsWidth).toBe(0.625);
+  });
+
+  it('defaults uniformSizing to false', () => {
+    const state = compileMediaScreen({ id: 'ms', src: '/video.mp4' });
+    expect(state.uniformSizing).toBe(false);
+  });
+
+  it('sets uniformSizing true when width uses u unit', () => {
+    const state = compileMediaScreen({ id: 'ms', src: '/video.mp4', width: '62.5u' });
+    expect(state.uniformSizing).toBe(true);
+    expect(state.nvsWidth).toBeCloseTo(0.625);
+  });
+
+  it('resolves explicit x/y SceneLength values', () => {
+    const state = compileMediaScreen({ id: 'ms', src: '/video.mp4', x: '20%', y: '80%' });
+    expect(state.nvsX).toBeCloseTo(0.2);
+    expect(state.nvsY).toBeCloseTo(0.8);
   });
 });

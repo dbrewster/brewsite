@@ -526,7 +526,7 @@ export const ensureSceneRegistry = (): void => {
 export const resolveSceneFromDsl = (
   tree: unknown,
   context: SceneSnapshotContext,
-  _widgetRegistry: WidgetRegistry,
+  widgetRegistry: WidgetRegistry,
   pushWarning?: (warning: CompileWarning) => void,
 ): ResolvedScene => {
   // Ensure core handlers are registered before attempting DSL compilation.
@@ -558,7 +558,10 @@ export const resolveSceneFromDsl = (
     );
   }
   const treeEl = tree as ReactElement;
-  const api = createApi(context, pushWarning, getBreadcrumbs);
+  // Ensure widgetRegistry is available in the context for handlers that need it
+  // (e.g., Diagram, Chart) to lazily register widgets in the correct registry.
+  const enrichedContext = context.widgetRegistry ? context : { ...context, widgetRegistry };
+  const api = createApi(enrichedContext, pushWarning, getBreadcrumbs);
   const handler = getNodeHandler(treeEl.type) as NodeHandler | undefined;
   if (!handler) {
     throw new Error(

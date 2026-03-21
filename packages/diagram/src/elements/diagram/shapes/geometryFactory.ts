@@ -20,7 +20,10 @@ export type ShapeGeometrySpec = {
 /**
  * Creates a regular N-sided polygon THREE.Shape centered at the origin.
  * Vertex 0 is at the top (angle = −π/2); vertices wind counter-clockwise.
- * Used by both createShapeGeometry (ExtrudeGeometry) and createShapeOutlineGeometry (LineLoop).
+ *
+ * Always uses a uniform radius so circles are circular and all polygon shapes
+ * are regular (not stretched). The compile layer clamps sizes to [max, max]
+ * so the declared larger dimension becomes the diameter.
  */
 function createRegularPolygonShape(sides: number, r: number): THREE.Shape {
   const shape = new THREE.Shape();
@@ -39,7 +42,6 @@ function createRegularPolygonShape(sides: number, r: number): THREE.Shape {
 function polygonGeo(sides: number, r: number, depth: number): ShapeGeometrySpec {
   const polyShape = createRegularPolygonShape(sides, r);
   const geo = new THREE.ExtrudeGeometry(polyShape, { depth, bevelEnabled: false });
-  // ExtrudeGeometry extrudes from Z=0 to Z=depth; shift so front face is at Z=0 and depth goes into -Z.
   geo.translate(0, 0, -depth);
   return { geometry: geo, materialCount: 2 };
 }
@@ -170,23 +172,23 @@ export function createShapeOutlineGeometry(
         shapeToPoints(createRoundedRectShape(w, h, cornerRadius)),
       );
 
-    // Regular polygon prisms — cornerRadius is irrelevant for these shapes
+    // Polygon prisms — uniform radius r = max(w, h) / 2 (compile layer clamps to square).
     case 'circle':
-      return polygonOutlineGeo(64, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(64, Math.max(w, h) / 2, z);
     case 'triangle':
-      return polygonOutlineGeo(3, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(3, Math.max(w, h) / 2, z);
     case 'pentagon':
-      return polygonOutlineGeo(5, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(5, Math.max(w, h) / 2, z);
     case 'hexagon':
-      return polygonOutlineGeo(6, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(6, Math.max(w, h) / 2, z);
     case 'heptagon':
-      return polygonOutlineGeo(7, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(7, Math.max(w, h) / 2, z);
     case 'octagon':
-      return polygonOutlineGeo(8, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(8, Math.max(w, h) / 2, z);
     case 'nonagon':
-      return polygonOutlineGeo(9, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(9, Math.max(w, h) / 2, z);
     case 'decagon':
-      return polygonOutlineGeo(10, Math.min(w, h) / 2, z);
+      return polygonOutlineGeo(10, Math.max(w, h) / 2, z);
 
     // Special 2D shapes
     case 'diamond': {
@@ -252,22 +254,31 @@ export function getContentRect(
   size: readonly [number, number],
 ): readonly [number, number] {
   const [w, h] = size;
-  const r = Math.min(w, h) / 2;
+  // Polygon shapes use r = max(w, h) / 2 (the compile layer clamps to [max, max]).
+  const r = Math.max(w, h) / 2;
 
   /**
-   * Content square for a regular N-gon: 85% of the inscribed-circle diameter.
+   * Content rectangle for a regular N-gon with circumradius r.
    *
-   * apothem = r·cos(π/N) is the inscribed-circle radius. Using a square side of
-   * 2·apothem·0.85 gives a balanced layout area that fills the visible face without
-   * the asymmetry of the exact [2·apothem, r] rectangle (which restricts height to
-   * 50% of the bounding box for all N, making higher-order polygons feel over-padded).
-   *
-   * For circle (N=64), apothem ≈ r, so content ≈ [1.7r, 1.7r] — noticeably larger
-   * than the inscribed-circle square (r·√2 ≈ 1.41r) that was previously too tight.
+   * The largest axis-aligned rectangle inscribed in a regular polygon is
+   * computed by checking the polygon boundary at the 4 corner angles of
+   * the candidate rectangle. A 5% inset is applied for visual breathing room.
    */
   const polygonRect = (N: number): readonly [number, number] => {
     const apothem = r * Math.cos(Math.PI / N);
-    const side = 2 * apothem * 0.85;
+    const sectorAngle = (2 * Math.PI) / N;
+    const cornerAngles = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4];
+    let minEdgeDist = Infinity;
+    for (const angle of cornerAngles) {
+      const rotated = ((angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+      const sectorOffset = rotated % sectorAngle;
+      const halfSector = sectorAngle / 2;
+      const delta = Math.abs(sectorOffset - halfSector);
+      const edgeDist = apothem / Math.cos(Math.min(delta, halfSector - 1e-9));
+      minEdgeDist = Math.min(minEdgeDist, edgeDist);
+    }
+    const maxHalfSide = minEdgeDist / Math.SQRT2;
+    const side = 2 * maxHalfSide * 0.95;
     return [side, side];
   };
 
@@ -276,12 +287,9 @@ export function getContentRect(
     case 'square':
       return size;
 
-    // Regular polygon prisms — symmetric content square (85% of inscribed circle)
+    // Polygon shapes — uniform radius, inscribed content square
     case 'circle': {
-      // Circle needs more margin than polygons because there are no flat sides —
-      // content in the corners of a content square visually clips the curved edge.
-      // 0.75 of inscribed circle diameter (≈ 1.50r) gives comfortable breathing room.
-      const side = r * Math.cos(Math.PI / 64) * 2 * 0.70;
+      const side = r * Math.SQRT2 * 0.95;
       return [side, side];
     }
     case 'triangle': return polygonRect(3);
@@ -293,13 +301,10 @@ export function getContentRect(
     case 'decagon':  return polygonRect(10);
 
     case 'diamond': {
-      // Diamond = box rotated 45°. Largest inscribed rect:
-      // apothem = r·cos(π/4) = r/√2; inscribed rect = r × r.
       return [r, r];
     }
 
     case 'oval': {
-      // Use the minor-axis inscribed square as the safe content area.
       const side = r * Math.SQRT2;
       return [side, side];
     }
@@ -388,10 +393,10 @@ export function createBorderFrameGeometry(
         : shape === 'octagon' ? 8
         : shape === 'nonagon' ? 9
         : 10;
-      const r = Math.min(w, h) / 2;
-      const innerR = r - borderWidth;
+      const outerR = Math.max(w, h) / 2;
+      const innerR = outerR - borderWidth;
       if (innerR <= 0) return null;
-      const outer = createRegularPolygonShape(sides, r);
+      const outer = createRegularPolygonShape(sides, outerR);
       // Inner hole must wind clockwise (opposite of outer CCW).
       const innerHole = new THREE.Path();
       for (let i = sides - 1; i >= 0; i--) {
@@ -455,15 +460,17 @@ export function createShapeGeometry(
   cornerRadius = 0,
 ): ShapeGeometrySpec {
   const [width, height] = size;
-  const r = Math.min(width, height) / 2;
+  // Polygon shapes use uniform radius = max(w, h) / 2 so they are always
+  // regular (circles are circular, hexagons are regular, etc.). The compile
+  // layer clamps polygon sizes to [max, max] so w === h at this point, but
+  // max() is used defensively in case unclamped sizes reach here.
+  const r = Math.max(width, height) / 2;
 
   switch (shape) {
-    // ── Regular polygon prisms ────────────────────────────────────────────────
+    // ── Polygon prisms ────────────────────────────────────────────────────────
     // ExtrudeGeometry with a regular polygon path — front cap faces +Z (toward camera).
     // materialCount: 2 → group 0 = caps (face color), group 1 = walls (side color).
-    // Using ExtrudeGeometry (not CylinderGeometry) ensures:
-    //   • Correct orientation: polygon face visible from the front (Z axis), not the top (Y axis)
-    //   • Correct material groups: 2 groups matching createBoxMaterials(materialCount=2)
+    // Uniform radius ensures circles are always circular, hexagons always regular.
     case 'circle':   return polygonGeo(64, r, depth); // smooth approximation
     case 'triangle': return polygonGeo(3,  r, depth);
     case 'pentagon': return polygonGeo(5,  r, depth);

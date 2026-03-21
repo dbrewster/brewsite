@@ -2,6 +2,19 @@
 
 import type { DiagramNodeDSL } from '../../types';
 import type { ResolvedFlowLayout } from '../layoutResolver';
+import { resolveToNVS } from '@brewsite/core';
+import type { SceneLength, ScenePosition3, SceneSize2 } from '@brewsite/core';
+
+/** Resolve a SceneLength to a number, passing through values that are already numeric. */
+const toNum = (v: SceneLength | number): number => typeof v === 'number' ? v : resolveToNVS(v);
+
+function resolvePosition(pos: ScenePosition3 | readonly [number, number, number]): readonly [number, number, number] {
+  return [toNum(pos[0]), toNum(pos[1]), toNum(pos[2])];
+}
+
+function resolveSize(size: SceneSize2 | readonly [number, number]): readonly [number, number] {
+  return [toNum(size[0]), toNum(size[1])];
+}
 
 /**
  * Assigns [x, y, z] positions for a flow layout (single-axis sequential placement).
@@ -24,7 +37,7 @@ export function resolveFlowLayout(
 
   // Seed explicit positions.
   for (const n of nodes) {
-    if (n.position) positions.set(n.id, n.position);
+    if (n.position) positions.set(n.id, resolvePosition(n.position));
   }
 
   // Build ordered list: childrenOrder filtered to ids present in this level, then append any missing.
@@ -50,7 +63,7 @@ export function resolveFlowLayout(
     const node = nodeById.get(id);
     if (!node) continue;
 
-    const [w, h] = node.size ?? defaultNodeSize;
+    const [w, h] = node.size ? resolveSize(node.size) : defaultNodeSize;
     const primarySize = isTopDown ? h : w;
     const halfPrimary = primarySize / 2;
 

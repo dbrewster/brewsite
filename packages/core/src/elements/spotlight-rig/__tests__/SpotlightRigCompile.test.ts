@@ -124,7 +124,7 @@ describe('resolveSpotlightRig — with children', () => {
 
   it('per-light explicit phase overrides auto-distribution', () => {
     const lightPropsList: SpotlightProps[] = [
-      { phase: 1.23 },
+      { phase: '1.23rad' },
       {},
     ];
     const state = resolveSpotlightRig({}, lightPropsList, makeContext());
@@ -199,7 +199,7 @@ describe('resolveSpotlightLightState', () => {
   });
 
   it('phase explicit value returned as-is', () => {
-    const result = resolveSpotlightLightState({ phase: 2.5 }, emptyRig, theme, makeContext(), 0.1);
+    const result = resolveSpotlightLightState({ phase: '2.5rad' }, emptyRig, theme, makeContext(), 0.1);
     expect(result.phase).toBe(2.5);
   });
 

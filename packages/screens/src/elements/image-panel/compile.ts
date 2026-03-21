@@ -3,7 +3,7 @@
 
 import type { ImagePanelDSL, ImagePanelState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } from '@brewsite/core';
+import { blendNumber, blendOpacity, blendVec3, copyVec3, resolveToNVS, isUniformUnit, resolveAngle } from '@brewsite/core';
 
 /**
  * Compiles an ImagePanelDSL into a fully resolved ImagePanelState by applying defaults.
@@ -13,19 +13,15 @@ import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } fro
  * happens in ImagePanelWidget.apply() using the live camera.
  */
 export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState {
-  const nvsX = dsl.x ?? 0.5;
-  const nvsY = dsl.y ?? 0.5;
-  const nvsWidth = dsl.width ?? 0.6;
-  const nvsHeight = dsl.height;
+  const nvsX = dsl.x !== undefined ? resolveToNVS(dsl.x) : 0.5;
+  const nvsY = dsl.y !== undefined ? resolveToNVS(dsl.y) : 0.5;
+  const nvsWidth = dsl.width !== undefined ? resolveToNVS(dsl.width) : 0.6;
+  const nvsHeight = dsl.height !== undefined ? resolveToNVS(dsl.height) : undefined;
+  const uniformSizing = dsl.width !== undefined ? isUniformUnit(dsl.width) : false;
 
-  if (process.env.NODE_ENV !== 'production') {
-    validateNVSScalar(nvsX, 'nvsX', `<ImagePanel id="${dsl.id}">`);
-    validateNVSScalar(nvsY, 'nvsY', `<ImagePanel id="${dsl.id}">`);
-    validateNVSScalar(nvsWidth, 'nvsWidth', `<ImagePanel id="${dsl.id}">`);
-    if (nvsHeight !== undefined) {
-      validateNVSScalar(nvsHeight, 'nvsHeight', `<ImagePanel id="${dsl.id}">`);
-    }
-  }
+  const rotation: readonly [number, number, number] = dsl.rotation !== undefined
+    ? [resolveAngle(dsl.rotation[0]), resolveAngle(dsl.rotation[1]), resolveAngle(dsl.rotation[2])]
+    : [0, 0, 0];
 
   return {
     id: dsl.id,
@@ -35,7 +31,7 @@ export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState {
     z: dsl.z ?? 0,
     nvsWidth,
     nvsHeight,
-    rotation: dsl.rotation ?? [0, 0, 0],
+    rotation,
     scale: dsl.scale ?? 1,
     bezel: dsl.bezel ?? 'dark',
     bezelThickness: dsl.bezelThickness ?? 0.3,
@@ -48,6 +44,7 @@ export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState {
     glowScale: dsl.glowScale ?? 1.4,
     glowOpacity: dsl.glowOpacity ?? 0.35,
     enabled: dsl.enabled ?? true,
+    uniformSizing,
   };
 }
 

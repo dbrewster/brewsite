@@ -3,6 +3,7 @@
 // For static images, use <ImagePanel>.
 // For video or live MediaStream, use <MediaScreen>.
 
+import type { SceneLength, SceneAngle } from '@brewsite/core';
 import type { ScreenBezelVariant } from './types';
 
 export interface ScreenProps {
@@ -15,38 +16,38 @@ export interface ScreenProps {
    */
   src: string;
   /**
-   * NVS horizontal center position [0..1]. 0 = left edge, 1 = right edge.
-   * Default: 0.5 (horizontally centered).
+   * NVS horizontal center position with explicit unit.
+   * Default: '50%' (horizontally centered).
    */
-  x?: number;
+  x?: SceneLength;
   /**
-   * NVS vertical center position [0..1]. 0 = top edge, 1 = bottom edge.
-   * Default: 0.5 (vertically centered).
+   * NVS vertical center position with explicit unit.
+   * Default: '50%' (vertically centered).
    */
-  y?: number;
+  y?: SceneLength;
   /**
    * World-space depth (Z) of the screen center.
    * Default: 0
    */
   z?: number;
   /**
-   * NVS width fraction [0..1] — fraction of the AR container width.
-   * Default: 0.625 (approximately 12/19.2 of typical viewport width).
+   * NVS width with explicit unit.
+   * Default: '62.5%' (approximately 12/19.2 of typical viewport width).
    */
-  width?: number;
+  width?: SceneLength;
   /**
-   * NVS height fraction [0..1] — fraction of the AR container height.
+   * NVS height with explicit unit.
    * Defaults to derive from width × 9/16 (16:9 aspect ratio).
    */
-  height?: number;
+  height?: SceneLength;
   /**
-   * World-space rotation in radians [x, y, z] (Euler XYZ order).
+   * Rotation with explicit angle units [x, y, z] (Euler XYZ order).
    * Full 3D rotation supported via CSS3DRenderer — suitable for carousel layouts
    * and angled perspective views. For a static image, use <ImagePanel>.
    * For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
    * Default: [0, 0, 0]
    */
-  rotation?: [number, number, number];
+  rotation?: [SceneAngle, SceneAngle, SceneAngle];
   /** Uniform scale. Default: 1 */
   scale?: number;
   /** Bezel frame style. Default: 'dark' */

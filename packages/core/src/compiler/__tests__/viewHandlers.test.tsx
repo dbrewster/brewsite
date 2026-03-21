@@ -52,7 +52,7 @@ describe('viewHandler — standalone view', () => {
   it('stores ViewState with explicit bounds', () => {
     const tree = (
       <Scene id="s1">
-        <View id="v1" x={0.1} y={0.1} w={0.8} h={0.8} />
+        <View id="v1" x={'10%'} y={'10%'} w={'80%'} h={'80%'} />
       </Scene>
     );
     const widgets = compile(tree);
@@ -78,7 +78,7 @@ describe('viewHandler — standalone view', () => {
   it('computes contentBounds correctly with padding', () => {
     const tree = (
       <Scene id="s1">
-        <View id="v1" x={0} y={0} w={1} h={1} padding={0.1} />
+        <View id="v1" x={0} y={0} w={'100%'} h={'100%'} padding={0.1} />
       </Scene>
     );
     const widgets = compile(tree);
@@ -90,7 +90,7 @@ describe('viewHandler — standalone view', () => {
   it('does not set layoutId when standalone', () => {
     const tree = (
       <Scene id="s1">
-        <View id="v1" x={0.1} y={0.1} w={0.8} h={0.8} />
+        <View id="v1" x={'10%'} y={'10%'} w={'80%'} h={'80%'} />
       </Scene>
     );
     const widgets = compile(tree);
@@ -112,7 +112,7 @@ describe('viewHandler — composeBounds propagation', () => {
 
     const tree = (
       <Scene id="s1">
-        <View id="v1" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <View id="v1" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <CaptureChild id="mc1" />
         </View>
       </Scene>
@@ -145,8 +145,8 @@ describe('viewHandler — composeBounds propagation', () => {
     // inner: local {0.25, 0.25, 0.5, 0.5} → absolute {0.3, 0.3, 0.4, 0.4}
     const tree = (
       <Scene id="s1">
-        <View id="outer" x={0.1} y={0.1} w={0.8} h={0.8}>
-          <View id="inner" x={0.25} y={0.25} w={0.5} h={0.5} />
+        <View id="outer" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
+          <View id="inner" x={'25%'} y={'25%'} w={'50%'} h={'50%'} />
         </View>
       </Scene>
     );
@@ -164,7 +164,7 @@ describe('viewHandler — error cases', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // @ts-expect-error intentionally missing required id
-    const tree = <Scene id="s1"><View x={0.1} y={0.1} w={0.8} h={0.8} /></Scene>;
+    const tree = <Scene id="s1"><View x={'10%'} y={'10%'} w={'80%'} h={'80%'} /></Scene>;
     const widgets = compile(tree);
 
     expect(errorSpy).toHaveBeenCalledWith(
@@ -183,9 +183,9 @@ describe('viewLayoutHandler — stack layout', () => {
   it('places two views side by side with horizontal stack + gap', () => {
     const tree = (
       <Scene id="s1">
-        <ViewLayout kind="stack" direction="horizontal" gap={0.02}>
-          <View id="v1" w={0.48} h={1} />
-          <View id="v2" w={0.48} h={1} />
+        <ViewLayout kind="stack" direction="horizontal" gap={'2%'}>
+          <View id="v1" w={'48%'} h={'100%'} />
+          <View id="v2" w={'48%'} h={'100%'} />
         </ViewLayout>
       </Scene>
     );
@@ -226,9 +226,9 @@ describe('viewLayoutHandler — carousel layout', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" activeIndex={1}>
-          <View id="v1" w={0.3} h={0.8} />
-          <View id="v2" w={0.3} h={0.8} />
-          <View id="v3" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
+          <View id="v2" w={'30%'} h={'80%'} />
+          <View id="v3" w={'30%'} h={'80%'} />
         </ViewLayout>
       </Scene>
     );
@@ -260,8 +260,8 @@ describe('viewLayoutHandler — carousel container-relative sizing', () => {
     // After composition: 0.4 * 0.4 = 0.16 NVS wide, 0.5 * 0.4 = 0.20 NVS tall.
     const tree = (
       <Scene id="s1">
-        <ViewLayout kind="carousel" focusedIndex={0} x={0.1} y={0.1} w={0.4} h={0.4}>
-          <View id="v1" w={0.4} h={0.5} />
+        <ViewLayout kind="carousel" focusedIndex={0} x={'10%'} y={'10%'} w={'40%'} h={'40%'}>
+          <View id="v1" w={'40%'} h={'50%'} />
         </ViewLayout>
       </Scene>
     );
@@ -281,8 +281,8 @@ describe('viewLayoutHandler — carousel container-relative sizing', () => {
   it('View w/h = 1 fills the container in carousel layout', () => {
     const tree = (
       <Scene id="s1">
-        <ViewLayout kind="carousel" focusedIndex={0} x={0.2} y={0.2} w={0.6} h={0.6}>
-          <View id="v1" w={1} h={1} />
+        <ViewLayout kind="carousel" focusedIndex={0} x={'20%'} y={'20%'} w={'60%'} h={'60%'}>
+          <View id="v1" w={'100%'} h={'100%'} />
         </ViewLayout>
       </Scene>
     );
@@ -300,7 +300,7 @@ describe('viewLayoutHandler — carousel container-relative sizing', () => {
   it('carousel View without explicit w/h defaults to filling container', () => {
     const tree = (
       <Scene id="s1">
-        <ViewLayout kind="carousel" focusedIndex={0} x={0.1} y={0.1} w={0.5} h={0.5}>
+        <ViewLayout kind="carousel" focusedIndex={0} x={'10%'} y={'10%'} w={'50%'} h={'50%'}>
           <View id="v1" />
         </ViewLayout>
       </Scene>
@@ -318,9 +318,9 @@ describe('viewLayoutHandler — carousel container-relative sizing', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" focusedIndex={1}>
-          <View id="v1" w={0.3} h={0.8} />
-          <View id="v2" w={0.3} h={0.8} />
-          <View id="v3" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
+          <View id="v2" w={'30%'} h={'80%'} />
+          <View id="v3" w={'30%'} h={'80%'} />
         </ViewLayout>
       </Scene>
     );
@@ -337,9 +337,9 @@ describe('viewLayoutHandler — carousel container-relative sizing', () => {
   it('stack layout also composes explicit child sizes relative to container', () => {
     const tree = (
       <Scene id="s1">
-        <ViewLayout kind="stack" direction="horizontal" x={0.1} y={0.1} w={0.8} h={0.8}>
-          <View id="v1" w={0.5} h={1} />
-          <View id="v2" w={0.5} h={1} />
+        <ViewLayout kind="stack" direction="horizontal" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
+          <View id="v1" w={'50%'} h={'100%'} />
+          <View id="v2" w={'50%'} h={'100%'} />
         </ViewLayout>
       </Scene>
     );
@@ -358,7 +358,7 @@ describe('viewLayoutHandler — carousel container-relative sizing', () => {
   it('stack layout auto-distribution still works with unspecified sizes in sub-viewport container', () => {
     const tree = (
       <Scene id="s1">
-        <ViewLayout kind="stack" direction="horizontal" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <ViewLayout kind="stack" direction="horizontal" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <View id="v1" />
           <View id="v2" />
         </ViewLayout>
@@ -383,7 +383,7 @@ describe('viewLayoutHandler — managed view x/y warning', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout id="layout1" kind="stack">
-          <View id="v1" x={0.1} y={0.1} w={0.5} h={1} />
+          <View id="v1" x={'10%'} y={'10%'} w={'50%'} h={'100%'} />
         </ViewLayout>
       </Scene>
     );
@@ -399,8 +399,8 @@ describe('viewLayoutHandler — managed view x/y warning', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout id="layout1" kind="stack">
-          <View id="v1" x={0.9} y={0.9} w={0.5} h={1} />
-          <View id="v2" w={0.5} h={1} />
+          <View id="v1" x={'90%'} y={'90%'} w={'50%'} h={'100%'} />
+          <View id="v2" w={'50%'} h={'100%'} />
         </ViewLayout>
       </Scene>
     );
@@ -416,7 +416,7 @@ describe('viewLayoutHandler — composed bounds with parent View', () => {
   it('composes ViewLayout container bounds into outer View content bounds', () => {
     const tree = (
       <Scene id="s1">
-        <View id="outer" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <View id="outer" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <ViewLayout id="innerLayout" kind="stack">
             <View id="v1" />
             <View id="v2" />
@@ -479,7 +479,7 @@ describe('viewHandler — overlay propagation', () => {
   it('TextBox inside View appears in sceneOverlay (not silently dropped)', () => {
     const tree = (
       <Scene id="s1">
-        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <View id="stage" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <TextBox key="tb1" x={0} y={0} w={1} h={1} />
         </View>
       </Scene>
@@ -494,7 +494,7 @@ describe('viewHandler — overlay propagation', () => {
   it('View overlay wrapper div has CSS bounds matching the View NVS rect', () => {
     const tree = (
       <Scene id="s1">
-        <View id="stage" x={0.06} y={0.10} w={0.88} h={0.78}>
+        <View id="stage" x={'6%'} y={'10%'} w={'88%'} h={'78%'}>
           <TextBox key="tb1" x={0} y={0} w={1} h={1} />
         </View>
       </Scene>
@@ -517,7 +517,7 @@ describe('viewHandler — overlay propagation', () => {
   it('TextBox inside View is contained within the wrapper div', () => {
     const tree = (
       <Scene id="s1">
-        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <View id="stage" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <TextBox key="tb1" x={0.25} y={0.25} w={0.5} h={0.5} />
         </View>
       </Scene>
@@ -534,7 +534,7 @@ describe('viewHandler — overlay propagation', () => {
   it('multiple TextBoxes inside View all appear in the wrapper', () => {
     const tree = (
       <Scene id="s1">
-        <View id="stage" x={0} y={0} w={1} h={1}>
+        <View id="stage" x={0} y={0} w={'100%'} h={'100%'}>
           <TextBox key="tb1" x={0} y={0} w={0.5} h={0.5} />
           <TextBox key="tb2" x={0.5} y={0.5} w={0.5} h={0.5} />
         </View>
@@ -552,7 +552,7 @@ describe('viewHandler — overlay propagation', () => {
     const tree = (
       <Scene id="s1">
         <TextBox key="outer" x={0} y={0} w={1} h={0.1} />
-        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <View id="stage" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <TextBox key="inner" x={0} y={0} w={1} h={1} />
         </View>
       </Scene>
@@ -581,7 +581,7 @@ describe('viewHandler — overlay propagation', () => {
 
     const tree = (
       <Scene id="s1">
-        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+        <View id="stage" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
           <DslChild id="child1" />
         </View>
       </Scene>
@@ -598,8 +598,8 @@ describe('viewHandler — overlay propagation', () => {
     // Inner absolute bounds = outer.content * inner.local = {0.5, 0.5, 0.4, 0.4}
     const tree = (
       <Scene id="s1">
-        <View id="outer" x={0.1} y={0.1} w={0.8} h={0.8}>
-          <View id="inner" x={0.5} y={0.5} w={0.5} h={0.5}>
+        <View id="outer" x={'10%'} y={'10%'} w={'80%'} h={'80%'}>
+          <View id="inner" x={'50%'} y={'50%'} w={'50%'} h={'50%'}>
             <TextBox key="tb1" x={0} y={0} w={1} h={1} />
           </View>
         </View>
@@ -627,7 +627,7 @@ describe('viewLayoutHandler — degenerate cases', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" activeIndex={0}>
-          <View id="v1" w={0.5} h={0.8} />
+          <View id="v1" w={'50%'} h={'80%'} />
         </ViewLayout>
       </Scene>
     );
@@ -663,8 +663,8 @@ describe('viewLayoutHandler — degenerate cases', () => {
         <ViewLayout id="outer" kind="stack">
           <View id="v1">
             <ViewLayout id="inner" kind="carousel" activeIndex={0}>
-              <View id="inner1" w={0.5} h={0.8} />
-              <View id="inner2" w={0.5} h={0.8} />
+              <View id="inner1" w={'50%'} h={'80%'} />
+              <View id="inner2" w={'50%'} h={'80%'} />
             </ViewLayout>
           </View>
           <View id="v2" />
@@ -720,10 +720,10 @@ describe('carousel views — children compile with opacity=1 (ViewWidget control
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" loop activeIndex={0} zStep={4} fadeMin={0}>
-          <View id="v1" w={0.4} h={0.6}>
+          <View id="v1" w={'40%'} h={'60%'}>
             <Probe id="probe1" />
           </View>
-          <View id="v2" w={0.4} h={0.6}>
+          <View id="v2" w={'40%'} h={'60%'}>
             <Probe id="probe2" />
           </View>
         </ViewLayout>
@@ -741,13 +741,13 @@ describe('carousel views — children compile with opacity=1 (ViewWidget control
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" loop activeIndex={1} zStep={4} fadeMin={0.1}>
-          <View id="v1" w={0.3} h={0.5}>
+          <View id="v1" w={'30%'} h={'50%'}>
             <Probe id="p1" />
           </View>
-          <View id="v2" w={0.3} h={0.5}>
+          <View id="v2" w={'30%'} h={'50%'}>
             <Probe id="p2" />
           </View>
-          <View id="v3" w={0.3} h={0.5}>
+          <View id="v3" w={'30%'} h={'50%'}>
             <Probe id="p3" />
           </View>
         </ViewLayout>
@@ -776,10 +776,10 @@ describe('viewHandler — child opacity: layoutId present vs absent', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" loop activeIndex={0} zStep={4} fadeMin={0}>
-          <View id="v1" w={0.4} h={0.6}>
+          <View id="v1" w={'40%'} h={'60%'}>
             <Probe id="probe1" />
           </View>
-          <View id="v2" w={0.4} h={0.6}>
+          <View id="v2" w={'40%'} h={'60%'}>
             <Probe id="probe2" />
           </View>
         </ViewLayout>
@@ -815,7 +815,7 @@ describe('viewHandler — childWidgetIds', () => {
   it('childWidgetIds is empty when View has no children', () => {
     const tree = (
       <Scene id="s1">
-        <View id="v1" x={0.1} y={0.1} w={0.8} h={0.8} />
+        <View id="v1" x={'10%'} y={'10%'} w={'80%'} h={'80%'} />
       </Scene>
     );
     const widgets = compile(tree);
@@ -924,9 +924,9 @@ describe('viewLayoutHandler — Highlight DSL integration', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" id="metrics" activeIndex={0} loop>
-          <View id="v1" w={0.3} h={0.8} />
-          <View id="v2" w={0.3} h={0.8} />
-          <View id="v3" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
+          <View id="v2" w={'30%'} h={'80%'} />
+          <View id="v3" w={'30%'} h={'80%'} />
           <CarouselTray />
           <Highlight active variant="primary" smoke />
         </ViewLayout>
@@ -945,9 +945,9 @@ describe('viewLayoutHandler — Highlight DSL integration', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" id="metrics" activeIndex={0}>
-          <View id="v1" w={0.3} h={0.8} />
-          <View id="v2" w={0.3} h={0.8} />
-          <View id="v3" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
+          <View id="v2" w={'30%'} h={'80%'} />
+          <View id="v3" w={'30%'} h={'80%'} />
           <CarouselTray />
           <Highlight viewId="v3" mode="holographic" />
         </ViewLayout>
@@ -966,7 +966,7 @@ describe('viewLayoutHandler — Highlight DSL integration', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" id="metrics" activeIndex={0}>
-          <View id="v1" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
           <Highlight active />
         </ViewLayout>
       </Scene>
@@ -989,8 +989,8 @@ describe('viewLayoutHandler — Highlight DSL integration', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" id="metrics" activeIndex={0} loop>
-          <View id="v1" w={0.3} h={0.8} />
-          <View id="v2" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
+          <View id="v2" w={'30%'} h={'80%'} />
           <CarouselTray highlightActive="glow" />
           <Highlight active mode="holographic" />
         </ViewLayout>
@@ -1015,7 +1015,7 @@ describe('viewLayoutHandler — Highlight DSL integration', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" id="metrics" activeIndex={0}>
-          <View id="v1" w={0.3} h={0.8} />
+          <View id="v1" w={'30%'} h={'80%'} />
           <CarouselTray />
           <Highlight active />
         </ViewLayout>
@@ -1078,8 +1078,8 @@ describe('withLayoutContext — nested ViewLayout correctly restores outer conte
         <ViewLayout id="outer" kind="stack">
           <View id="v1">
             <ViewLayout id="inner" kind="carousel" activeIndex={0}>
-              <View id="inner1" w={0.5} h={0.8} />
-              <View id="inner2" w={0.5} h={0.8} />
+              <View id="inner1" w={'50%'} h={'80%'} />
+              <View id="inner2" w={'50%'} h={'80%'} />
             </ViewLayout>
           </View>
           <View id="v2" />
@@ -1113,8 +1113,8 @@ describe('withLayoutContext — nested ViewLayout correctly restores outer conte
             <ViewLayout id="L2" kind="stack">
               <View id="v2">
                 <ViewLayout id="L3" kind="carousel" activeIndex={0}>
-                  <View id="v3a" w={0.4} h={0.6} />
-                  <View id="v3b" w={0.4} h={0.6} />
+                  <View id="v3a" w={'40%'} h={'60%'} />
+                  <View id="v3b" w={'40%'} h={'60%'} />
                 </ViewLayout>
               </View>
               <View id="v2b" />

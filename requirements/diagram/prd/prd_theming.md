@@ -3,8 +3,11 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-19
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: all dimensional theme default values now use SceneLength/SceneSize2 unit strings. defaultSize is SceneSize2 (e.g. ['15%', '8%']). Layout defaults (spacing, groupPadding, titleGap, margin, gap) use SceneLength/SceneSize2. Node defaults (thickness, cornerRadius, borderWidth, borderHeight, iconDepth) use SceneLength. Edge defaults (thickness) uses SceneLength. Updated NVS layout values table with unit strings. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram theming system as implemented."
@@ -620,20 +623,20 @@ All six families' preset `DiagramTheme` values for motion parameters are defined
 
 ### Layout defaults in theme
 
-`DiagramThemeLayoutConfig` provides fallback values for grid, hierarchical, manual, and flow layout when the `<Diagram>` DSL does not specify a layout child. All dimensional values in the theme — layout spacing, node size, thickness, cornerRadius, borderWidth, borderHeight — are NVS fractions of the diagram viewport width. The compile pipeline multiplies by `scaleFactor` (1.0 unless the layout exceeds [0..1]); the render pipeline multiplies by `uniformWorldW` to produce Three.js world units. `layoutResolver.ts` merges theme layout defaults with DSL-declared layout props, with DSL values taking precedence. This allows the theme to establish sensible spacing and padding defaults without requiring every diagram DSL to be verbose.
+`DiagramThemeLayoutConfig` provides fallback values for grid, hierarchical, manual, and flow layout when the `<Diagram>` DSL does not specify a layout child. All dimensional values in the theme — layout spacing, node size, thickness, cornerRadius, borderWidth, borderHeight — use `SceneLength` / `SceneSize2` unit strings. The compile pipeline resolves these to NVS numbers via `parseLength()`/`resolveLength()`, multiplies by `scaleFactor` (1.0 unless the layout exceeds [0..1]); the render pipeline multiplies by `uniformWorldW` to produce Three.js world units. `layoutResolver.ts` merges theme layout defaults with DSL-declared layout props, with DSL values taking precedence. This allows the theme to establish sensible spacing and padding defaults without requiring every diagram DSL to be verbose.
 
-Default NVS layout values across themes:
+Default layout values across themes (SceneLength/SceneSize2 unit strings):
 
 | Theme | Grid spacing | Hier spacing | groupPadding | titleGap |
 |---|---|---|---|---|
-| Enterprise | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
-| DarkGlass | `[0.04, 0.04]` | `[0.045, 0.045]` | `0.035` | `0.03` |
-| NeonCyber | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
-| Midnight | `[0.05, 0.05]` | `[0.045, 0.045]` | `0.035` | `0.03` |
-| LightMinimal | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
-| LightCanvas | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
+| Enterprise | `["6%", "6%"]` | `["4.5%", "4.5%"]` | `"3.5%"` | `"2.5%"` |
+| DarkGlass | `["4%", "4%"]` | `["4.5%", "4.5%"]` | `"3.5%"` | `"3%"` |
+| NeonCyber | `["6%", "6%"]` | `["4.5%", "4.5%"]` | `"3.5%"` | `"2.5%"` |
+| Midnight | `["5%", "5%"]` | `["4.5%", "4.5%"]` | `"3.5%"` | `"3%"` |
+| LightMinimal | `["6%", "6%"]` | `["4.5%", "4.5%"]` | `"3.5%"` | `"2.5%"` |
+| LightCanvas | `["6%", "6%"]` | `["4.5%", "4.5%"]` | `"3.5%"` | `"2.5%"` |
 
-All themes share: `defaultSize: [0.15, 0.08]`, `margin: 0`, `flow.gap: 0.06`.
+All themes share: `defaultSize: ["15%", "8%"]`, `margin: 0`, `flow.gap: "6%"`.
 
 ### Input defaults in theme
 

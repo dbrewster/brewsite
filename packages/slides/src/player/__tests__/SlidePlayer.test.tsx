@@ -15,13 +15,26 @@ vi.mock('@brewsite/core', async () => {
   const ReactModule = await import('react');
   const R = ReactModule.default;
 
-  /** EngineARContainer stub — passes children through. */
+  /** EngineARContainer stub — passes children through with sizing data attributes. */
   const EngineARContainer = ({
     children,
+    scaleMode,
+    referenceWidth,
   }: {
     children?: ReactModule.ReactNode;
+    scaleMode?: string;
+    referenceWidth?: number;
     [key: string]: unknown;
-  }) => R.createElement('div', { 'data-testid': 'ar-container' }, children);
+  }) =>
+    R.createElement(
+      'div',
+      {
+        'data-testid': 'ar-container',
+        'data-scale-mode': scaleMode ?? '',
+        'data-reference-width': referenceWidth != null ? String(referenceWidth) : '',
+      },
+      children,
+    );
 
   /** SceneCanvas stub — forwardRef returns a canvas element. */
   const SceneCanvas = R.forwardRef<HTMLCanvasElement>(
@@ -85,6 +98,9 @@ vi.mock('@brewsite/core', async () => {
     [key: string]: unknown;
   }) => R.createElement('div', { 'data-testid': 'view', 'data-view-id': id ?? '' }, children);
 
+  /** Camera stub — DSL element, returns null. */
+  const Camera = () => null;
+
   return {
     // Components
     EngineARContainer,
@@ -99,9 +115,19 @@ vi.mock('@brewsite/core', async () => {
     Lighting,
     Ambient,
     View,
+    Camera,
+
+    // Unit resolution — needed by themeCompiler
+    resolveToNVS: (v: unknown) => {
+      if (v === 0) return 0;
+      if (typeof v === 'string' && v.endsWith('%')) return parseFloat(v) / 100;
+      return 0;
+    },
 
     // Plugin factory stubs
     registerNode: vi.fn(),
+    // getNodeHandler stub — returns undefined (no registered handlers in test mock)
+    getNodeHandler: () => undefined,
 
     // Hook stubs (called inside SlidePlayerInner which renders in the tree)
     useCurrentScene: () => ({ id: '', index: 0 }),
@@ -261,6 +287,44 @@ describe('SlidePlayer', () => {
     );
     // resolveSlideConfig produces --slide-content-padding: 48px by default
     expect(html).toContain('--slide-content-padding:48px');
+  });
+
+  // ─── AR/display sizing props ─────────────────────────────────────────────
+
+  it('passes scaleMode to EngineARContainer (default: contain)', () => {
+    const html = renderToStaticMarkup(
+      <SlidePlayer>
+        <Slide key="s1"><TitleLayout title="S1" /></Slide>
+      </SlidePlayer>,
+    );
+    expect(html).toContain('data-scale-mode="contain"');
+  });
+
+  it('passes referenceWidth to EngineARContainer (default: 1920)', () => {
+    const html = renderToStaticMarkup(
+      <SlidePlayer>
+        <Slide key="s1"><TitleLayout title="S1" /></Slide>
+      </SlidePlayer>,
+    );
+    expect(html).toContain('data-reference-width="1920"');
+  });
+
+  it('overrides scaleMode when prop is provided', () => {
+    const html = renderToStaticMarkup(
+      <SlidePlayer scaleMode="cover">
+        <Slide key="s1"><TitleLayout title="S1" /></Slide>
+      </SlidePlayer>,
+    );
+    expect(html).toContain('data-scale-mode="cover"');
+  });
+
+  it('overrides referenceWidth when prop is provided', () => {
+    const html = renderToStaticMarkup(
+      <SlidePlayer referenceWidth={1280}>
+        <Slide key="s1"><TitleLayout title="S1" /></Slide>
+      </SlidePlayer>,
+    );
+    expect(html).toContain('data-reference-width="1280"');
   });
 
   // ─── SlidePlayerHandle interface ──────────────────────────────────────────

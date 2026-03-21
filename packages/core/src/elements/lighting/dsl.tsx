@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react';
 import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
 import type { LightStrandAxis, SceneLightStrandCurve, Vec3 } from './types';
+import type { SceneAngle } from '../../units/types';
 
 type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 
@@ -61,7 +62,7 @@ export type SpotProps = {
   color: Resolvable<string>;
   position: Resolvable<Vec3>;
   target: Resolvable<Vec3>;
-  angle: Resolvable<number>;
+  angle: Resolvable<SceneAngle>;
   penumbra: Resolvable<number>;
   distance?: Resolvable<number>;
   decay?: Resolvable<number>;
@@ -94,7 +95,7 @@ export type WaveProps = {
   waveFrequency: Resolvable<number>;
   depthAmplitude: Resolvable<number>;
   depthFrequency: Resolvable<number>;
-  depthPhase: Resolvable<number>;
+  depthPhase: Resolvable<SceneAngle>;
 };
 
 export type CircleProps = {

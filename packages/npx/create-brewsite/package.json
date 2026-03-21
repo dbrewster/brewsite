@@ -1,6 +1,6 @@
 {
   "name": "create-brewsite",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": false,
   "type": "module",
   "bin": {

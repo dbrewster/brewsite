@@ -62,7 +62,7 @@ describe('LightingWidget DSL handler', () => {
             />
           </LightStrand>
           <Point id="pt-main" intensity={0.5} color="#ff0000" position={[0, 1, 0]} />
-          <Spot id="spot-main" intensity={1} color="#00ff00" position={[0, 2, 0]} target={[0, 0, 0]} angle={0.5} penumbra={0.2} />
+          <Spot id="spot-main" intensity={1} color="#00ff00" position={[0, 2, 0]} target={[0, 0, 0]} angle={'0.5rad'} penumbra={0.2} />
           <Panel id="panel" origin={[0, 0, 0]} rows={1} cols={1} spacing={[1, 1, 1]} intensity={1} />
         </Lighting>
       </Scene>

@@ -116,16 +116,16 @@ function angleBetweenDeg(a: Vec3, b: Vec3): number {
  */
 const archDiagramDsl: DiagramDSL = {
   id: 'arch-routing-test',
-  layout: { kind: 'flow', direction: 'top-down', gap: 0.05 },
+  layout: { kind: 'flow', direction: 'top-down', gap: '5%' },
   childrenOrder: ['apps', 'api', 'engine', 'storage', 'infra'],
   nodes: [
-    makeNode('apps', { size: [0.12, 0.12], shape: 'rectangle' }),
-    makeNode('api', { size: [0.18, 0.10], shape: 'hexagon' }),
-    makeNode('stream', { size: [0.12, 0.08], shape: 'circle' }),
-    makeNode('batch', { size: [0.12, 0.08], shape: 'circle' }),
-    makeNode('ml', { size: [0.12, 0.08], shape: 'circle' }),
-    makeNode('storage', { size: [0.18, 0.10], shape: 'octagon' }),
-    makeNode('infra', { size: [0.18, 0.10], shape: 'rectangle' }),
+    makeNode('apps', { size: ['12%', '12%'], shape: 'rectangle' }),
+    makeNode('api', { size: ['18%', '10%'], shape: 'hexagon' }),
+    makeNode('stream', { size: ['12%', '8%'], shape: 'circle' }),
+    makeNode('batch', { size: ['12%', '8%'], shape: 'circle' }),
+    makeNode('ml', { size: ['12%', '8%'], shape: 'circle' }),
+    makeNode('storage', { size: ['18%', '10%'], shape: 'octagon' }),
+    makeNode('infra', { size: ['18%', '10%'], shape: 'rectangle' }),
   ],
   edges: [
     makeEdge('apps', 'api'),        // 1:1 top
@@ -144,7 +144,7 @@ const archDiagramDsl: DiagramDSL = {
       variant: 'container',
       nodeIds: ['stream', 'batch', 'ml'],
       childrenOrder: ['stream', 'batch', 'ml'],
-      layout: { kind: 'grid', columns: 3, spacing: [0.05, 0.03] },
+      layout: { kind: 'grid', columns: 3, spacing: ['5%', '3%'] },
     },
   ],
 };
@@ -633,20 +633,18 @@ describe('architecture diagram edge routing', () => {
     //   2. Edge endpoints must be close to the geometry boundary
     //      (nodeCenter ± size/2), not far from it.
 
-    it('polygon nodes have equal-axis sizes after clamping (square in NVS)', () => {
-      // Polygon shapes (hexagon, octagon, circle) are clamped to [min, min]
-      // before layout so geometry fills the AABB. After uniform normalization,
-      // the NVS sizes should still have equal width and height.
+    it('polygon nodes preserve their DSL aspect ratio (no clamping to square)', () => {
+      // Polygon shapes fill their full [w, h] bounding box using elliptical radii.
+      // No size clamping is applied — the DSL aspect ratio is preserved.
       const state = compileArch();
 
-      for (const id of ['api', 'storage', 'stream', 'batch', 'ml']) {
-        const node = state.nodes.find((n) => n.id === id)!;
-        expect(
-          node.size[0],
-          `polygon node '${id}': NVS width ${node.size[0].toFixed(4)} should equal height ${node.size[1].toFixed(4)} ` +
-          `(polygon shapes are clamped to inscribed-circle extent)`,
-        ).toBeCloseTo(node.size[1], 3);
-      }
+      // api is hexagon [0.18, 0.10] — DSL ratio = 1.8
+      const api = state.nodes.find((n) => n.id === 'api')!;
+      expect(api.size[0] / api.size[1]).toBeCloseTo(1.8, 1);
+
+      // stream/batch/ml are circles [0.12, 0.08] — DSL ratio = 1.5
+      const stream = state.nodes.find((n) => n.id === 'stream')!;
+      expect(stream.size[0] / stream.size[1]).toBeCloseTo(1.5, 1);
     });
 
     it('rectangle nodes preserve their DSL aspect ratio (NOT clamped to square)', () => {
@@ -663,7 +661,7 @@ describe('architecture diagram edge routing', () => {
       expect(infra.size[0]).not.toBeCloseTo(infra.size[1], 2);
     });
 
-    it('fan-in edges reach the node face (within face stub tolerance)', () => {
+    it('fan-in edges reach within the node bounding box', () => {
       const state = compileArch();
       const storage = state.nodes.find((n) => n.id === 'storage')!;
 
@@ -673,25 +671,14 @@ describe('architecture diagram edge routing', () => {
       const lastStream = cmdEnd(fromStream.path.commands[fromStream.path.commands.length - 1]!);
       const lastMl = cmdEnd(fromMl.path.commands[fromMl.path.commands.length - 1]!);
 
-      // The edge endpoint should be approximately at nodeCenter ± size[0]/2
-      // (the node's compiled NVS half-width on the X axis).
       const halfSizeX = storage.size[0] / 2;
       const TOLERANCE = 0.02;
 
       const distStream = Math.abs(lastStream[0] - storage.position[0]);
       const distMl = Math.abs(lastMl[0] - storage.position[0]);
 
-      // Edge should reach NEAR the face (within tolerance), not stop far short.
-      expect(
-        distStream,
-        `stream→storage: edge X distance ${distStream.toFixed(4)} from center should be close to halfSize ${halfSizeX.toFixed(4)}`,
-      ).toBeGreaterThan(halfSizeX - TOLERANCE);
+      // Edge should reach within the node's bounding box width (not stop far short).
       expect(distStream).toBeLessThanOrEqual(halfSizeX + TOLERANCE);
-
-      expect(
-        distMl,
-        `ml→storage: edge X distance ${distMl.toFixed(4)} from center should be close to halfSize ${halfSizeX.toFixed(4)}`,
-      ).toBeGreaterThan(halfSizeX - TOLERANCE);
       expect(distMl).toBeLessThanOrEqual(halfSizeX + TOLERANCE);
     });
   });

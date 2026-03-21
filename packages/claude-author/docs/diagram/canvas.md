@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Interactive Canvas"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## DiagramCanvas Overview
@@ -73,8 +73,8 @@ export const SceneInteractive = () => (
       </Action>
     </InputController>
 
-    <Diagram id={CANVAS_ID} x={0} y={0} w={1} h={1}>
-      <HierarchicalLayout direction="top-down" spacing={[0.08, 0.08]} />
+    <Diagram id={CANVAS_ID} x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
+      <HierarchicalLayout direction="top-down" spacing={["8u", "8u"]} />
       <DiagramEnter fade />
 
       <DiagramNode id="root" label="Root" icon="ui:server" />
@@ -243,30 +243,30 @@ export const SceneInteractiveArch = (): JSX.Element => (
       </Action>
     </InputController>
 
-    <Diagram id={CANVAS_ID} x={0} y={0} w={1} h={0.88}>
+    <Diagram id={CANVAS_ID} x={"0%"} y={"0%"} w={"100%"} h={"88%"}>
       <ManualLayout />
       <DiagramEnter fade easing="ease" />
 
       <DiagramGroup id="ingress" label="Ingress" variant="boundary" color="#1a2040"
         borderStyle="dashed">
         <DiagramNode id="dns" label="Route 53" icon="aws:route53"
-          position={[0.25, 0.2, 0]} size={[0.12, 0.07]} />
+          position={[0.25, 0.2, 0]} size={["12u", "7u"]} />
         <DiagramNode id="cf" label="CloudFront" icon="aws:cloudfront"
-          position={[0.5, 0.2, 0]} size={[0.14, 0.07]} />
+          position={[0.5, 0.2, 0]} size={["14u", "7u"]} />
         <DiagramNode id="waf" label="WAF" icon="aws:waf"
-          position={[0.75, 0.2, 0]} size={[0.10, 0.07]} />
+          position={[0.75, 0.2, 0]} size={["10u", "7u"]} />
       </DiagramGroup>
 
       <DiagramGroup id="compute" label="Compute" variant="cluster" color="#0a1a10">
         <DiagramNode id="alb" label="ALB" icon="aws:alb"
-          position={[0.35, 0.45, 0]} size={[0.12, 0.07]} />
+          position={[0.35, 0.45, 0]} size={["12u", "7u"]} />
         <DiagramNode id="ecs" label="ECS Fargate" icon="aws:fargate"
-          position={[0.65, 0.45, 0]} size={[0.14, 0.07]}
+          position={[0.65, 0.45, 0]} size={["14u", "7u"]}
           glow={{ intensity: 0.15 }} />
       </DiagramGroup>
 
       <DiagramNode id="rds" label="Aurora" icon="aws:aurora"
-        position={[0.5, 0.72, 0]} size={[0.14, 0.07]} color="#1a0830" />
+        position={[0.5, 0.72, 0]} size={["14u", "7u"]} color="#1a0830" />
 
       <DiagramEdge from="cf" to="waf" routing="flow" />
       <DiagramEdge from="waf" to="alb" flow="forward" color="#44aaff" />
@@ -276,7 +276,7 @@ export const SceneInteractiveArch = (): JSX.Element => (
     </Diagram>
 
     {/* Focus status overlay */}
-    <TextBox id="focus-hint" x={0.02} y={0.9} w={0.5} h={0.08}>
+    <TextBox id="focus-hint" x={"2%"} y={"90%"} w={"50%"} h={"8%"}>
       <FocusStatus />
     </TextBox>
   </Scene>

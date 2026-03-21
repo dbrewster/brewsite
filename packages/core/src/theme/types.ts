@@ -227,8 +227,8 @@ export type SceneThemeCarouselTray = {
   readonly surfaceMaterial?: string;
   /** Application controls for the material preset. */
   readonly materialApplication?: import('../widget/materialTypes').MaterialApplication;
-  /** Extra border around the tray edge beyond the view extent, in NVS units. */
-  readonly outerMargin?: number;
+  /** Extra border around the tray edge beyond the view extent. Accepts SceneLength. */
+  readonly outerMargin?: import('../units/types').SceneLength;
   /**
    * Default highlight mode for the active carousel item.
    * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.

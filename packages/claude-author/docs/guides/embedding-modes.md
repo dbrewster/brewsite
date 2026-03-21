@@ -284,7 +284,7 @@ function ProductViewerScene() {
       <Camera id="main-camera" mode="world" position={[0, 1, 3]} target={[0, 0.5, 0]} />
       <Lighting>...</Lighting>
       <Background color="#111" />
-      <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.8} h={0.8} />
+      <Model id="product" type="ProductModel" x={"50%"} y={"50%"} w={"80%"} h={"80%"} />
       {/* Defaults provide: Cmd+scroll orbit, pinch zoom, Shift+scroll pan, R reset */}
     </Scene>
   );
@@ -302,7 +302,7 @@ function ProductViewerScene() {
       <Camera id="main-camera" mode="world" position={[0, 1, 3]} target={[0, 0.5, 0]} />
       <Lighting>...</Lighting>
       <Background color="#111" />
-      <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.8} h={0.8} />
+      <Model id="product" type="ProductModel" x={"50%"} y={"50%"} w={"80%"} h={"80%"} />
       <InputController>
         {/* Add left-drag orbit (appended to defaults) */}
         <Action id="drag-orbit" type="camera.orbit">

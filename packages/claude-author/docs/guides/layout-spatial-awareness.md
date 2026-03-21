@@ -3,23 +3,23 @@ title: Layout and Spatial Awareness
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-19
+updated: 2026-03-21
 ---
 
 ## The Two Coordinate Systems
 
 BrewSite uses exactly two coordinate systems. Every prop you author falls into one or the other:
 
-### 1. NVS (Normalized Viewport Space) — Percentage Layout
+### 1. NVS (Normalized Viewport Space) — SceneLength Unit Strings
 
 **Used by:** Element placement (`x`, `y`, `w`, `h`), Diagram viewport bounds, View bounds, TextBox regions, Chart placement, ImagePanel placement, Screen placement.
 
-- Range: [0, 1]
-- Meaning: fraction of the viewport (or parent View)
-- x=0 left, x=1 right. y=0 TOP, y=1 BOTTOM.
-- An element at x=0.5 y=0.5 w=0.4 h=0.3 is centered, 40% wide, 30% tall.
+- Type: `SceneLength` — accepts `"50%"`, `"15u"`, `"10vw"`, `"20vh"`, or `0`
+- Meaning: fraction of the viewport (or parent View), or explicit unit values
+- `x={"0%"}` left, `x={"100%"}` right. `y={"0%"}` TOP, `y={"100%"}` BOTTOM.
+- An element at `x={"50%"} y={"50%"} w={"40%"} h={"30%"}` is centered, 40% wide, 30% tall.
 
-**Everything that controls WHERE and HOW BIG an element appears on screen is NVS.**
+**Everything that controls WHERE and HOW BIG an element appears on screen uses `SceneLength`.**
 
 ### 2. World Coordinates — 3D Scene Space
 
@@ -41,100 +41,100 @@ Think of it as two layers:
 
 ## Diagram Node Sizes
 
-Inside a `<Diagram>`, node `size` props are **NVS fractions [0..1]** — the same system used for the diagram's own `w` and `h` props. A `size={[0.15, 0.08]}` node occupies 15% of the diagram viewport width and 8% of its height.
+Inside a `<Diagram>`, node `size` props are **`SceneSize2` tuples** — `[SceneLength, SceneLength]` using the unit system. A `size={["15u", "8u"]}` node occupies 15 units wide and 8 units tall in the diagram viewport.
 
 ### Recommended Node Sizes
 
 | Recipe | Size | Use Case |
 |---|---|---|
-| Standard | `[0.15, 0.08]` | Default. 6-12 node diagrams. |
-| Compact | `[0.10, 0.06]` | Dense diagrams (13+ nodes). |
-| Hero | `[0.25, 0.14]` | Title/header nodes. |
-| Wide | `[0.22, 0.10]` | Nodes with long labels. |
-| Square | `[0.12, 0.12]` | Icon-heavy nodes, circle shapes. |
-| Banner | `[0.35, 0.10]` | Full-width title bars. |
+| Standard | `["15u", "8u"]` | Default. 6-12 node diagrams. |
+| Compact | `["10u", "6u"]` | Dense diagrams (13+ nodes). |
+| Hero | `["25u", "14u"]` | Title/header nodes. |
+| Wide | `["22u", "10u"]` | Nodes with long labels. |
+| Square | `["12u", "12u"]` | Icon-heavy nodes, circle shapes. |
+| Banner | `["35u", "10u"]` | Full-width title bars. |
 
-The theme provides a default size of `[0.15, 0.08]` when no `size` is specified. Nodes that are too small will have their icon automatically scaled down to fit. Text uses shrink-to-fit. Very small nodes produce unreadable results — use the recipes above as a floor.
+The theme provides a default size of `["15u", "8u"]` when no `size` is specified. Nodes that are too small will have their icon automatically scaled down to fit. Text uses shrink-to-fit. Very small nodes produce unreadable results — use the recipes above as a floor.
 
 ## Layout Spacing, Gap, and Padding
 
-All layout spacing props are **NVS fractions [0..1]** — they represent fractions of the diagram viewport, not world units.
+All layout spacing props use **`SceneLength` unit strings** — they represent spatial values in the diagram viewport.
 
 ### FlowLayout gap
 
-`gap` is the edge-to-edge distance between adjacent items. Default: `0.06`.
+`gap` is the edge-to-edge distance between adjacent items. Default: `"6u"`.
 
 | Gap value | Visual effect | Use case |
 |---|---|---|
-| `0.03` | Tight, minimal breathing room | Dense flows, compact cards |
-| `0.06` | Standard (default) | Most diagrams |
-| `0.08` | Generous spacing | Expanded detail views |
-| `0.12` | Wide separation | Before/after comparisons, dramatic visual breaks |
+| `"3u"` | Tight, minimal breathing room | Dense flows, compact cards |
+| `"6u"` | Standard (default) | Most diagrams |
+| `"8u"` | Generous spacing | Expanded detail views |
+| `"12u"` | Wide separation | Before/after comparisons, dramatic visual breaks |
 
-**Critical rule:** The sum of all node heights + all gaps must fit within the diagram viewport (≤ 1.0 on the flow axis) to avoid automatic scale-down. If the total exceeds 1.0, the `normalizeToViewport` pass uniformly shrinks all nodes and gaps to fit — making everything proportionally smaller than authored.
+**Critical rule:** The sum of all node heights + all gaps must fit within the diagram viewport to avoid automatic scale-down. If the total exceeds the viewport, the `normalizeToViewport` pass uniformly shrinks all nodes and gaps to fit — making everything proportionally smaller than authored.
 
-Example: 5 nodes at `h=0.12` with `gap={0.06}` → total = 5×0.12 + 4×0.06 = 0.84. Fits comfortably.
+Example: 5 nodes at `h="12u"` with `gap={"6u"}` — fits comfortably.
 
 ### GridLayout and HierarchicalLayout spacing
 
-`spacing` is `[colGap, rowGap]` in NVS fractions.
+`spacing` is `[colGap, rowGap]` using `SceneLength` units.
 
-- GridLayout default: `[0.06, 0.06]`
-- HierarchicalLayout default: `[0.045, 0.045]`
+- GridLayout default: `["6u", "6u"]`
+- HierarchicalLayout default: `["4.5u", "4.5u"]`
 
-`margin` expands each node's claimed bounding box before spacing is applied. NVS fractions. Default: `0` (no margin). Accepts `number` (uniform) or `[horizontal, vertical]`.
+`margin` expands each node's claimed bounding box before spacing is applied. Default: `0` (no margin). Accepts `SceneLength` (uniform) or `[horizontal, vertical]`.
 
 ### Group padding and titleGap
 
-- `groupPadding`: `0.035` default (all sides). NVS fractions. Accepts CSS-style shorthand: `number`, `[v, h]`, `[t, h, b]`, or `[t, r, b, l]`.
-- `titleGap`: `0.025` default. NVS fractions. Gap between the group title label and the content area below it.
+- `groupPadding`: `"3.5u"` default (all sides). Accepts CSS-style shorthand: `SceneLength`, `[v, h]`, `[t, h, b]`, or `[t, r, b, l]`.
+- `titleGap`: `"2.5u"` default. Gap between the group title label and the content area below it.
 
 ## Node and Edge Thickness
 
-`thickness` controls the 3D depth of node prisms and edge tubes. It is an **NVS fraction of the diagram viewport width** — the same coordinate system as node `size`, layout `gap`, and `spacing`. The render pipeline converts `thickness × uniformWorldW` to get world units.
+`thickness` controls the 3D depth of node prisms and edge tubes. It is a **`SceneLength` value** — the same unit system as node `size`, layout `gap`, and `spacing`. The render pipeline resolves the unit to world units.
 
-**For nodes:** Omit `thickness` to use the theme default (recommended). Theme defaults vary by aesthetic: `0.033` (neonCyber, thin cards) to `0.210` (midnight, deep blocks). Override per-node only when you need a specific node to stand out:
+**For nodes:** Omit `thickness` to use the theme default (recommended). Theme defaults vary by aesthetic: `"3.3u"` (neonCyber, thin cards) to `"21u"` (midnight, deep blocks). Override per-node only when you need a specific node to stand out:
 
 ```tsx
 {/* Hero node — extra thick for visual emphasis */}
-<DiagramNode id="hero" label="Platform" thickness={0.225} />
+<DiagramNode id="hero" label="Platform" thickness={"22.5u"} />
 
 {/* Card-like thin node */}
-<DiagramNode id="card" label="Config" thickness={0.030} />
+<DiagramNode id="card" label="Config" thickness={"3u"} />
 
 {/* Omit thickness — inherits from theme (recommended) */}
 <DiagramNode id="default" label="Service" />
 ```
 
-**For edges:** `thickness` on `<DiagramEdge>` controls tube radius as an NVS fraction. Omit to use the theme default (typically `0.008`–`0.011`). Override only for emphasis:
+**For edges:** `thickness` on `<DiagramEdge>` controls tube radius as a `SceneLength`. Omit to use the theme default (typically `"0.8u"`–`"1.1u"`). Override only for emphasis:
 
 ```tsx
-<DiagramEdge from="a" to="b" thickness={0.018} />  {/* thick emphasis edge */}
-<DiagramEdge from="b" to="c" />                     {/* theme default (recommended) */}
+<DiagramEdge from="a" to="b" thickness={"1.8u"} />  {/* thick emphasis edge */}
+<DiagramEdge from="b" to="c" />                       {/* theme default (recommended) */}
 ```
 
-**For cornerRadius:** `cornerRadius` on `<DiagramNode>` is also an NVS fraction. Theme defaults range from `0.006` (neonCyber) to `0.0135` (lightCanvas). Omit to use the theme default.
+**For cornerRadius:** `cornerRadius` on `<DiagramNode>` is also a `SceneLength`. Theme defaults range from `"0.6u"` (neonCyber) to `"1.35u"` (lightCanvas). Omit to use the theme default.
 
-## Complete NVS Diagram Example
+## Complete Diagram Example
 
-All sizes, gaps, spacing, and padding in this example are NVS fractions:
+All sizes, gaps, and spacing in this example use `SceneLength` unit strings:
 
 ```tsx
-<Diagram id="arch" x={0.05} y={0.05} w={0.9} h={0.9} tilt={-0.25}>
-  <FlowLayout direction="top-down" gap={0.06} />
+<Diagram id="arch" x={"5%"} y={"5%"} w={"90%"} h={"90%"} tilt={"-0.25rad"}>
+  <FlowLayout direction="top-down" gap={"6u"} />
 
   <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC"
-    shape="hexagon" icon="net:internet" size={[0.18, 0.10]} />
+    shape="hexagon" icon="net:internet" size={["18u", "10u"]} />
 
   <DiagramGroup id="services" label="Services" variant="container">
-    <GridLayout columns={3} spacing={[0.04, 0.03]} />
-    <DiagramNode id="auth" label="Auth" icon="security:shield" shape="circle" size={[0.12, 0.12]} />
-    <DiagramNode id="billing" label="Billing" icon="ui:credit-card" shape="circle" size={[0.12, 0.12]} />
-    <DiagramNode id="notify" label="Notify" icon="ui:bell" shape="circle" size={[0.12, 0.12]} />
+    <GridLayout columns={3} spacing={["4u", "3u"]} />
+    <DiagramNode id="auth" label="Auth" icon="security:shield" shape="circle" size={["12u", "12u"]} />
+    <DiagramNode id="billing" label="Billing" icon="ui:credit-card" shape="circle" size={["12u", "12u"]} />
+    <DiagramNode id="notify" label="Notify" icon="ui:bell" shape="circle" size={["12u", "12u"]} />
   </DiagramGroup>
 
   <DiagramNode id="db" label="Database" sublabel="PostgreSQL"
-    shape="octagon" icon="data:warehouse" size={[0.18, 0.10]} />
+    shape="octagon" icon="data:warehouse" size={["18u", "10u"]} />
 
   <DiagramEdge from="api" to="auth" routing="flow" flow="forward" />
   <DiagramEdge from="api" to="billing" routing="flow" flow="forward" />
@@ -147,28 +147,28 @@ All sizes, gaps, spacing, and padding in this example are NVS fractions:
 
 ## Quick Reference Table
 
-| Prop | Coordinate System | Range | Example |
-|------|-------------------|-------|---------|
-| `<Diagram x y w h>` | NVS | [0, 1] | `x={0.1} y={0.05} w={0.8} h={0.9}` |
-| `<Diagram tilt>` | Radians | [-pi, pi] | `tilt={-0.25}` |
-| `<Diagram z>` | World | unbounded | `z={0}` |
-| `<DiagramNode size>` | NVS | [0, 1] | `size={[0.15, 0.08]}` |
-| `<DiagramNode thickness>` | NVS (viewport width fraction) | 0.030–0.210 | Omit for theme default |
-| `<DiagramNode cornerRadius>` | NVS (viewport width fraction) | 0.006–0.014 | Omit for theme default |
-| `<DiagramNode position>` | NVS (ManualLayout only) | [0, 1] | `position={[0.3, 0.5, 0]}` |
-| `<DiagramEdge thickness>` | NVS (viewport width fraction) | 0.008–0.011 | Omit for theme default |
-| `<FlowLayout gap>` | NVS | [0, 1] | `gap={0.06}` |
-| `<GridLayout spacing>` | NVS | [0, 1] | `spacing={[0.06, 0.06]}` |
-| `<GridLayout margin>` | NVS | [0, 1] | `margin={0.01}` or `margin={[0.02, 0.01]}` |
-| `<HierarchicalLayout spacing>` | NVS | [0, 1] | `spacing={[0.045, 0.045]}` |
-| `groupPadding` (any layout) | NVS | [0, 1] | `groupPadding={0.035}` |
-| `titleGap` (any layout) | NVS | [0, 1] | `titleGap={0.025}` |
-| `<Camera position>` | World | unbounded | `position={[0, 2.5, 5]}` |
-| `<Camera target>` | World | unbounded | `target={[0, 0, 0]}` |
-| `<Directional position>` | World (direction vector) | unbounded | `position={[3, 5, 4]}` |
-| `<Model x y w h>` | NVS | [0, 1] | `x={0.5} y={0.5} w={0.4} h={0.6}` |
-| `<Model scale>` | Viewport-relative | 0.01-0.5 | `scale={0.06}` |
-| `<Chart x y w h>` | NVS | [0, 1] | `x={0.1} y={0.1} w={0.8} h={0.8}` |
-| `<ImagePanel x y w h>` | NVS | [0, 1] | `x={0.5} y={0} w={0.5} h={1}` |
-| `<Screen x y w h>` | NVS | [0, 1] | `x={0.3} y={0.2} w={0.4} h={0.5}` |
-| `<View x y w h>` | NVS | [0, 1] | `x={0.4} y={0} w={0.6} h={1}` |
+| Prop | Type | Unit | Example |
+|------|------|------|---------|
+| `<Diagram x y w h>` | `SceneLength` | `%`, `u`, `vw`, `vh` | `x={"10%"} y={"5%"} w={"80%"} h={"90%"}` |
+| `<Diagram tilt>` | `SceneAngle` | `deg`, `rad` | `tilt={"-0.25rad"}` |
+| `<Diagram z>` | `number` | World | `z={0}` |
+| `<DiagramNode size>` | `SceneSize2` | `u` | `size={["15u", "8u"]}` |
+| `<DiagramNode thickness>` | `SceneLength` | `u` | Omit for theme default |
+| `<DiagramNode cornerRadius>` | `SceneLength` | `u` | Omit for theme default |
+| `<DiagramNode position>` | `ScenePosition3` | `%` (ManualLayout) | `position={["30%", "50%", "0%"]}` |
+| `<DiagramEdge thickness>` | `SceneLength` | `u` | Omit for theme default |
+| `<FlowLayout gap>` | `SceneLength` | `u` | `gap={"6u"}` |
+| `<GridLayout spacing>` | `[SceneLength, SceneLength]` | `u` | `spacing={["6u", "6u"]}` |
+| `<GridLayout margin>` | `SceneLength` | `u` | `margin={"1u"}` or `margin={["2u", "1u"]}` |
+| `<HierarchicalLayout spacing>` | `[SceneLength, SceneLength]` | `u` | `spacing={["4.5u", "4.5u"]}` |
+| `groupPadding` (any layout) | `SceneLength` | `u` | `groupPadding={"3.5u"}` |
+| `titleGap` (any layout) | `SceneLength` | `u` | `titleGap={"2.5u"}` |
+| `<Camera position>` | `[number, number, number]` | World | `position={[0, 2.5, 5]}` |
+| `<Camera target>` | `[number, number, number]` | World | `target={[0, 0, 0]}` |
+| `<Directional position>` | `[number, number, number]` | World | `position={[3, 5, 4]}` |
+| `<Model x y w h>` | `SceneLength` | `%`, `u`, `vw`, `vh` | `x={"50%"} y={"50%"} w={"40%"} h={"60%"}` |
+| `<Model scale>` | `number` | Viewport-relative | `scale={0.06}` |
+| `<Chart x y w h>` | `SceneLength` | `%`, `u`, `vw`, `vh` | `x={"10%"} y={"10%"} w={"80%"} h={"80%"}` |
+| `<ImagePanel x y w h>` | `SceneLength` | `%`, `u`, `vw`, `vh` | `x={"50%"} y={"0%"} w={"50%"} h={"100%"}` |
+| `<Screen x y w h>` | `SceneLength` | `%`, `u`, `vw`, `vh` | `x={"30%"} y={"20%"} w={"40%"} h={"50%"}` |
+| `<View x y w h>` | `SceneLength` | `%`, `u`, `vw`, `vh` | `x={"40%"} y={"0%"} w={"60%"} h={"100%"}` |

@@ -3,7 +3,7 @@ title: Background Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## Background Overview

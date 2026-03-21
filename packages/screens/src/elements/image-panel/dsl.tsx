@@ -2,6 +2,7 @@
 // Use <ImagePanel> for static images (screenshots, mockups, photographs).
 // For live interactive websites, use <Screen>.
 
+import type { SceneLength, SceneAngle } from '@brewsite/core';
 import type { ImagePanelBezelVariant } from './types';
 
 export interface ImagePanelProps {
@@ -10,36 +11,36 @@ export interface ImagePanelProps {
   /** Public asset URL for the image. E.g. '/screenshots/homepage.png' */
   src: string;
   /**
-   * NVS horizontal center position [0..1]. 0 = left edge, 1 = right edge.
-   * Default: 0.5 (horizontally centered).
+   * NVS horizontal center position with explicit unit.
+   * Default: '50%' (horizontally centered).
    */
-  x?: number;
+  x?: SceneLength;
   /**
-   * NVS vertical center position [0..1]. 0 = top edge, 1 = bottom edge.
-   * Default: 0.5 (vertically centered).
+   * NVS vertical center position with explicit unit.
+   * Default: '50%' (vertically centered).
    */
-  y?: number;
+  y?: SceneLength;
   /**
    * World-space depth (Z) of the panel center.
    * Default: 0
    */
   z?: number;
   /**
-   * NVS width fraction [0..1] — fraction of the AR container width.
-   * Default: 0.6 (60% of viewport width).
+   * NVS width with explicit unit.
+   * Default: '60%' (60% of viewport width).
    */
-  width?: number;
+  width?: SceneLength;
   /**
-   * NVS height fraction [0..1] — fraction of the AR container height.
+   * NVS height with explicit unit.
    * Computed from image aspect ratio if omitted.
    */
-  height?: number;
+  height?: SceneLength;
   /**
-   * World-space rotation in radians [x, y, z].
+   * Rotation with explicit angle units [x, y, z].
    * Fully supported — this is pure WebGL. Tilt freely.
    * Default: [0, 0, 0]
    */
-  rotation?: [number, number, number];
+  rotation?: [SceneAngle, SceneAngle, SceneAngle];
   /** Uniform scale. Default: 1 */
   scale?: number;
   /** Bezel frame style. Default: 'dark' */

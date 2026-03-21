@@ -3,7 +3,7 @@ title: Floor Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## Floor Overview
@@ -52,8 +52,8 @@ import { Floor, FloorPhysical, FloorMirror } from '@brewsite/core';
 | `variant` | `'grid' \| 'mirror' \| 'physical'` | `'grid'` | Quick surface preset. Overridden when a `<FloorPhysical>` or `<FloorMirror>` child is present |
 | `placement` | `'origin' \| 'sceneBase'` | `'sceneBase'` | Y-origin strategy. `'origin'` uses world origin. `'sceneBase'` snaps to lowest visible geometry each frame |
 | `position` | `[number, number, number]` | `[0, 0, 0]` | World-space position. Not NVS |
-| `rotation` | `[number, number, number]` | — | Absolute world rotation in radians |
-| `rotationRelative` | `[number, number, number]` | — | Rotation offset relative to floor baseline `[-PI/2, 0, 0]`. Use for subtle tilt |
+| `rotation` | `[SceneAngle, SceneAngle, SceneAngle]` | — | Absolute rotation. Accepts `"45deg"`, `"0.78rad"`, or `0` |
+| `rotationRelative` | `[SceneAngle, SceneAngle, SceneAngle]` | — | Rotation offset relative to floor baseline `["-90deg", 0, 0]`. Use for subtle tilt |
 | `scale` | `number` | 1 | Uniform scale |
 | `negativeZExtent` | `number` | — | World-space depth in the negative Z direction from floor origin. When omitted, floor is unbounded |
 | `negativeZEdge` | `'hard' \| 'fade'` | `'hard'` | Back-edge behavior when `negativeZExtent` is set. `'hard'` clips, `'fade'` alpha-fades |
@@ -173,7 +173,7 @@ Key `<FloorPhysical>` props:
 | `textureUrl` | `string` | — | Base color texture URL |
 | `textureRepeat` | `[number, number]` | — | Texture UV repeat [u, v] |
 | `textureOffset` | `[number, number]` | — | Texture UV offset [u, v] |
-| `textureRotation` | `number` | — | Texture rotation in radians |
+| `textureRotation` | `SceneAngle` | — | Texture rotation. Accepts `"45deg"`, `"0.78rad"`, or `0` |
 | `normalMapUrl` | `string` | — | Normal map URL |
 | `normalScale` | `[number, number]` | — | Normal map intensity [x, y] |
 | `roughnessMapUrl` | `string` | — | Roughness map URL |

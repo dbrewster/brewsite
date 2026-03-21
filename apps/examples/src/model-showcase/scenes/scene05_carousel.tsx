@@ -27,7 +27,7 @@ import { Animation, Model, Playback } from '@brewsite/model';
 export function Scene05Carousel(): JSX.Element {
   return (
     <Scene id="model-carousel" primaryCarouselId="model-carousel-layout">
-      <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={45} />
+      <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={"45deg"} />
       <Lighting intensityScale={1.1}>
         <Ambient intensity={0.7} color="#d0e4ff" />
         <Directional intensity={1.0} color="#ffffff" position={[3, 8, 6]} />
@@ -40,12 +40,12 @@ export function Scene05Carousel(): JSX.Element {
         activeIndex={1}
         inactiveScale={0.72}
         zStep={9}
-        gap={0.03}
+        gap={"3%"}
         y={0}
-        h={1}
+        h={"100%"}
       >
         {/* Panel left — relaxed idle */}
-        <View id="carousel-panel-a" w={0.38} h={0.88}>
+        <View id="carousel-panel-a" w={"38%"} h={"88%"}>
           <Model
             type="Robot"
             id="robot-carousel-a"
@@ -67,7 +67,7 @@ export function Scene05Carousel(): JSX.Element {
         </View>
 
         {/* Panel center (active) — expressive talking animation */}
-        <View id="carousel-panel-b" w={0.38} h={0.88}>
+        <View id="carousel-panel-b" w={"38%"} h={"88%"}>
           <Model
             type="Robot"
             id="robot-carousel-b"
@@ -89,7 +89,7 @@ export function Scene05Carousel(): JSX.Element {
         </View>
 
         {/* Panel right — alternate relaxed idle */}
-        <View id="carousel-panel-c" w={0.38} h={0.88}>
+        <View id="carousel-panel-c" w={"38%"} h={"88%"}>
           <Model
             type="Robot"
             id="robot-carousel-c"

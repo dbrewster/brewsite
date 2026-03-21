@@ -1,4 +1,6 @@
 import type { DiagramThemeLayoutConfig, LayoutDSL, LayoutPadding } from '../types';
+import type { SceneLength, ScenePadding, SceneSize2 } from '@brewsite/core';
+import { resolveToNVS } from '@brewsite/core';
 import {
   DEFAULT_GROUP_PADDING,
   DEFAULT_TITLE_GAP,
@@ -83,6 +85,45 @@ export function normalizeMargin(
   return typeof m === 'number' ? [m, m] : [m[0], m[1]];
 }
 
+/**
+ * Resolves a ScenePadding value to a normalized [top, right, bottom, left] numeric tuple.
+ * Applies resolveToNVS to each SceneLength component.
+ */
+function resolveScenePadding(
+  p: ScenePadding,
+): readonly [number, number, number, number] {
+  if (typeof p === 'number' || typeof p === 'string') {
+    const v = typeof p === 'number' ? p : resolveToNVS(p);
+    return [v, v, v, v];
+  }
+  const arr = p as readonly SceneLength[];
+  if (arr.length === 2) {
+    const v = resolveToNVS(arr[0]!);
+    const h = resolveToNVS(arr[1]!);
+    return [v, h, v, h];
+  }
+  if (arr.length === 3) {
+    const t = resolveToNVS(arr[0]!);
+    const h = resolveToNVS(arr[1]!);
+    const b = resolveToNVS(arr[2]!);
+    return [t, h, b, h];
+  }
+  return [resolveToNVS(arr[0]!), resolveToNVS(arr[1]!), resolveToNVS(arr[2]!), resolveToNVS(arr[3]!)];
+}
+
+/**
+ * Resolves a SceneLength | SceneSize2 margin to a numeric [h, v] tuple.
+ */
+function resolveSceneMargin(
+  m: SceneLength | SceneSize2,
+): readonly [number, number] {
+  if (typeof m === 'number' || typeof m === 'string') {
+    const v = typeof m === 'number' ? m : resolveToNVS(m);
+    return [v, v];
+  }
+  return [resolveToNVS(m[0]), resolveToNVS(m[1])];
+}
+
 const DEFAULT_GRID_SPACING: readonly [number, number] = [0.06, 0.06];
 const DEFAULT_HIERARCHICAL_SPACING: readonly [number, number] = [0.045, 0.045];
 const DEFAULT_MARGIN: readonly [number, number] = [0, 0];
@@ -137,10 +178,10 @@ export function resolveThemeLayoutDefaults(
   const gridDefaults: ResolvedGridLayout = {
     ...DEFAULT_RESOLVED_GRID,
     ...(themeLayout?.grid?.columns !== undefined && { columns: themeLayout.grid.columns }),
-    ...(themeLayout?.grid?.spacing !== undefined && { spacing: themeLayout.grid.spacing }),
-    ...(themeLayout?.grid?.margin !== undefined && { margin: normalizeMargin(themeLayout.grid.margin) }),
-    ...(themeLayout?.grid?.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(themeLayout.grid.groupPadding) }),
-    ...(themeLayout?.grid?.titleGap !== undefined && { titleGap: themeLayout.grid.titleGap }),
+    ...(themeLayout?.grid?.spacing !== undefined && { spacing: [resolveToNVS(themeLayout.grid.spacing[0]), resolveToNVS(themeLayout.grid.spacing[1])] as const }),
+    ...(themeLayout?.grid?.margin !== undefined && { margin: resolveSceneMargin(themeLayout.grid.margin) }),
+    ...(themeLayout?.grid?.groupPadding !== undefined && { groupPadding: resolveScenePadding(themeLayout.grid.groupPadding) }),
+    ...(themeLayout?.grid?.titleGap !== undefined && { titleGap: resolveToNVS(themeLayout.grid.titleGap) }),
     ...(themeLayout?.grid?.alignment !== undefined && { alignment: themeLayout.grid.alignment }),
     ...(themeLayout?.grid?.disconnected !== undefined && { disconnected: themeLayout.grid.disconnected }),
   };
@@ -148,26 +189,26 @@ export function resolveThemeLayoutDefaults(
   const hierarchicalDefaults: ResolvedHierarchicalLayout = {
     ...DEFAULT_RESOLVED_HIERARCHICAL,
     ...(themeLayout?.hierarchical?.direction !== undefined && { direction: themeLayout.hierarchical.direction }),
-    ...(themeLayout?.hierarchical?.spacing !== undefined && { spacing: themeLayout.hierarchical.spacing }),
-    ...(themeLayout?.hierarchical?.margin !== undefined && { margin: normalizeMargin(themeLayout.hierarchical.margin) }),
-    ...(themeLayout?.hierarchical?.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(themeLayout.hierarchical.groupPadding) }),
-    ...(themeLayout?.hierarchical?.titleGap !== undefined && { titleGap: themeLayout.hierarchical.titleGap }),
+    ...(themeLayout?.hierarchical?.spacing !== undefined && { spacing: [resolveToNVS(themeLayout.hierarchical.spacing[0]), resolveToNVS(themeLayout.hierarchical.spacing[1])] as const }),
+    ...(themeLayout?.hierarchical?.margin !== undefined && { margin: resolveSceneMargin(themeLayout.hierarchical.margin) }),
+    ...(themeLayout?.hierarchical?.groupPadding !== undefined && { groupPadding: resolveScenePadding(themeLayout.hierarchical.groupPadding) }),
+    ...(themeLayout?.hierarchical?.titleGap !== undefined && { titleGap: resolveToNVS(themeLayout.hierarchical.titleGap) }),
     ...(themeLayout?.hierarchical?.alignment !== undefined && { alignment: themeLayout.hierarchical.alignment }),
     ...(themeLayout?.hierarchical?.disconnected !== undefined && { disconnected: themeLayout.hierarchical.disconnected }),
   };
 
   const manualDefaults: ResolvedManualLayout = {
     ...DEFAULT_RESOLVED_MANUAL,
-    ...(themeLayout?.manual?.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(themeLayout.manual.groupPadding) }),
-    ...(themeLayout?.manual?.titleGap !== undefined && { titleGap: themeLayout.manual.titleGap }),
+    ...(themeLayout?.manual?.groupPadding !== undefined && { groupPadding: resolveScenePadding(themeLayout.manual.groupPadding) }),
+    ...(themeLayout?.manual?.titleGap !== undefined && { titleGap: resolveToNVS(themeLayout.manual.titleGap) }),
   };
 
   const flowDefaults: ResolvedFlowLayout = {
     ...DEFAULT_RESOLVED_FLOW,
     ...(themeLayout?.flow?.direction !== undefined && { direction: themeLayout.flow.direction }),
-    ...(themeLayout?.flow?.gap !== undefined && { gap: themeLayout.flow.gap }),
-    ...(themeLayout?.flow?.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(themeLayout.flow.groupPadding) }),
-    ...(themeLayout?.flow?.titleGap !== undefined && { titleGap: themeLayout.flow.titleGap }),
+    ...(themeLayout?.flow?.gap !== undefined && { gap: resolveToNVS(themeLayout.flow.gap) }),
+    ...(themeLayout?.flow?.groupPadding !== undefined && { groupPadding: resolveScenePadding(themeLayout.flow.groupPadding) }),
+    ...(themeLayout?.flow?.titleGap !== undefined && { titleGap: resolveToNVS(themeLayout.flow.titleGap) }),
   };
 
   const root: ResolvedLayout = themeLayout?.defaultKind === 'hierarchical'
@@ -203,27 +244,27 @@ export function applyLayoutDefaultsWithTheme(
     return {
       ...defaults.manual,
       groupPadding: own.groupPadding !== undefined
-        ? normalizeGroupPadding(own.groupPadding)
+        ? resolveScenePadding(own.groupPadding)
         : defaults.manual.groupPadding,
-      titleGap: own.titleGap ?? defaults.manual.titleGap,
+      titleGap: own.titleGap !== undefined ? resolveToNVS(own.titleGap) : defaults.manual.titleGap,
     };
   }
   if (own.kind === 'flow') {
     return {
       ...defaults.flow,
       ...(own.direction !== undefined && { direction: own.direction }),
-      ...(own.gap !== undefined && { gap: own.gap }),
-      ...(own.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(own.groupPadding) }),
-      ...(own.titleGap !== undefined && { titleGap: own.titleGap }),
+      ...(own.gap !== undefined && { gap: resolveToNVS(own.gap) }),
+      ...(own.groupPadding !== undefined && { groupPadding: resolveScenePadding(own.groupPadding) }),
+      ...(own.titleGap !== undefined && { titleGap: resolveToNVS(own.titleGap) }),
     };
   }
   const base = own.kind === 'grid' ? defaults.grid : defaults.hierarchical;
   return {
     ...base,
-    ...(own.spacing !== undefined && { spacing: own.spacing }),
-    ...(own.margin !== undefined && { margin: normalizeMargin(own.margin) }),
-    ...(own.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(own.groupPadding) }),
-    ...(own.titleGap !== undefined && { titleGap: own.titleGap }),
+    ...(own.spacing !== undefined && { spacing: [resolveToNVS(own.spacing[0]), resolveToNVS(own.spacing[1])] as const }),
+    ...(own.margin !== undefined && { margin: resolveSceneMargin(own.margin) }),
+    ...(own.groupPadding !== undefined && { groupPadding: resolveScenePadding(own.groupPadding) }),
+    ...(own.titleGap !== undefined && { titleGap: resolveToNVS(own.titleGap) }),
     ...(own.alignment !== undefined && { alignment: own.alignment }),
     ...(own.disconnected !== undefined && { disconnected: own.disconnected }),
     ...(own.kind === 'grid' && own.columns !== undefined && { columns: own.columns }),
@@ -242,21 +283,21 @@ export function mergeResolvedLayouts(
 ): ResolvedLayout {
   const result = { ...parent } as Record<string, unknown>;
   if (child.kind === 'manual') {
-    if (child.groupPadding !== undefined) result['groupPadding'] = normalizeGroupPadding(child.groupPadding);
-    if (child.titleGap !== undefined) result['titleGap'] = child.titleGap;
+    if (child.groupPadding !== undefined) result['groupPadding'] = resolveScenePadding(child.groupPadding);
+    if (child.titleGap !== undefined) result['titleGap'] = resolveToNVS(child.titleGap);
     return result as unknown as ResolvedLayout;
   }
   if (child.kind === 'flow') {
-    if (child.gap !== undefined) result['gap'] = child.gap;
+    if (child.gap !== undefined) result['gap'] = resolveToNVS(child.gap);
     if (child.direction !== undefined) result['direction'] = child.direction;
-    if (child.groupPadding !== undefined) result['groupPadding'] = normalizeGroupPadding(child.groupPadding);
-    if (child.titleGap !== undefined) result['titleGap'] = child.titleGap;
+    if (child.groupPadding !== undefined) result['groupPadding'] = resolveScenePadding(child.groupPadding);
+    if (child.titleGap !== undefined) result['titleGap'] = resolveToNVS(child.titleGap);
     return result as unknown as ResolvedLayout;
   }
-  if (child.spacing !== undefined) result['spacing'] = child.spacing;
-  if (child.margin !== undefined) result['margin'] = normalizeMargin(child.margin);
-  if (child.groupPadding !== undefined) result['groupPadding'] = normalizeGroupPadding(child.groupPadding);
-  if (child.titleGap !== undefined) result['titleGap'] = child.titleGap;
+  if (child.spacing !== undefined) result['spacing'] = [resolveToNVS(child.spacing[0]), resolveToNVS(child.spacing[1])];
+  if (child.margin !== undefined) result['margin'] = resolveSceneMargin(child.margin);
+  if (child.groupPadding !== undefined) result['groupPadding'] = resolveScenePadding(child.groupPadding);
+  if (child.titleGap !== undefined) result['titleGap'] = resolveToNVS(child.titleGap);
   if (child.alignment !== undefined) result['alignment'] = child.alignment;
   if (child.disconnected !== undefined) result['disconnected'] = child.disconnected;
   if (child.kind === 'grid' && child.columns !== undefined) result['columns'] = child.columns;

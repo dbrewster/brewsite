@@ -3,7 +3,7 @@ title: "@brewsite/slides — Slide Deck Package"
 doc_type: prd
 owner: brewsite-product-manager
 status: current
-updated: 2026-03-20
+updated: 2026-03-21
 change_history:
   - date: 2026-03-05
     author: "brewsite-product-manager"
@@ -14,6 +14,12 @@ change_history:
   - date: 2026-03-20
     author: "Toolkit Product"
     summary: "Slides expansion rewrite. Replaced DeckTheme with three-axis customization: SceneTheme (visual, from core) + SlideTheme (feel) + SlideTemplate (branding). 19 layout archetypes (12 core + 7 fast-follow). 12 graphics components + 4 animation hooks. SlidePlayer no longer creates SceneEngine — it renders inside a parent SceneEngine context. slidesPlugin() is zero-arg. 9 slide transitions. Deleted DeckTheme, ResolvedDeckTheme, themeFamily.ts, DECK_THEME_PAIRS, getDeckThemeForFamily, createDeckThemeForFamily, defaultDeckTheme, darkDeckTheme, createDeckTheme, SlidesPluginOptions."
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "3D-first enhancements. Added smart layout routing (classifyRegionContent in deckCompiler.tsx auto-routes 3D DSL elements to View regions). Added scaleMode and referenceWidth props to SlidePlayer for AR/display sizing. Documented scene-level lazy loading via SceneEngine loadPolicy (SceneLoadPolicy type in @brewsite/core)."
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system (semver major). SlideThemeDensity fields titleHeight and gutter now typed as SceneLength (string with explicit unit) instead of bare number. SlideRegion x/y/w/h fields now typed as SceneLength. All code examples updated from bare numbers to unit strings (e.g. titleHeight: 0.15 → titleHeight: '15%'). See migration guide: packages/claude-author/docs/migration/unit-system.md."
 ---
 
 # @brewsite/slides — Slide Deck Package
@@ -57,7 +63,7 @@ Affects: `@brewsite/slides`, `@brewsite/core` (additive `SceneTheme` fields), `@
 | Axis | Type | Set On | Controls |
 |---|---|---|---|
 | **SceneTheme** | `SceneTheme` | `<SceneEngine theme={...}>` or `sceneTheme` prop | Colors, fonts, spacing, accent color, text colors, surfaces, semantic colors, shadows, border radii. All `--brewsite-*` CSS variables. |
-| **SlideTheme** | `SlideTheme` | `<SlidePlayer slideTheme={...}>` | Animation timing, content density, typography scale, graphical component sizing. All `--slide-*` CSS variables. |
+| **SlideTheme** | `SlideTheme` | `<SlidePlayer slideTheme={...}>` | Animation timing, content density (spatial fields use `SceneLength`), typography scale, graphical component sizing. All `--slide-*` CSS variables. |
 | **SlideTemplate** | `SlideTemplate` | `<SlidePlayer template={...}>` | Corporate chrome: logos, footers, watermarks, default transition, default progress indicator. |
 
 The three axes are orthogonal. Any `SlideTheme` pairs with any `SlideTemplate` and any `SceneTheme`. A McKinsey deck has tight spacing and fast reveals (SlideTheme) plus the McKinsey logo and confidentiality footer (SlideTemplate) using the enterprise color scheme (SceneTheme). Acme Corp swaps the template, keeps the theme and colors.
@@ -154,12 +160,12 @@ React components rendered inside layout regions. They consume CSS variables.
 | `SlideTransition` | Union of 9 transition types. |
 | `EntranceType` | `'fadeIn' \| 'slideUp' \| 'slideDown' \| 'slideLeft' \| 'slideRight' \| 'grow' \| 'none'`. |
 | `SlideRegionEntrance` | Per-region entrance animation config. |
-| `SlideTheme` | Presentation behavioral/density token type. |
+| `SlideTheme` | Presentation behavioral/density token type. Density fields `titleHeight` and `gutter` are `SceneLength` (e.g. `"18%"`, `"2%"`). |
 | `SlideTemplate` | Corporate chrome template type. |
 | `BrandAsset` | Brand asset (logo/wordmark/icon). |
 | `ComparisonCellValue` | Discriminated union for comparison table cells (`check` / `text` / `number`). |
 | `ResolvedSlideConfig` | Resolved theme config with CSS variable map. |
-| `SlideRegion` | NVS-positioned content region within a compiled slide. |
+| `SlideRegion` | NVS-positioned content region within a compiled slide. Fields `x`, `y`, `w`, `h` are `SceneLength`. |
 | `SlideSpec` | Compiled single-slide representation. |
 | `DeckSpec` | Compiled full-deck representation. |
 | `SlidePlayerHandle` | Imperative handle: `goTo`, `next`, `prev`, `captureSlideSnapshots`. |
@@ -243,6 +249,8 @@ export function TechDeck() {
 | `transition` | `SlideTransition` | `'dissolve'` | Default slide transition |
 | `progressIndicator` | `ProgressStyle` | `'dots'` | Progress indicator style |
 | `aspectRatio` | `number` | `16/9` | Canvas aspect ratio |
+| `scaleMode` | `'contain' \| 'cover' \| 'fit-width' \| 'fit-height'` | `'contain'` | How the deck fits within the display |
+| `referenceWidth` | `number` | `1920` | Reference width for content scaling via `--scene-scale` |
 | `navigation` | `SlideNavigationConfig` | all enabled | Navigation configuration |
 | `fullscreen` | `boolean` | — | Controlled fullscreen state |
 | `defaultFullscreen` | `boolean` | `false` | Uncontrolled default fullscreen |
@@ -334,12 +342,84 @@ Notes are authored as a prop on `<Slide notes="...">`. Stored in VariableStore b
 
 ### 5.10 3D Content Embedding
 
-Slides embed 3D content via the `sceneDsl` prop on `<Slide>`. Any core/diagram/model/chart DSL can be injected. Camera and Lighting must be included explicitly — SlidePlayer does not provide 3D defaults.
+Slides embed 3D content via two mechanisms:
+
+**Smart Layout Routing (recommended):** Pass 3D DSL elements directly as layout slot children. The deck compiler's `classifyRegionContent()` function inspects each child's element type via `getNodeHandler()`. Elements with a registered handler are classified as 3D and routed to `<View>` regions; HTML content goes to `<TextBox>` regions. Mixed content (3D + HTML in the same slot) emits both a `<View>` and a `<TextBox>` at the same NVS coordinates.
+
+When any region emits a routed 3D `<View>`, the compiler injects a default Camera (mode `world`, position `[0, 1.5, 5]`, fov `"42deg"`) and default Lighting (ambient, intensity 1) unless the author provides explicit camera/lighting via `sceneDsl`.
+
+Known limitation: 3D elements must be direct children of the layout slot. Custom React wrapper components are opaque to the classifier. Fragment children are expanded one level.
+
+**sceneDsl prop (escape hatch):** The `sceneDsl` prop on `<Slide>` injects arbitrary 3D DSL elements into the compiled Scene. Use for custom camera positioning, custom lighting, background models, or other scene-level elements. Camera and Lighting must be included explicitly when using `sceneDsl` without smart routing.
 
 Required plugins must be registered on the parent `<SceneEngine>`:
 ```tsx
 <SceneEngine plugins={[corePlugin(), slidesPlugin(), diagramPlugin()]}>
 ```
+
+### 5.11 Scene-Level Lazy Loading
+
+Scene-level lazy loading is configured on the parent `<SceneEngine>` via the `loadPolicy` prop (type `SceneLoadPolicy` from `@brewsite/core`).
+
+```tsx
+<SceneEngine
+  plugins={[corePlugin(), slidesPlugin()]}
+  loadPolicy={{ eager: [0], preloadAhead: 1 }}
+>
+  <SlidePlayer>...</SlidePlayer>
+</SceneEngine>
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `eager` | `number[]` | `[0]` | Scene indices to load immediately (block `assetsReady`). |
+| `preloadAhead` | `number` | `1` | How many scenes ahead of the current scene to preload in the background. |
+
+Phase 1 behavior: assets are loaded but never unloaded. Memory grows monotonically. When `loadPolicy` is omitted, all ILoadable widgets load upfront (backward-compatible default).
+
+The `useSceneLoadState()` hook (from `@brewsite/core`) returns `{ loadedScenes: ReadonlySet<number>, loadingScenes: ReadonlySet<number> }` for building loading indicators.
+
+### 5.12 AR/Display Sizing
+
+`SlidePlayer` exposes `scaleMode` and `referenceWidth` props that pass through to the internal `EngineARContainer`:
+
+- **`scaleMode`** (`'contain' | 'cover' | 'fit-width' | 'fit-height'`, default `'contain'`): Controls how the AR-locked content box fits in the container. The `'contain'` default differs from `EngineARContainer`'s own `'fit-width'` default — presentations use `'contain'` because slide content should never be cropped.
+- **`referenceWidth`** (`number`, default `1920`): Reference pixel width for content scaling. Content authored at this width scales proportionally via `--scene-scale`.
+
+### 5.13 Scene Unit System
+
+All DSL spatial props in `@brewsite/slides` use the `SceneLength` type from `@brewsite/core` instead of bare `number`. `SceneLength` is a branded string type: `"${number}u"` | `"${number}%"` | `"${number}vw"` | `"${number}vh"` | `0`. The `%` unit represents a percentage of viewport per axis (for NVS positions). The `u` unit produces uniform, aspect-ratio-preserving measurements. Compiled state remains `number` -- the unit resolution happens at compile time.
+
+**Affected slide types:**
+
+| Type | Fields | Unit |
+|---|---|---|
+| `SlideTheme.density` | `titleHeight`, `gutter` | `SceneLength` (`"%"` — NVS fractions) |
+| `SlideRegion` | `x`, `y`, `w`, `h` | `SceneLength` (`"%"` — NVS fractions) |
+
+**Theme preset examples:**
+
+```typescript
+// defaultSlideTheme density
+{ titleHeight: '18%', gutter: '2%' }
+
+// compactSlideTheme density
+{ titleHeight: '14%', gutter: '1.5%' }
+
+// cinematicSlideTheme density
+{ titleHeight: '22%', gutter: '3%' }
+
+// minimalSlideTheme density
+{ titleHeight: '16%', gutter: '2%' }
+```
+
+**createSlideTheme usage:**
+
+```typescript
+createSlideTheme({ density: { titleHeight: '15%', gutter: '4%' } })
+```
+
+This is a **semver major** breaking change. TypeScript catches all bare-number usage at compile time. See the migration guide at `packages/claude-author/docs/migration/unit-system.md` for codemod instructions and before/after examples.
 
 ---
 
@@ -373,7 +453,7 @@ Visual tokens come from `SceneTheme` via the parent engine's `ThemeContext`. Beh
 
 ### 6.3 Compile Path
 
-For each `<Slide>`, the deck compiler (`compiler/deckCompiler.ts`) produces a `SlideSpec` with layout regions (NVS coordinates), transition setting, scrollUnits, speaker notes, and animation metadata. The compiled `Scene` elements are rendered as children of the parent `SceneEngine`.
+For each `<Slide>`, the deck compiler (`compiler/deckCompiler.ts`) produces a `SlideSpec` with layout regions (`SceneLength` NVS coordinates, e.g. `"10%"`), transition setting, scrollUnits, speaker notes, and animation metadata. The compiled `Scene` elements are rendered as children of the parent `SceneEngine`.
 
 ### 6.4 CSS Variable Architecture
 
@@ -404,3 +484,4 @@ Two namespaces:
 - Core compiler PRD: `requirements/core/prd/prd_compiler.md`
 - Core player/runtime PRD: `requirements/core/prd/prd_player_runtime.md`
 - Core widget SDK PRD: `requirements/core/prd/prd_widget_sdk.md`
+- Scene unit system migration guide: `packages/claude-author/docs/migration/unit-system.md`

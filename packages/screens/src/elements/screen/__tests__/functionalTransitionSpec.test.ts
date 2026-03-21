@@ -21,6 +21,7 @@ const makeState = (overrides: Partial<ScreenState> = {}): ScreenState => ({
   glowScale: 1.4,
   glowOpacity: 0.35,
   enabled: true,
+  uniformSizing: false,
   ...overrides,
 });
 

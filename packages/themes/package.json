@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/themes",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -28,9 +28,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@brewsite/core": "0.7.2",
-    "@brewsite/diagram": "0.7.2",
-    "@brewsite/charts": "0.7.2"
+    "@brewsite/core": "0.7.3",
+    "@brewsite/diagram": "0.7.3",
+    "@brewsite/charts": "0.7.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

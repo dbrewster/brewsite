@@ -6,6 +6,7 @@ import type { SvgIcon3DStyle } from '../types';
 import type { EdgeRoutingAlgorithm } from '../types';
 import type { DiagramNodeShape } from '../shapes/shapeVariants';
 import { DEFAULT_NODE_SHAPE } from '../shapes/shapeVariants';
+import { resolveToNVS, isUniformUnit } from '@brewsite/core';
 
 /** Default values derived from a DiagramTheme for a diagram node. */
 export interface NodeDefaults {
@@ -33,6 +34,8 @@ export interface NodeDefaults {
   readonly sublabelMaxLines: number;
   readonly borderWidth: number;
   readonly borderHeight: number;
+  /** Whether the theme's spatial defaults use uniform (u) units. */
+  readonly uniformSizing: boolean;
 }
 
 /** Default values derived from a DiagramTheme for a diagram edge. */
@@ -50,6 +53,8 @@ export interface EdgeDefaults {
   readonly flowTargetApproachBias: number;
   readonly allowUnderpass: boolean;
   readonly flow: 'none';
+  /** Whether the theme's edge spatial defaults use uniform (u) units. */
+  readonly uniformSizing: boolean;
 }
 
 /** Default values derived from a DiagramTheme for a diagram group. */
@@ -67,24 +72,30 @@ export interface GroupDefaults {
   readonly borderEmissiveIntensity: number;
   readonly labelColor: string;
   readonly backColor: string | undefined;
+  /** Whether the theme's group spatial defaults use uniform (u) units. */
+  readonly uniformSizing: boolean;
 }
 
 /**
  * Builds default node values from the given theme.
- * Used by the node compiler to fill in unspecified DSL props.
+ * Resolves SceneLength values to NVS fractions and determines uniformSizing.
  */
 export function buildNodeDefaults(theme: DiagramTheme): NodeDefaults {
+  const defaultBorderWidth = theme.node.defaultNodeBorderWidth ?? '0.5%';
+  const defaultBorderHeight = theme.node.defaultNodeBorderHeight ?? '0.5%';
+  const uniformSizing = isUniformUnit(theme.node.defaultSize[0])
+    || isUniformUnit(theme.node.defaultThickness);
   return {
     shape:                    DEFAULT_NODE_SHAPE,
-    size:                     theme.node.defaultSize as [number, number],
-    thickness:                theme.node.defaultThickness,
+    size:                     [resolveToNVS(theme.node.defaultSize[0]), resolveToNVS(theme.node.defaultSize[1])],
+    thickness:                resolveToNVS(theme.node.defaultThickness),
     color:                    theme.node.defaultColor,
     boxColor:                 theme.node.defaultBoxColor,
     borderColor:              theme.node.defaultBorderColor,
     metalness:                theme.node.defaultMetalness,
     roughness:                theme.node.defaultRoughness,
     emissiveIntensity:        theme.node.defaultEmissiveIntensity,
-    cornerRadius:             theme.node.cornerRadius,
+    cornerRadius:             resolveToNVS(theme.node.cornerRadius),
     labelColor:               theme.node.defaultLabelColor,
     sublabelColor:            theme.node.defaultSublabelColor,
     opacity:                  1,
@@ -92,50 +103,54 @@ export function buildNodeDefaults(theme: DiagramTheme): NodeDefaults {
     enabled:                  true,
     iconScale:                theme.node.defaultIconScale,
     iconStyle:                theme.node.defaultIconStyle,
-    iconDepth:                theme.node.defaultIconDepth,
+    iconDepth:                resolveToNVS(theme.node.defaultIconDepth),
     iconColor:                theme.node.defaultIconColor ?? '#ffffff',
     labelPadding:             theme.node.defaultLabelPadding,
     sublabelWrap:             false,
     sublabelMaxLines:         2,
-    borderWidth:              theme.node.defaultNodeBorderWidth ?? 0.005,
-    borderHeight:             theme.node.defaultNodeBorderHeight ?? 0.005,
+    borderWidth:              resolveToNVS(defaultBorderWidth),
+    borderHeight:             resolveToNVS(defaultBorderHeight),
+    uniformSizing,
   };
 }
 
 /**
  * Builds default edge values from the given theme.
- * Used by the edge compiler to fill in unspecified DSL props.
+ * Resolves SceneLength values to NVS fractions and determines uniformSizing.
  */
 export function buildEdgeDefaults(theme: DiagramTheme): EdgeDefaults {
+  const uniformSizing = isUniformUnit(theme.edge.defaultThickness);
   return {
     style:                   'solid',
     arrowStart:              'none',
     arrowEnd:                'none',
     color:                   theme.edge.defaultColor,
-    thickness:               theme.edge.defaultThickness,
+    thickness:               resolveToNVS(theme.edge.defaultThickness),
     opacity:                 1,
     routing:                 theme.edge.routing,
-    flowTurnRadius:          theme.edge.flowTurnRadius,
-    flowFaceStub:            theme.edge.flowFaceStub,
+    flowTurnRadius:          resolveToNVS(theme.edge.flowTurnRadius),
+    flowFaceStub:            resolveToNVS(theme.edge.flowFaceStub),
     flowBundleStrength:      theme.edge.flowBundleStrength,
     flowTargetApproachBias:  theme.edge.flowTargetApproachBias,
     allowUnderpass:          true,
     flow:                    'none',
+    uniformSizing,
   };
 }
 
 /**
  * Builds default group values from the given theme.
- * Used by the group compiler to fill in unspecified DSL props.
+ * Resolves SceneLength values to NVS fractions and determines uniformSizing.
  */
 export function buildGroupDefaults(theme: DiagramTheme): GroupDefaults {
+  const uniformSizing = isUniformUnit(theme.group.defaultBorderWidth);
   return {
     variant:                  'boundary',
     orientation:              'vertical',
     color:                    theme.group.defaultColor,
     borderColor:              theme.group.defaultBorderColor,
-    borderWidth:              theme.group.defaultBorderWidth,
-    borderHeight:             theme.group.defaultBorderHeight,
+    borderWidth:              resolveToNVS(theme.group.defaultBorderWidth),
+    borderHeight:             resolveToNVS(theme.group.defaultBorderHeight),
     borderStyle:              'solid',
     fillOpacity:              theme.group.defaultFillOpacity,
     borderOpacity:            theme.group.defaultBorderOpacity,
@@ -143,5 +158,6 @@ export function buildGroupDefaults(theme: DiagramTheme): GroupDefaults {
     borderEmissiveIntensity:  theme.group.defaultBorderEmissiveIntensity ?? 0,
     labelColor:               theme.group.defaultLabelColor,
     backColor:                theme.group.defaultBackColor,
+    uniformSizing,
   };
 }

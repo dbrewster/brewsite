@@ -1,419 +1,913 @@
 ---
-title: "BrewSite Marketing Website — Landing Page"
+title: "BrewSite Marketing Website — Landing Page Redesign"
 doc_type: prd
-status: approved
+status: draft
 owner: Toolkit Product
-last_updated: 2026-03-01
+last_updated: 2026-03-21
 change_history:
-  - date: 2026-02-28
+  - date: 2026-03-21
     author: "Toolkit PM"
-    summary: "Initial PRD created. Full scroll-driven landing page showcasing @brewsite/core and @brewsite/diagram across 8 acts. Makerspace/steampunk aesthetic anchored by a neon sign hero. Approved for implementation."
-  - date: 2026-03-01
+    summary: "Created comprehensive website redesign PRD."
+  - date: 2026-03-21
     author: "Toolkit PM"
-    summary: "Complete rewrite. Mobile-first design philosophy adopted — portrait 9:16 is the primary viewport target; desktop adapts. Updated positioning to 'The React toolkit for 3D storytelling.' Hero gains Beat 2 (positioning statement appears after sign reveal). Tagline updated to 'Scenes as React. Rendered like film.' Act 2 (Libraries/HUD internal) replaced with Ecosystem act introducing all four packages (@brewsite/core, @brewsite/model, @brewsite/diagram, @brewsite/chart). Models compressed from 2 scenes to 1. GitHub CTA updated for multi-package install. All cameras redesigned for portrait-first composition. 2024 phones (A17 Pro, Snapdragon 8 Gen 3) are the performance baseline."
+    summary: "Rewrote layout architecture to be mobile-first with centered content column."
+  - date: 2026-03-21
+    author: "Toolkit PM"
+    summary: "Complete rewrite of creative direction. Replaced cerebral feature-marketing with visceral experience-first approach. New color temperature arc (cold→violet→pink→amber→aurora→warm). Reduced overlay text to 3-7 words per scene. Removed eyebrow labels, body paragraphs, and explanatory copy. Informed by Awwwards SOTY research, Stripe gradient study, Apple product page analysis, and color psychology findings."
 ---
 
-# BrewSite Marketing Website — Landing Page
+# BrewSite Marketing Website — Landing Page Redesign
 
 ## Overview
 
-The BrewSite marketing website (`apps/website`) is a long-scroll, single-page showcase for the BrewSite ecosystem — `@brewsite/core`, `@brewsite/model`, `@brewsite/diagram`, and `@brewsite/chart`. It is the product's primary public-facing presence for technical evaluators: developers, technical PMs, and presentation authors who are deciding whether to adopt the toolkit.
+A complete redesign of the BrewSite marketing website (apps/website), transforming it from a two-scene placeholder into an immersive, scroll-driven 3D experience that tells the BrewSite story across six narrative acts. The website itself is the primary proof of the toolkit's capabilities — every visual on the page is rendered by BrewSite.
 
-The site is itself a proof of concept: it is built with the toolkit, demonstrating capabilities by using them. Every major feature — scroll-driven scenes, 3D models, animated crowds, immersive diagrams, and multi-layer compositions — appears as a real, rendered scene. The site argues for the toolkit by showing it working.
+The target audience is technical product managers, developers, marketing teams, and conference speakers. The sweet spot is the technical PM who thinks in systems but presents in rectangles.
 
-The page is designed **mobile-first**. The primary viewport is a 2024 smartphone in portrait orientation (9:16, approximately 390×844px). Desktop browsers receive the same experience with adapted camera framing. All cameras, all typography, all HUD layouts are composed for portrait first.
-
-The aesthetic remains **steampunk makerspace meets high-tech**: industrial dark metal frames, riveted bezels, neon signs, warm amber + electric blue industrial lighting.
-
-Target audience: TypeScript developers, technical PMs, and presentation authors evaluating the toolkit for marketing pages, slide decks, pitches, and product demos.
-
----
+See `note_brand_strategy.md` for complete brand voice, positioning, and visual identity guidance.
 
 ## Problem Statement
 
-The toolkit has evolved significantly since the original website was designed. It is now a modular ecosystem of four packages, not a single library. The original messaging — "Author in JSX. Ship to any surface." — understates the product and misrepresents the authoring model (JSX is the syntax; React is the paradigm). The ecosystem story is invisible: visitors see two packages in the hero when four exist.
+The current website has two scenes: a hero with a neon sign and a placeholder architecture diagram. There is no narrative, no product explanation, no social proof, and no call to action. A visitor arrives, sees a neon sign, and has no reason to stay. The 10-scene nav targets in `websiteFlow.tsx` point to scenes that were deleted — the entire middle and end of the site is missing.
 
-Mobile usage dominates web browsing. A website that isn't designed for phones is not designed. The original site was desktop-first with three afterthought mobile rules in CSS. This is corrected by making portrait 9:16 the primary design target throughout.
-
-The product's core positioning — "The React toolkit for 3D storytelling" — is owned by no competitor in the animation/visualization library landscape. Theatre.js approaches it from the toolbox angle; Remotion approaches it from the video-output angle. BrewSite owns the intersection of React-native, scroll-driven, 3D, and storytelling. The website must claim this position explicitly.
-
----
+The presentation tool market is dominated by "AI + speed" messaging. Developer-focused tools (Reveal.js, Slidev) have competent docs but zero emotional marketing. No tool in this space uses immersive 3D as their actual website experience. This is BrewSite's opening: the website IS the product demo.
 
 ## Goals & Success Metrics
 
-**Primary Goals:**
-- A visitor on a phone understands what BrewSite does within 30 seconds of reaching the hero
-- A visitor who scrolls the full page can enumerate all major ecosystem packages and their capabilities
-- Every 3D section is a real EngineProvider rendering real scenes — no static screenshots
-- The install command and GitHub link are reachable within 2 scrolls on any device
+| Goal | Metric | Target |
+|---|---|---|
+| Visitor engagement | Scroll completion rate (% reaching Act 5) | >40% |
+| Time on page | Average session duration | >90 seconds |
+| Conversion to action | Click-through to GitHub or `npm create` | >8% |
+| Performance | Lighthouse Performance score (mobile) | >75 |
+| Performance | Lighthouse Performance score (desktop) | >85 |
+| Load time | Time to first meaningful 3D render | <3 seconds |
+| Accessibility | Full story readable without WebGL | Graceful fallback |
+| Mobile quality | Identical narrative on phone and desktop | No "view on desktop" messages |
 
-**Success Metrics:**
-- Hero comprehension: A developer unfamiliar with BrewSite can describe its core capability after seeing the hero + Beat 2 reveal, without reading further
-- Mobile render: All scenes render at acceptable frame rate on an iPhone 15 and a Pixel 8 in Chrome
-- Mobile layout: No horizontal scroll, no clipped text, no illegible font sizes at 390px viewport width
-- Performance: Hero section displays before any GLTF assets load; First Contentful Paint < 2s on a fast mobile connection
-- Demo fidelity: All scene acts render with no console errors on Chrome (mobile + desktop) and Safari (iOS)
-
-**Guardrail Metrics:**
-- No changes to `@brewsite/core`, `@brewsite/model`, or `@brewsite/diagram` package APIs
-- `apps/website` remains a private app, not published to npm
-- No changes that affect `apps/examples`
-
----
+**Guardrail metrics:**
+- Mobile is the primary test surface — every scene is authored and reviewed on a phone-width viewport first, then verified on desktop
+- Must work on iOS Safari (iPhone 12+), Android Chrome (Pixel 6+)
+- Bundle size for website app stays under 2MB (compressed, excluding GLTF assets)
+- All scenes maintain 60fps on iPhone 13 and 2021 MacBook Air (M1)
 
 ## Non-Goals
 
-- Dark/light mode toggle — dark only
-- Internationalization — English only
-- CMS-driven content — authored directly in React/TSX
-- A docs site — this is marketing, not reference documentation
-- Interactive editor or playground — future scope
-- Server-side rendering — this is a Vite SPA
-- Landscape-optimized mobile layouts — portrait is the target; landscape on mobile is acceptable but not optimized
-- Accessibility full compliance for WebGL content — best-effort `aria-hidden` on canvases; text content is accessible
+- **Not a documentation site.** The website tells the story and drives to docs/GitHub. Detailed API reference, tutorials, and guides belong in a separate docs site (future work).
+- **Not a feature comparison page.** We do not compare against Google Slides, PowerPoint, etc. We define a new category, not compete in theirs.
+- **Not a blog.** No news feed, no release notes, no changelog on the landing page.
+- **Not an app.** No authentication, no dashboard, no user accounts. Pure static marketing site.
+- **Not every package's deep dive.** Each package (core, diagram, model, charts, slides, themes) will eventually have its own detail page. This landing page introduces them at a high level and links out.
 
----
+## Narrative Architecture
 
-## Consumer Stories
+The website follows a six-act emotional arc (detailed in `note_brand_strategy.md`). Each act corresponds to one or more BrewSite scenes in the scroll flow.
 
-*"Consumer" = a visitor to the website.*
+```
+Act 0: Awe          → Hero scene (existing, keep)
+Act 1: Recognition   → The flat-world problem
+Act 2: Revelation    → The dimensional shift
+Act 3: Understanding → How it works (code + packages)
+Act 4: Trust         → Ecosystem & social proof
+Act 5: Agency        → CTA / Get Started
+```
 
-1. As a developer on my phone, I want to understand what BrewSite is and why it matters within 30 seconds so I can decide whether to come back on a laptop.
-2. As a developer evaluating tools for a marketing project, I want to see the toolkit's output quality live in the browser so I can assess whether it matches what I'm imagining.
-3. As a PM evaluating tools for my team, I want to understand what each package does without reading documentation so I can communicate the value to engineering.
-4. As a developer unfamiliar with Three.js, I want to see that the DSL abstracts away graphics programming so I feel confident I can adopt it.
-5. As a developer ready to start, I want a clear install command for exactly the packages I need so I can get running immediately.
+### Scroll Budget
 
----
-
-## Functional Requirements
-
-1. The site shall render in a single continuous scroll on any viewport from 375px to 2560px wide.
-2. The hero section shall fill 100dvh (dynamic viewport height, for mobile browser chrome) and display a cursive neon "BrewSite" sign in a Three.js metal room.
-3. The hero shall have two distinct visual beats: Beat 1 (sign reveal, 0–40% scene progress) and Beat 2 (positioning statement appears in upper bezel area, 42–58% scene progress).
-4. Beat 2 shall display: eyebrow "The React toolkit for" + display headline "3D storytelling." using gradient display typography, positioned in the upper portion of the bezel frame.
-5. The hero tagline shall read "Scenes as React. Rendered like film."
-6. The hero package badges shall show all four packages: `@brewsite/core`, `@brewsite/model`, `@brewsite/diagram`, `@brewsite/chart`. The chart badge shall carry a "soon" visual indicator.
-7. A fixed hamburger menu shall be accessible at all times and reveal a slide-out navigation panel with anchor links to each act.
-8. Eight acts shall appear in sequence following the hero, each with its own visual identity.
-9. Acts 1 through 7 shall use `EngineProvider` rendering real compiled scenes.
-10. Act 8 (GitHub CTA) shall be a CSS-only terminal section.
-11. On screens narrower than 768px, `EngineProvider` shall use `quality="balanced"`. On screens ≥ 768px it shall use `quality="high"`.
-12. Meeting scene (Act 4) shall render 8 characters (4 pairs) on screens narrower than 768px and 30 characters (15 pairs) on wider screens.
-13. Floor mirror resolution shall be 512px on screens narrower than 768px and 1024px on screens 768px and wider, for the hero scene only. All other mirror scenes use 512px universally.
-14. All scenes shall use camera positions and FOV designed for 9:16 portrait viewports, with desktop variants provided where the composition materially differs.
-15. All text in scene HUD overlays shall use `clamp()` font sizing — no hardcoded pixel values.
-16. The page shall load and render without errors on Chrome 120+ (Android and desktop) and Safari 17+ (iOS and macOS).
-17. The GitHub CTA terminal command shall install three packages: `@brewsite/core @brewsite/model @brewsite/diagram`.
-
----
-
-## Positioning & Messaging
-
-### Core Positioning Statement
-**"The React toolkit for 3D storytelling."**
-
-This statement appears in the hero Beat 2 and as the meta description. No competitor owns it. It names the technology (React, not JSX — React is the paradigm), the form (toolkit — modular packages, not a single library), the medium (3D), and the outcome (storytelling — the use case, not the mechanism).
-
-### Hero Tagline
-**"Scenes as React. Rendered like film."**
-
-Replaces "Author in JSX. Ship to any surface." The distinction: React is the paradigm developers already respect and understand. "Scenes as React" means the scene authoring model IS the React component model — not just syntax-compatible. "Rendered like film" carries over from the original; it communicates pre-baked, deliberate, cinematic output. The claim is structural: BrewSite compiles scenes like a film editor assembles frames, not like a keyframe animator writes curves.
-
-### Act Messaging Map
-
-| Act | Eyebrow | Headline | Body |
+| Act | Scenes | Scroll Units | Emotional Beat |
 |---|---|---|---|
-| 0 (Hero) | [neon sign reveal] | "3D storytelling." | "Scenes as React. Rendered like film." |
-| 1 (Engine) | @brewsite/core | "Scenes as React. Rendered like film." | "Declare states. Let the compiler handle transitions. No animation loops. No frame math." |
-| 2 (Ecosystem) | The Ecosystem | "One engine. Four packages." | "Install only what you need. All packages share the same declarative scene model." |
-| 3 (Models) | @brewsite/model | "Drop a GLTF. Animate the world." | "Metalness, roughness, normals — the renderer handles it. You handle the story." |
-| 4 (Meeting) | Procedural Composition | "30 characters. 50 lines of JSX." | "Random placement, collision detection, animation assignment — all at author time. Runtime is just playback." |
-| 5 (Diagrams) | @brewsite/diagram | "From whiteboard to 3D." | "Themes, icons, routed edges, groups. No Figma required." |
-| 6 (Architecture) | Production Architecture | "Architecture diagrams. Presentation-ready." | "Drill down. Stay in the scene." |
-| 7 (Full Stack) | Models + Diagrams + HUD + React | "One engine. Infinite forms." | "Web apps. Decks. Pitches. Marketing sites." |
-| 8 (GitHub) | Open Source. Production Ready. | [terminal install] | "Built for TypeScript. Powered by React. Install the engine, then add only what your story needs." |
+| 0 | 1 | 3600 (existing) | Awe — "What is this?" |
+| 1 | 1 | 1400 | Recognition — "I have this problem" |
+| 2 | 2 | 2800 (1400 each) | Revelation — "This is what it could be" |
+| 3 | 2 | 2800 (1400 each) | Understanding — "How it works" |
+| 4 | 1 | 1200 | Trust — "This is real" |
+| 5 | 1 | 1000 | Agency — "Let me try" |
+
+**Total: 8 scenes, ~12,800 scroll units.**
+
+At `pixelsPerScene={1400}` (current setting in LandingPage), this creates a comfortable ~3-4 minute scroll journey at moderate scroll speed.
 
 ---
 
-## Visual Design
+## Scene-by-Scene Specifications
 
-### Mobile-First Layout Philosophy
+### Scene 0: Hero (EXISTING — keep with updates)
 
-All scenes are composed for a 9:16 portrait viewport (390×844px reference). Desktop viewports receive the same scene with the camera pulled back or FOV narrowed slightly to handle the wider aspect ratio. Horizontal composition is avoided — subjects and diagrams are centered on the X axis, with vertical arrangement used to create depth.
+**File:** `scenes/act0/scene_00_hero.tsx`
+**Scene ID:** `website-hero-00`
 
-This inversion from the original design reflects a real behavioral reality: marketing websites are predominantly discovered and evaluated on phones. The site should be visceral and impressive on the device visitors actually hold.
+**Keep everything as-is** except:
 
-### Hero Section
+1. **Update package badges.** Replace the current 4 badges with the full published package lineup:
 
-**Structure:** 100dvh. Three.js metal room (dark metallic back wall, reflective floor, warm + cool industrial lighting). CSS bezel frame over the canvas. Two-beat HTML overlay.
-
-**Beat 1 (0–40% scene progress):** Sign powers on. No HTML content visible. The neon "BrewSite" sign flickers to life in the dark room.
-
-**Beat 2 (42–58%):** Positioning statement fades in at the top of the bezel interior:
-- Eyebrow line: "The React toolkit for" — 11px mono, letter-spaced, muted cyan `rgba(0,245,255,0.65)`
-- Display headline: "3D storytelling." — `clamp(36px, 9vw, 72px)`, weight 700, gradient `#f0f6fc → #00f5ff`, letter-spacing `-0.03em`
-
-**Beat 3 (52–65%):** Four package badges appear below the sign:
-```
-@brewsite/core    @brewsite/model
-@brewsite/diagram  @brewsite/chart ↗soon
-```
-Arranged in a 2×2 flex-wrap grid, centered. The `@brewsite/chart` badge carries a small "soon" amber label.
-
-**Beat 4 (63–75%):** Scroll indicator at bottom of viewport.
-
-**Tagline line** (always visible once Beat 2 appears, below the display headline): "Scenes as React. Rendered like film." — 11px mono, small-caps, muted white. This sits between the eyebrow/headline group and the sign.
-
-**Bezel:** Unchanged — CSS frame at `inset: 15% 8%` with L-bracket corners and rivet rows. On mobile portrait this frames ~70% of the viewport vertically. The positioning statement appears within the upper quarter of the bezel interior.
-
-**NeonSign widget:** Unchanged. Stays fully lit throughout scene_00. Transitions to opacity 0 in the next scene (handled by scene_01's NeonSign state).
-
-### Ecosystem Scene (Act 2)
-
-Pure HUD scene — dark background, no 3D objects beyond camera and lighting. Four package cards in a 2×2 grid (on all viewports — this layout is naturally mobile-friendly and works well on desktop too):
-
-```
-┌──────────────────────┐  ┌──────────────────────┐
-│  @brewsite/core      │  │  @brewsite/model      │
-│  The engine.         │  │  GLTF models.         │
-│  Declarative.        │  │  Characters.          │
-│  Pre-baked. O(1).    │  │  Animations.          │
-└──────────────────────┘  └──────────────────────┘
-┌──────────────────────┐  ┌──────────────────────┐
-│  @brewsite/diagram   │  │  @brewsite/chart      │
-│  3D diagrams.        │  │  Data stories.        │
-│  Architecture.       │  │  3D charts.           │
-│  No Figma needed.    │  │  ↗ COMING SOON        │
-└──────────────────────┘  └──────────────────────┘
+```tsx
+<div className="hero-packages">
+  <span className="hero-package-badge">@brewsite/core</span>
+  <span className="hero-package-badge">@brewsite/diagram</span>
+  <span className="hero-package-badge">@brewsite/model</span>
+  <span className="hero-package-badge">@brewsite/charts</span>
+  <span className="hero-package-badge">@brewsite/slides</span>
+  <span className="hero-package-badge">@brewsite/screens</span>
+  <span className="hero-package-badge">@brewsite/textures</span>
+  <span className="hero-package-badge">@brewsite/themes</span>
+</div>
 ```
 
-Cards: `border: 1px solid rgba(0,245,255,0.18)`, `background: rgba(0,245,255,0.05)`, `border-radius: 8px`. Grid `gap: 16px`, `max-width: 520px`, centered. Package name in mono 10px cyan; headline in 600 weight; body in muted text.
+All packages are published at v0.7.3. Remove the "↗ soon" label from charts (it's shipped). Remove `@brewsite/chart` (wrong name — it's `@brewsite/charts`).
 
-"Coming soon" badge on chart card: amber `rgba(255,170,0,0.7)`, 10px mono.
+2. **Keep the tagline hierarchy exactly as-is:**
+   - Eyebrow: "The React toolkit for"
+   - Headline: "3D storytelling."
+   - Tagline: "Scenes as React. Rendered like film."
 
-Animation: MidFade on headline block, staggered SlideUp on each card (delay +100ms per card, starting 0ms).
-
-### Section Design Language
-
-Unchanged from original PRD — act headers, feature tags, code snippets, section dividers, rivet aesthetic.
-
----
-
-## The Eight Acts
-
-### Act 0: Hero — The Neon Sign
-
-**Scenes:** `scene_00_hero.tsx` (1 scene, auto-advance)
-**Narrative:** The room is dark. The sign flickers to life. Then the product declares itself.
-**Visual:** Three.js metal room, CSS bezel, NeonSign widget "BrewSite", two-beat HTML overlay.
-**Mobile camera:** `position={[0, 7, 17]}`, `target={[0, 1.4, 0]}`, `fov={52}` — no change needed, this composition works in portrait.
-**ProgressManager:** `scrollUnits={1800}`, `autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}`, `animationTimeScale={3}`
+These are on-brand and strong. Do not change.
 
 ---
 
-### Act 1: The Engine — Scenes & Core
+### Scene 1: The Flat-World Problem
 
-**Scenes:** `scene_01_core_intro.tsx` + `scene_02_core_baked.tsx` (2 scenes)
-**Narrative:** The engine itself. A dark background, a glowing HUD, text that explains the architectural innovation.
-**Scene 1 headline:** "Scenes as React. Rendered like film." (updated from "Scenes as JSX.")
-**Scene 2:** Pre-baked transitions, O(1) playback, feature tags: Declarative · Scroll-Driven · SSR-Safe · TypeScript-First · O(1) Sampling
-**Mobile:** No 3D geometry — same on all viewports. Camera `[0,0,10]`, fov 70 works fine in portrait.
+**File:** `scenes/act1/scene_01_flat_world.tsx`
+**Scene ID:** `website-flat-world`
 
----
+**Purpose:** Name the pain. Make the visitor nod. Create tension that Act 2 will resolve.
 
-### Act 2: The Ecosystem — Four Packages
+**3D Canvas:**
+- Camera: World mode, slight top-down angle looking at a flat plane
+- Background: Dark gradient, slightly warmer than hero (hint of deep indigo `#080a18`)
+- Lighting: Dim, flat — deliberately underwhelming compared to hero. Two soft directionals, muted warm tones
+- Floor: Disabled (no reflection — the world is intentionally dull)
+- Content: A flat 2D diagram rendered as a BrewSite Diagram element, but constrained to zero depth — all nodes at z=0, no tilt, no glow. It should look like a static Lucidchart/Miro diagram. The diagram content should represent a typical "system architecture" that a PM might draw: boxes for Frontend, API, Database, Cache, Auth, with edges connecting them. Simple, correct, and visually boring.
 
-**Scenes:** `scene_03_ecosystem.tsx` (1 new scene, replaces `scene_03_hud_is_react.tsx` and `scene_04_transitions.tsx`)
-**Narrative:** One engine, four packages. Install only what your story needs.
-**Visual:** Dark space, four package cards appear in staggered sequence.
-**Headline:** "One engine. Four packages."
-**Sub-copy:** "Install only what you need. All packages share the same declarative scene model."
-**Mobile:** 2×2 grid on all viewports. `max-width: 520px`, centered, padding `0 20px`.
-
-**Files to delete:** `apps/website/src/scenes/act1_act2/scene_03_hud_is_react.tsx`, `apps/website/src/scenes/act1_act2/scene_04_transitions.tsx`
-
----
-
-### Act 3: Models — @brewsite/model
-
-**Scenes:** `scene_01_model_wide.tsx` (1 scene — the close-up scene is folded in via a HUD progression)
-**Narrative:** Drop any GLTF. The renderer handles materials. You handle the story.
-**Visual:** Worker character, floor mirror, industrial lighting. HUD has two phases: (1) "Drop a GLTF. Animate the world." then (2) "Physically Based. Floor-to-ceiling."
-**ProgressManager:** `scrollUnits={2400}` (longer to accommodate two HUD phases), `autoAdvance={{ duration: 9, max: 0.85 }}`, `animationTimeScale={2}`
-**Mobile camera:** `position={[0, 8, 28]}`, `target={[0, 5, 0]}`, `fov={65}`
-**Desktop camera:** `position={[0, 8, 38]}`, `target={[0, 5, 0]}`, `fov={55}`
-**Floor mirror:** `mirrorResolution={512}` (both viewports)
-**Eyebrow:** `@brewsite/model`
-
-**Files to delete:** `apps/website/src/scenes/act3/scene_02_model_close.tsx`
-
----
-
-### Act 4: The Crowd — Procedural Composition
-
-**Scenes:** `scene_01_meeting.tsx` (unchanged content, adjusted for mobile)
-**Narrative:** 30 characters (desktop) / 8 characters (mobile), procedurally placed, all real animation clips. Authored in ~50 lines of JSX.
-**Mobile camera:** `position={[0, 22, 70]}`, `target={[0, 0, 0]}`, `fov={60}`
-**Desktop camera:** `position={[0, 34, 110]}`, `target={[0, 0, 0]}`, `fov={48}`
-**Mobile PAIR_COUNT:** 4 (8 characters)
-**Desktop PAIR_COUNT:** 15 (30 characters)
-**HUD copy preserved exactly:** "30 characters. 50 lines of JSX." — the "30" refers to the desktop experience; acceptable on mobile where the same visual impact is achieved with 8 characters at closer camera range.
-
----
-
-### Act 5: Diagrams — Simple
-
-**Scenes:** `scene_01_simple_diagram.tsx`
-**Narrative:** From whiteboard to 3D. No Figma. No designer.
-**Visual:** 5-node tech stack, neonCyberTheme, tilted X-axis, glowing edges.
-**HUD copy:** "From whiteboard to 3D." (drop "in JSX.")
-**Mobile camera:** `position={[0, 10, 30]}`, `target={[0, 0, 0]}`, `fov={65}`
-**Desktop camera:** `position={[0, 8, 40]}`, `target={[0, 0, 0]}`, `fov={55}`
-**DiagramCanvas scale:** `scale={1.0}` on mobile, `scale={1.3}` on desktop
-
----
-
-### Act 6: Architecture — Complex Diagrams
-
-**Scenes:** `scene_02_arch_overview.tsx` + `scene_03_arch_detail.tsx` (2 scenes)
-**Narrative:** Production-grade architecture diagrams. Drill down without leaving the scene.
-**Mobile camera (overview):** `position={[0, 8, 38]}`, `target={[0, 0, 0]}`, `fov={65}`
-**Desktop camera (overview):** `position={[0, 10, 50]}`, `target={[0, 0, 0]}`, `fov={55}`
-**Mobile camera (detail):** `position={[0, 8, 35]}`, `target={[0, -5, 0]}`, `fov={65}`
-**Desktop camera (detail):** `position={[0, 8, 45]}`, `target={[0, -5, 0]}`, `fov={55}`
-**DiagramCanvas scale:** `scale={1.0}` on mobile, `scale={1.4}` on desktop (both scenes)
-**HUD text:** All inline fontSize values updated to `clamp()` variants
-
----
-
-### Act 7: Full Stack — Everything Together
-
-**Scenes:** `scene_01_foundation.tsx` + `scene_02_combined.tsx` (2 scenes)
-**Narrative:** One engine. All the packages. This is what a real project looks like.
-**Scene 1 headline:** "One engine. Infinite forms." (updated from "Every medium.")
-**Scene 2 sub-copy:** Updated from "Web apps. Decks. Pitches. Marketing sites." — keep this, it's good.
-**Mobile camera (foundation):** `position={[0, 10, 40]}`, `target={[0, 4, 0]}`, `fov={65}`
-**Desktop camera (foundation):** `position={[0, 12, 55]}`, `target={[0, 4, 0]}`, `fov={58}`
-**Mobile camera (combined):** `position={[0, 12, 45]}`, `target={[5, 3, -5]}`, `fov={65}` (more frontal, less offset than desktop which is `-8` x offset)
-**Desktop camera (combined):** `position={[-8, 14, 55]}`, `target={[5, 3, -5]}`, `fov={60}`
-
----
-
-### Act 8: GitHub CTA
-
-**Scene:** `scene_01_github.tsx` (CSS-only)
-**Narrative:** You've seen what it can do. Here's where you start.
-**Terminal command:**
+**Overlay Content:**
 ```
-$ pnpm add @brewsite/core @brewsite/model @brewsite/diagram
-added 3 packages in 1.2s
-```
-**Headline:** "Open Source. Production Ready."
-**Body:** "Built for TypeScript. Powered by React. Install the engine, then add only what your story needs."
-**CTA:** "★ Star on GitHub →"
+[Eyebrow] THE PROBLEM
+[Headline] You think in systems.
+           Your tools think in rectangles.
+[Body] Architecture diagrams. Flattened to screenshots.
+       Product flows. Pasted into slide decks.
+       Complex ideas. Compressed to bullet points.
 
----
-
-## Technical Considerations
-
-### Mobile-First Implementation Pattern
-
-A single `isMobile` boolean is computed once at module load time and shared across all scene files:
-
-```typescript
-// apps/website/src/utils/viewport.ts
-export const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+       Your thinking has depth, layers, and motion.
+       Your medium doesn't.
 ```
 
-This is evaluated at page load (always in a browser SPA context — no SSR) and remains stable for the session. Scene files import this constant to branch on camera positions, PAIR_COUNT, mirror resolution, DiagramCanvas scale, and font sizes where clamp() is insufficient.
+**Overlay Positioning:** Centered content column, vertically centered. The flat diagram sits behind/below the text in the 3D canvas (full viewport). On phones the text is nearly full-width and readable; on desktop the centered column leaves generous side borders where the flat diagram is visible. Use `scene-overlay--bottom` or default centered, with `scene-overlay__content--left-text` for the body copy alignment.
 
-All inline `fontSize` values in scene HUD elements that are currently hardcoded px values must be converted to `clamp(mobilePx, vwValue, desktopPx)`.
+**Transitions:**
+- **Entry from Scene 0:** Background crossfade from void-black to deep-indigo. Camera slides smoothly to new position. The flat diagram fades in from 0 opacity.
+- **Exit to Scene 2:** The diagram nodes begin to separate in Z-space (preview of the dimensional shift), camera begins tilting. Overlay text fades.
 
-### Quality Setting
+**Design Intent:** This scene should feel *deliberately constrained* — a visual argument for the problem. The flat diagram demonstrates competence (BrewSite can render 2D too) while making the visitor crave more. On mobile, the text overlay is prominent with the diagram partially visible behind it through reduced opacity or positioned below the text area via camera framing.
 
-`EngineProvider quality` is set based on viewport:
-```typescript
-quality={isMobile ? "balanced" : "high"}
+---
+
+### Scene 2a: The Dimensional Shift — Diagrams in Space
+
+**File:** `scenes/act2/scene_02a_dimensional_shift.tsx`
+**Scene ID:** `website-dimensional-shift`
+
+**Purpose:** The "aha" moment. The same diagram from Scene 1, but now in full 3D glory. This is the emotional peak of the first half.
+
+**3D Canvas:**
+- Camera: World mode, sweeping perspective — positioned to show depth dramatically. Slight orbit drift during auto-advance.
+- Background: Return to deep-void black with subtle gradient, matching hero tone
+- Lighting: Full scene lighting restored — directional blues, subtle cyans, dramatic shadows
+- Floor: Enabled with mirror reflection — the diagram reflects on the floor, creating depth
+- Content: The same architecture diagram from Scene 1, but now:
+  - Nodes separated in Z-space across 3 planes (frontend layer, API layer, data layer)
+  - `tilt` applied to give a dramatic perspective angle
+  - Glow effects on key nodes
+  - Edges rendered as 3D curves connecting across layers
+  - Subtle entrance animation: nodes drift from their flat z=0 positions to their final layered positions as the scene enters
+
+**Overlay Content:**
+```
+[Eyebrow] THE SHIFT
+[Headline] Now give it a third dimension.
+[Body] Same diagram. Same nodes and edges.
+       But now your frontend layer floats above your API.
+       Your database sits behind your cache.
+       The architecture has depth because the thinking always did.
 ```
 
-2024 phones (A17 Pro, Snapdragon 8 Gen 3 and later) can handle "balanced" quality across all scenes. If testing reveals a specific scene is problematic, the quality prop can be lowered per-EngineProvider instance.
+**Overlay Positioning:** Centered content column, pushed to bottom (`scene-overlay--bottom`). The 3D diagram fills the viewport above and behind the text — it's the star. The centered column keeps the text compact and readable on any device width.
 
-### Height: 100dvh
+**Transitions:**
+- **Entry from Scene 1:** The flat diagram's nodes smoothly translate on the Z-axis to their layered positions. Camera swings from flat top-down to a dramatic 3/4 perspective. Lighting ramps up. Floor mirror fades in. This transition IS the transformation story — it must feel like a magic trick.
+- **Exit to Scene 2b:** Camera continues rotating to reveal the next scene. Diagram fades smoothly.
 
-The hero section and all EngineProvider-driven scenes use `100dvh` (dynamic viewport height) rather than `100vh`. On mobile browsers with collapsing address bars, `100vh` produces overflow; `100dvh` tracks the actual visible area.
-
-### Multiple EngineProviders on One Page
-
-Each EngineProvider (one per scene group) independently tracks scroll against its own container element. This is unchanged from the original implementation. Acts 1+2 share one EngineProvider; Acts 3, 4, 5+6, and 7 each have their own. This is valid and expected.
-
-### Floor Mirror Resolution
-
-Hero scene: `mirrorResolution={isMobile ? 512 : 1024}`. All other scenes: `mirrorResolution={512}` unconditionally. 2024 phones handle 512px mirror renders without performance issues.
-
-### Touch Interaction
-
-The EngineProvider scroll region handles touch scroll events. The page uses passive event listeners and native scroll. The `overscroll-behavior: none` on `html` prevents pull-to-refresh from fighting with scene scroll. No changes needed to the interaction layer.
-
-### GitHub CTA Font Size
-
-The terminal card uses hardcoded 14px — acceptable as a code aesthetic where fixed-width readability matters. All non-terminal text in the GitHub section uses `clamp()`.
+**Design Intent:** This is where visitors decide if BrewSite is interesting. The same data, transformed from flat to dimensional, must be genuinely striking. The mirror floor doubles the visual impact. The camera angle must feel cinematic — not "demo app" but "film."
 
 ---
 
-## Breaking Change Assessment
+### Scene 2b: Models & Charts in Space
 
-**None.** `apps/website` is a private app. No published package APIs change. No `apps/examples` code changes. The deleted scene files (`scene_03_hud_is_react.tsx`, `scene_04_transitions.tsx`, `scene_02_model_close.tsx`) exist only in `apps/website` and are not imported anywhere else.
+**File:** `scenes/act2/scene_02b_models_and_more.tsx`
+**Scene ID:** `website-beyond-diagrams`
+
+**Purpose:** Expand the vision beyond diagrams. Show that BrewSite is a general-purpose 3D presentation toolkit — models, charts, screens, not just boxes and arrows.
+
+**3D Canvas:**
+- Camera: World mode, slowly orbiting a central display area
+- Background: Deep void with very subtle star field or gradient
+- Lighting: Rich, warm-to-cool gradient lighting — cinematic
+- Floor: Enabled with subtle mirror
+- Content: A showcase composition showing multiple BrewSite capabilities simultaneously:
+  - A 3D model (if a GLTF is available in the scene manifest — use a robot or abstract shape) on the left
+  - A 3D chart element (bar chart or similar from `@brewsite/charts`) in the center
+  - A screen element (from `@brewsite/screens`) showing a UI mockup on the right
+  - All arranged in a triangular composition with gentle floating animation
+
+**Overlay Content:**
+```
+[Eyebrow] THE TOOLKIT
+[Headline] Diagrams are just the beginning.
+[Body] 3D models with labeled callouts.
+       Charts that rise from the floor.
+       Screen mockups that orbit and zoom.
+       Every element is a React component.
+       Every scene compiles to a pre-baked track.
+```
+
+Below the body text, show a row of package badges in a horizontal strip:
+```
+@brewsite/model  @brewsite/charts  @brewsite/screens  @brewsite/slides
+```
+
+**Overlay Positioning:** Centered content column, bottom-aligned. 3D elements fill the viewport behind/above the text. Package badge strip wraps naturally in the centered column.
+
+**Transitions:**
+- **Entry:** Elements fade/drift in from the edges to their positions. Camera settles into orbit.
+- **Exit:** Elements drift back, making room for the code scene.
+
+**Design Intent:** This scene justifies the "toolkit" in "React toolkit." It proves that BrewSite isn't a one-trick diagram tool — it's a full 3D presentation platform. Keep it light and aspirational; don't try to explain each element in detail.
+
+**Implementation Note:** If 3D model or chart assets aren't available for the website scene manifest, this scene can use diagrams in multiple visual styles (different themes, layouts) or simplified placeholder geometry. The important thing is *visual variety* — don't show the same diagram style three times.
 
 ---
 
-## Dependencies
+### Scene 3a: The Code — "This is JSX"
 
-- `@brewsite/core` workspace version
-- `@brewsite/model` workspace version
-- `@brewsite/diagram` workspace version
-- `three` — for NeonSign widget
-- `react` + `react-dom`
-- `animejs` — for hud/animejs transitions
-- Google Fonts CDN — Dancing Script (neon sign), JetBrains Mono (code), Inter (body)
+**File:** `scenes/act3/scene_03a_the_code.tsx`
+**Scene ID:** `website-the-code`
+
+**Purpose:** Demystify. Show that what the visitor just experienced is ~12 lines of JSX. This is the "it's actually accessible" moment.
+
+**3D Canvas:**
+- Camera: World mode, straight-on, clean perspective
+- Background: Deep void
+- Lighting: Minimal, focused — the attention is on the overlay
+- Floor: Disabled — clean, simple
+- Content: A small, elegant BrewSite diagram in the background — visible but not competing with the code overlay. Could be the architecture diagram from Scene 2a at reduced scale and opacity, slowly rotating.
+
+**Overlay Content:**
+
+The star of this scene is a code block overlay showing a real, compilable scene:
+
+```
+[Eyebrow] THE CODE
+[Headline] Twelve lines. One scene.
+```
+
+Then a terminal-style code block:
+
+```tsx
+<Scene id="my-first-scene">
+  <Camera mode="world" position={[0, 6, 20]} target={[0, 0, 0]} fov={50} />
+  <Lighting>
+    <Ambient intensity={0.4} />
+    <Directional intensity={0.8} color="#4488ff" position={[0, 12, 8]} />
+  </Lighting>
+  <Background color="#0a0e1a" />
+  <Floor enabled>
+    <FloorMirror mirrorOpacity={0.15} />
+  </Floor>
+  <Diagram id="arch" tilt={-0.25}>
+    <FlowLayout direction="left-right" gap={0.12} />
+    <DiagramNode id="web" label="Frontend" icon="ui:globe-alt" />
+    <DiagramNode id="api" label="API" icon="ui:server" />
+    <DiagramNode id="db" label="Database" icon="ui:circle-stack" />
+    <DiagramEdge from="web" to="api" />
+    <DiagramEdge from="api" to="db" />
+  </Diagram>
+</Scene>
+```
+
+Below the code block:
+```
+[Body] Declarative. No animation math. No Three.js imports.
+       The compiler bakes every frame into a flat array.
+       O(1) sampling. 60fps. Always.
+```
+
+**Overlay Positioning:** Centered content column. The code block uses the existing `.code-block` CSS pattern from `style.css` and scrolls horizontally on narrow viewports. On phones the code block is nearly full-width — this is fine; code blocks are expected to scroll.
+
+**Transitions:**
+- **Entry:** Code block slides up from below or fades in with a slight scale-up. Background diagram fades to low opacity.
+- **Exit:** Code block fades, background diagram scale-up as camera pushes in.
+
+**Design Intent:** This is the "how it works" moment that converts curiosity into confidence. The code must be real, beautiful, and short. Use syntax highlighting via the `.tok-*` CSS classes already in `style.css`. The code must actually produce a working scene — no fake snippets.
 
 ---
 
-## Risks & Mitigations
+### Scene 3b: The Pipeline — "Compile → Bake → Play"
 
-| Risk | Likelihood | Mitigation |
-|------|-----------|------------|
-| Portrait camera framing looks wrong on specific scenes | Medium | Each scene specifies both mobile and desktop camera values; test on physical device or DevTools portrait mode during implementation |
-| 8-character meeting scene looks sparse on mobile | Low | Camera is significantly closer ([0,22,70] vs [0,34,110]) — 8 characters fill the tighter frame |
-| Architecture diagram nodes overlap or are unreadable at mobile scale | Medium | Scale reduced from 1.4 to 1.0 on mobile; camera pulled closer; font sizes in DiagramCanvas are diagram-internal and scale with the canvas |
-| Full stack combined scene (model + diagram side-by-side) loses impact on narrow mobile viewport | Medium | Mobile camera is frontal ([0,12,45]) rather than offset; both elements are in-frame at closer range |
-| `100dvh` not supported in all target browsers | Low | Fallback in CSS: `min-height: 100vh; min-height: 100dvh;` — the `dvh` override applies when supported |
-| @brewsite/chart package not yet shipped, badge misleads visitors | Low | "coming soon" amber label is explicit; no functionality implied |
+**File:** `scenes/act3/scene_03b_pipeline.tsx`
+**Scene ID:** `website-pipeline`
+
+**Purpose:** For the technical audience. A brief, elegant visualization of the compiler pipeline. This earns credibility with developers and TPMs who care about architecture.
+
+**3D Canvas:**
+- Camera: World mode, looking at a horizontal pipeline diagram
+- Background: Deep void
+- Lighting: Clean directionals, professional tone
+- Floor: Optional — subtle mirror if it looks good
+- Content: A BrewSite diagram showing the compiler pipeline as a horizontal flow:
+
+```
+[JSX DSL] → [SceneFrame[]] → [SceneTrack] → [RuntimeDriver] → [60fps Canvas]
+```
+
+Three to five nodes connected by animated forward-flow edges. Each node has a sublabel:
+- "JSX DSL" → sublabel: "Declarative scene description"
+- "SceneFrame[]" → sublabel: "One snapshot per scene"
+- "SceneTrack" → sublabel: "Pre-baked tick array"
+- "RuntimeDriver" → sublabel: "O(1) sample per frame"
+- "Canvas + Overlays" → sublabel: "Three.js + React"
+
+**Overlay Content:**
+```
+[Eyebrow] THE ENGINE
+[Headline] Write state. Never write animation.
+[Body] Your scenes describe what things look like, not how they move.
+       The compiler figures out every frame between scenes,
+       bakes it into a flat array, and the runtime samples it in O(1).
+       No physics loops. No timeline editors. Just math, done once.
+```
+
+**Overlay Positioning:** Centered content column. Text above or below the pipeline diagram depending on scroll position. On mobile, the pipeline diagram renders vertically (top-to-bottom) instead of horizontally — the centered column naturally accommodates this since vertical layouts work well on tall phones.
+
+**Design Intent:** This is a "trust the engineering" scene. It appeals to the developer and TPM audience by showing that BrewSite isn't a hack — it's a real compiler pipeline with real performance guarantees. Keep it clean and confident. One diagram, one explanation.
+
+---
+
+### Scene 4: Ecosystem & Trust
+
+**File:** `scenes/act4/scene_04_ecosystem.tsx`
+**Scene ID:** `website-ecosystem`
+
+**Purpose:** Show the full package ecosystem. Build confidence that this is a maintained, real project — not a weekend experiment.
+
+**3D Canvas:**
+- Camera: World mode, gently orbiting
+- Background: Deep void, slightly warmer — transitioning toward the CTA
+- Lighting: Balanced, inviting
+- Floor: Subtle mirror
+- Content: A BrewSite diagram showing the package ecosystem as an interconnected constellation:
+
+Center node: `@brewsite/core` (large, glowing, the heart of the system)
+
+Surrounding nodes connected to core:
+- `@brewsite/diagram` — "3D diagrams, nodes, edges, groups"
+- `@brewsite/model` — "GLTF models, labels, animations"
+- `@brewsite/charts` — "3D bar, line, and area charts"
+- `@brewsite/slides` — "Slide deck presentation system"
+- `@brewsite/screens` — "3D screen elements"
+- `@brewsite/textures` — "PBR material presets"
+- `@brewsite/themes` — "Visual theme bundles"
+
+Satellite/utility nodes:
+- `create-brewsite` — "Project scaffolder CLI"
+- `brewsite` — "Utility CLI"
+- `@brewsite/claude-author` — "AI-assisted scene authoring"
+
+Use a radial or force-directed layout with edges showing dependency relationships. The `@brewsite/core` node should be visually dominant (larger size, stronger glow).
+
+**Overlay Content:**
+```
+[Eyebrow] THE ECOSYSTEM
+[Headline] One core. Infinite compositions.
+[Body] Every package is published, typed, and tree-shakeable.
+       Pick what you need. Leave what you don't.
+       MIT licensed. Your code, your scenes, your server.
+```
+
+Below the body, a version badge:
+```
+v0.7.3  •  MIT License  •  TypeScript  •  React 18+
+```
+
+**Overlay Positioning:** Centered content column, bottom-aligned. The constellation diagram fills the viewport as the visual centerpiece. On mobile, the diagram still fills the 3D canvas behind the text — the camera angle adjusts to show the constellation at a readable scale on narrow viewports.
+
+**Design Intent:** This scene creates trust through completeness. The visitor sees an actual ecosystem, not a single library. The dependency graph visualization is itself a demo of `@brewsite/diagram` capabilities. The MIT license and version info signal maturity and openness.
+
+---
+
+### Scene 5: Get Started — CTA
+
+**File:** `scenes/act5/scene_05_cta.tsx`
+**Scene ID:** `website-get-started`
+
+**Purpose:** Convert interest to action. Make the next step feel effortless.
+
+**3D Canvas:**
+- Camera: World mode, slowly pulling back to reveal breadth — a closing shot
+- Background: Return to hero's void-black — bookend the experience
+- Lighting: Neon-cyan accent lighting returns — callback to the hero
+- Floor: Enabled with mirror — visual continuity with hero
+- Content: Minimal — perhaps the neon sign at very low intensity/opacity in the far background, creating a visual bookend. Or a subtle abstract geometry. The attention is on the overlay CTA.
+
+**Overlay Content:**
+
+The overlay dominates this scene. Use the existing `.github-section`, `.terminal-card`, and `.github-cta-button` CSS classes from `style.css`.
+
+```
+[Headline, gradient text] Start building in 30 seconds.
+```
+
+Terminal card:
+```
+$ npm create brewsite
+  ✓ Created my-project
+  ✓ Installed dependencies
+  ✓ Ready at http://localhost:5173
+
+$ npx brewsite add diagram
+  ✓ Added @brewsite/diagram
+```
+
+Below the terminal:
+```
+[CTA Button] → View on GitHub
+[Secondary link] Read the Docs →
+```
+
+**Overlay Positioning:** Centered content column. The terminal card and CTA button are the only content — they naturally center in the column at any viewport width. On phones the terminal card is nearly full-width with small gutters, which looks intentional and clean.
+
+**Transitions:**
+- **Entry:** Terminal card slides up with a subtle scale animation. Headline fades in above it.
+- **No exit transition** — this is the last scene.
+
+**Design Intent:** Fast, clean, confident. One command to start. The terminal card should feel like "I could do this right now." No long explanations, no feature lists — pure momentum.
+
+---
+
+## websiteFlow.tsx Updates
+
+Replace the current contents with the new scene lineup and updated nav targets:
+
+```tsx
+import { Fragment } from 'react';
+import type { JSX } from 'react';
+import { Scene00Hero } from './act0/scene_00_hero';
+import { Scene01FlatWorld } from './act1/scene_01_flat_world';
+import { Scene02aDimensionalShift } from './act2/scene_02a_dimensional_shift';
+import { Scene02bModelsAndMore } from './act2/scene_02b_models_and_more';
+import { Scene03aTheCode } from './act3/scene_03a_the_code';
+import { Scene03bPipeline } from './act3/scene_03b_pipeline';
+import { Scene04Ecosystem } from './act4/scene_04_ecosystem';
+import { Scene05Cta } from './act5/scene_05_cta';
+
+export const websiteFlowScenes: JSX.Element[] = [
+  <Scene00Hero />,
+  <Scene01FlatWorld />,
+  <Scene02aDimensionalShift />,
+  <Scene02bModelsAndMore />,
+  <Scene03aTheCode />,
+  <Scene03bPipeline />,
+  <Scene04Ecosystem />,
+  <Scene05Cta />,
+];
+
+export type WebsiteNavTarget = {
+  readonly num: string;
+  readonly label: string;
+  readonly sceneId: string;
+};
+
+export const websiteNavTargets: WebsiteNavTarget[] = [
+  { num: '00', label: 'BrewSite',      sceneId: 'website-hero-00' },
+  { num: '01', label: 'The Problem',   sceneId: 'website-flat-world' },
+  { num: '02', label: 'Dimensional',   sceneId: 'website-dimensional-shift' },
+  { num: '03', label: 'The Toolkit',   sceneId: 'website-beyond-diagrams' },
+  { num: '04', label: 'The Code',      sceneId: 'website-the-code' },
+  { num: '05', label: 'The Engine',    sceneId: 'website-pipeline' },
+  { num: '06', label: 'Ecosystem',     sceneId: 'website-ecosystem' },
+  { num: '07', label: 'Get Started',   sceneId: 'website-get-started' },
+];
+```
+
+---
+
+## Layout Architecture: Mobile-First, Centered Content
+
+### The Problem with Side-Aligned Overlays
+
+Modern phones have extreme aspect ratios — 20:9 is common (iPhone 15, Pixel 8). A left-aligned overlay at 40% width on a 390px-wide phone is 156px — barely enough for a headline. Side-aligned layouts are desktop thinking.
+
+### The Solution: Centered Content Column with Side Borders
+
+All overlay content lives in a **centered content column** that occupies the middle portion of the viewport. On tall/narrow phones, the content column is nearly full-width with small side gutters. On wider screens, the content column stays centered while the 3D canvas extends to the edges — the side "borders" grow naturally as the viewport widens.
+
+This is the same pattern Apple uses on product pages: text content stays in a readable centered column, 3D visuals fill the entire viewport behind it.
+
+### EngineARContainer Configuration
+
+The current `aspectRatio={9/9}` with `scaleMode="cover"` must change. The 3D canvas should fill the entire viewport:
+
+```tsx
+<EngineARContainer scaleMode="cover" aspectRatio={16 / 9}>
+```
+
+The 3D scene is authored at 16:9 and covers the viewport — on a 20:9 phone, the top and bottom of the 3D scene extend beyond the viewport edges (clipped by `overflow: hidden`). This means the 3D content is always full-bleed, regardless of device AR.
+
+Overlay content is independent of the 3D aspect ratio — it's positioned via CSS on top of the full viewport, using the centered column pattern.
+
+### Content Column CSS
+
+```css
+/* ─── Mobile-First Content Column ───────────────────────────────────── */
+
+/*
+ * The .scene-overlay sits on top of the full-bleed 3D canvas.
+ * Content is centered horizontally in a max-width column.
+ * On phones, the column is nearly full-width (small gutters).
+ * On tablets/desktop, the column stays narrow and centered;
+ * the 3D canvas fills the growing side borders.
+ */
+
+.scene-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+
+  /* Center a max-width content column */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  /* Mobile-first: small gutters on phones */
+  padding: 24px 20px;
+}
+
+.scene-overlay__content {
+  width: 100%;
+  max-width: 560px;        /* Readable column width */
+  text-align: center;      /* Default centered text */
+}
+
+/* Variant: text left-aligned within the centered column */
+.scene-overlay__content--left-text {
+  text-align: left;
+}
+
+/* Variant: content pushed to bottom of viewport */
+.scene-overlay--bottom {
+  justify-content: flex-end;
+  padding-bottom: 48px;
+}
+
+/* Variant: content pushed to top */
+.scene-overlay--top {
+  justify-content: flex-start;
+  padding-top: 48px;
+}
+
+/* ─── Tablet / Desktop: wider gutters, column stays centered ────── */
+@media (min-width: 768px) {
+  .scene-overlay {
+    padding: 48px var(--section-pad-x);
+  }
+
+  .scene-overlay__content {
+    max-width: 640px;       /* Slightly wider on tablet+ */
+  }
+}
+
+@media (min-width: 1200px) {
+  .scene-overlay__content {
+    max-width: 720px;       /* Max readable width on large screens */
+  }
+}
+```
+
+### Scene Overlay Template (Mobile-First)
+
+Every scene overlay follows this structure:
+
+```tsx
+<div key="scene-overlay" className="scene-overlay">
+  <div className="scene-overlay__content">
+    <span className="eyebrow eyebrow--accent">THE PROBLEM</span>
+    <h2 className="display-headline">You think in systems.<br/>Your tools think in rectangles.</h2>
+    <p className="body-text">
+      Architecture diagrams. Flattened to screenshots.<br/>
+      Product flows. Pasted into slide decks.
+    </p>
+  </div>
+</div>
+```
+
+On a 390px phone: the `.scene-overlay__content` is 350px (390 - 40px padding). Full-width text, highly readable.
+
+On a 1440px desktop: the `.scene-overlay__content` is 720px, centered. The 3D canvas fills all 1440px behind it. The "borders" are just the 3D scene with no text over them — which is exactly the effect we want.
+
+### Package Badge Row
+
+```css
+/* ─── Package badge row ─────────────────────────────────────────── */
+.package-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.package-strip__badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--neon-cyan-30);
+  background: var(--neon-cyan-15);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--neon-cyan);
+  white-space: nowrap;
+}
+```
+
+### Version / Meta Info Strip
+
+```css
+/* ─── Version/meta info strip ───────────────────────────────────── */
+.meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-top: 16px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.meta-strip__dot {
+  color: var(--neon-cyan);
+}
+```
+
+### Code Block Mobile Handling
+
+The code block in Scene 3a needs special attention on mobile. Use horizontal scroll within the code block, not font-size reduction:
+
+```css
+.code-block__body {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Existing padding/font stays — the block just scrolls horizontally */
+}
+```
+
+This is already set in the existing `style.css` (`white-space: pre; overflow-x: auto`). No change needed.
+
+---
+
+## Scene Directory Structure
+
+```
+apps/website/src/scenes/
+├── websiteFlow.tsx            (updated)
+├── sceneAssets.ts             (existing shared constants)
+├── act0/
+│   └── scene_00_hero.tsx      (existing, update badges only)
+├── act1/
+│   └── scene_01_flat_world.tsx
+├── act2/
+│   ├── scene_02a_dimensional_shift.tsx
+│   └── scene_02b_models_and_more.tsx
+├── act3/
+│   ├── scene_03a_the_code.tsx
+│   └── scene_03b_pipeline.tsx
+├── act4/
+│   └── scene_04_ecosystem.tsx
+└── act5/
+    └── scene_05_cta.tsx
+```
+
+---
+
+## Implementation Priorities
+
+### Phase 1: Core narrative (ship first)
+1. Update Scene 0 package badges
+2. Build Scene 1 (flat world) + Scene 2a (dimensional shift) — this is the emotional core
+3. Build Scene 5 (CTA) — so the site has a beginning, middle, and end
+4. Update `websiteFlow.tsx` and nav targets
+
+### Phase 2: Depth
+5. Build Scene 3a (the code) — the technical credibility scene
+6. Build Scene 4 (ecosystem) — the trust scene
+7. Refine transitions between all scenes
+
+### Phase 3: Polish
+8. Build Scene 2b (models and more) — visual variety
+9. Build Scene 3b (pipeline) — technical depth
+10. Performance optimization pass (mobile, lighthouse)
+11. Scroll pacing refinement (`ProgressManager` tuning per scene)
+
+---
+
+## LandingPage.tsx Layout Update
+
+The `WebsiteLayout` component in `LandingPage.tsx` must update the `EngineARContainer` props:
+
+```tsx
+// BEFORE (current — 1:1 aspect, cover mode)
+<EngineARContainer aspectRatio={9 / 9} scaleMode="cover">
+
+// AFTER (16:9 authored scene, cover mode — full-bleed 3D)
+<EngineARContainer aspectRatio={16 / 9} scaleMode="cover">
+```
+
+The 3D scene is authored at 16:9. On a 20:9 phone, `cover` mode scales the 16:9 frame up until the viewport is fully covered — the top/bottom of the 3D scene extend past the viewport and are clipped. On a 16:9 desktop, the fit is exact. This means:
+
+- **Phones:** The 3D canvas is slightly cropped vertically (top/bottom). Camera and diagram positioning must account for this — keep important 3D content in the center 60% of the vertical frame.
+- **Desktop:** The 3D canvas fits perfectly. Side borders are zero (the 3D content IS the side border).
+- **Ultra-wide monitors:** The 3D canvas crops horizontally. Same center-bias rule applies.
+
+The overlay content is independent of the 3D aspect ratio — it's positioned in the full viewport via the `.scene-overlay` CSS layer on top.
+
+---
+
+## Camera & Lighting Continuity
+
+To create a cohesive scroll experience, camera and lighting must transition smoothly between scenes rather than hard-cutting.
+
+**Camera guidelines:**
+- Hero (Scene 0) and CTA (Scene 5) share similar camera positions — bookend the experience
+- Scenes 1→2a must have the smoothest camera transition (the "dimensional shift" IS a camera move + z-separation)
+- Middle scenes (3a, 3b, 4) can have more varied camera positions since the visitor is already invested
+- Use `mode="world"` for all scenes — no orbit controls on the marketing site
+- **Vertical safe area:** On 20:9 phones with `cover` mode, the top and bottom ~20% of the 16:9 frame are cropped. Keep all important 3D content (diagram nodes, key geometry) within the center 60% of the vertical frame. Use the existing `isMobile` flag to widen FOV on phones (Scene 0 already does this).
+
+**Lighting guidelines:**
+- Acts 0, 2, 5 share the hero's cyan/blue palette — these are the "wow" scenes
+- Act 1 is deliberately muted — low contrast, warm-grey tones, flat feeling
+- Acts 3–4 use clean, professional lighting — not dramatic, just clear
+
+**Background continuity:**
+- All scenes use solid or gradient backgrounds in the `#030508` to `#0a1020` range
+- No scene uses a background that's lighter than `#121830` — maintain the dark-void feeling throughout
+- Background transitions are crossfade via the `<Background>` element's built-in transition support
+
+---
+
+## Diagram Content Design
+
+### Scene 1: Flat Architecture Diagram
+
+Nodes (all at z=0, no tilt, no glow):
+| ID | Label | Sublabel | Icon |
+|---|---|---|---|
+| `flat-web` | Frontend | React SPA | `ui:globe-alt` |
+| `flat-api` | API Gateway | REST + GraphQL | `ui:server` |
+| `flat-auth` | Auth Service | OAuth 2.0 | `ui:lock-closed` |
+| `flat-cache` | Cache | Redis | `ui:bolt` |
+| `flat-db` | Database | PostgreSQL | `ui:circle-stack` |
+
+Edges: web→api, api→auth, api→cache, api→db, auth→db
+
+Layout: Grid or flow layout, compact, all in one plane. Use `tilt={0}` and no glow on any node.
+
+### Scene 2a: Same Diagram, Now 3D
+
+Same node IDs and content, but:
+- Frontend at z=2 (closest to viewer)
+- API + Auth at z=0 (middle)
+- Cache + DB at z=-2 (farthest)
+- `tilt={-Math.PI / 10}` for perspective
+- Glow on core nodes (API, DB)
+- Edges rendered as 3D curves across z-planes
+
+### Scene 4: Ecosystem Constellation
+
+Layout: Radial with `@brewsite/core` at center. Use a `DiagramGroup` variant of `"cluster"` or `"boundary"` for visual grouping by package category:
+- **Core elements:** core, diagram, model, charts
+- **Presentation:** slides, screens
+- **System:** textures, themes, create-brewsite, brewsite, claude-author
+
+---
+
+## Widget Setup Updates
+
+The `widgetSetup.ts` file already loads core, model, diagram, and neon-sign plugins. The charts plugin must be added for Scene 2b if a chart element is used:
+
+```tsx
+import { chartPlugin } from '@brewsite/charts';
+
+export function createWebsitePlugins(manifestUrl: string): WidgetPlugin[] {
+  return [
+    corePlugin(),
+    modelPlugin({ manifestUrl }),
+    diagramPlugin(),
+    chartPlugin(),     // Add for Scene 2b
+    neonSignPlugin(),
+  ];
+}
+```
+
+---
+
+## Mobile-First Design Strategy
+
+**Philosophy:** Mobile is the primary design surface. Every scene is authored for a 390×844 viewport (iPhone 14) first, then verified on 1440×900 desktop. The centered content column layout means mobile and desktop share the same HTML and CSS — no conditional rendering, no "view on desktop" messages.
+
+### Why Mobile-First Works Here
+
+1. **Phones are 20:9** — tall, narrow screens where centered content columns are the natural layout.
+2. **The 3D canvas is full-bleed behind everything** — on phones the text overlays most of the 3D, on desktop the 3D extends into the side borders. Both look intentional.
+3. **Scroll is the primary input on phones** — and scroll-driven 3D storytelling is exactly what BrewSite does.
+4. **The centered column pattern scales UP gracefully** — a 350px text block on a phone becomes a 720px text block on a 1440px desktop, still centered, still readable, with the 3D canvas filling the extra 720px of side borders.
+
+### Per-Scene Mobile Considerations
+
+| Scene | Mobile Consideration |
+|---|---|
+| 0 (Hero) | Already mobile-adapted (wider FOV, closer camera). Package badges wrap to 2 rows — this is fine. |
+| 1 (Flat World) | Text overlay is prominent; flat diagram visible through camera framing below text. Diagram uses fewer nodes if needed (3 instead of 5). |
+| 2a (Dimensional Shift) | Reduce z-separation slightly. Adjust camera FOV to show depth at narrow viewport. This scene must be just as impressive on mobile — it's the emotional peak. |
+| 2b (Models & More) | Show fewer elements or a single rotating showcase instead of a triptych. The centered column text still describes the full toolkit. |
+| 3a (Code) | Code block scrolls horizontally — this is expected and natural for code on mobile. No font-size reduction. |
+| 3b (Pipeline) | Pipeline diagram renders top-to-bottom instead of left-to-right on mobile. Use `isMobile` flag to pass different `FlowLayout direction` prop. |
+| 4 (Ecosystem) | Full constellation renders in 3D — camera pulls back farther on mobile to fit more nodes. If needed, reduce to core + direct-dependency packages only. |
+| 5 (CTA) | Terminal card is nearly full-width with 20px gutters — looks clean and intentional. CTA button full-width on mobile. |
+
+### Performance Budget (Mobile)
+
+| Resource | Budget |
+|---|---|
+| Floor mirror resolution | 512px (already set via `isMobile`) |
+| Floor mirror usage | Hero + Dimensional Shift + CTA only. Disabled on Scenes 1, 3a, 3b, 4. |
+| Quality preset | `'balanced'` on mobile (already set in LandingPage) |
+| Diagram node count | Max 8 nodes per scene on mobile; max 12 on desktop |
+| GLTF model poly count | <50K tris for any model on mobile |
+| Texture resolution | Max 1024px on mobile |
+
+### Scroll Pacing (Mobile)
+
+On mobile, reduce scroll units by ~25% per scene so the experience feels faster to thumb-scroll through. The `isMobile` flag is already available at module scope:
+
+```tsx
+const SCROLL_SCALE = isMobile ? 0.75 : 1.0;
+
+<ProgressManager scrollUnits={1400 * SCROLL_SCALE} />
+```
+
+This keeps the total scroll distance manageable on mobile (~7,200px total vs ~9,600px on desktop) while preserving the same scene sequence and transitions.
 
 ---
 
 ## Open Questions
 
-1. Should the `@brewsite/chart` badge link to a roadmap page or issues list, or have no link? (Recommendation: no link in v1 — just the visual badge.)
-2. Is `quality="balanced"` the correct floor for 2024 phones, or should flagship 2024 devices (A17 Pro) get `quality="high"`? This can be determined by physical device testing during implementation.
-3. Should the crowd scene HUD copy read "8 characters" on mobile (honest) or "30 characters" (true of the desktop experience)? The recommendation is to keep "30 characters" since the line refers to the authoring capability, not the current render count.
-4. Does `EngineProvider` accept a `style` prop or `className` to set `height: 100dvh`? If not, a wrapper div must provide it.
+1. **3D model for Scene 2b:** Is there a GLTF model in the scene manifest suitable for the website? If not, should we create/source one, or should Scene 2b use alternative visuals?
+
+2. **Chart data for Scene 2b:** What data should the chart element display? Could be abstract/demo data, or could be real npm download stats if available.
+
+3. **Scene 1→2a transition implementation:** The "flat diagram unfolding into 3D" transition is the emotional centerpiece. Can this be achieved with the current transition system (node z-position interpolation between scenes), or does it require custom transition logic?
+
+4. **Scroll pacing for Scene 0:** The current `dwellFn` is an identity function (linear pacing). Should the hero scene keep its 3600 scroll units and dwell function, or should it be shortened now that there are more scenes below?
+
+5. **GitHub stars / npm downloads:** Should Scene 4 display live metrics (fetched at build time or runtime), or static badges? Live data creates trust but adds complexity and potential staleness.
+
+6. **Loading experience:** With 8 scenes, initial load time may increase. Should we implement progressive scene loading (compile scenes 0-2 immediately, lazy-compile 3-5)?
 
 ---
 
 ## Launch Criteria
 
-- [ ] Hero Beat 1 and Beat 2 both play correctly on iPhone (Safari) and Android Chrome in portrait orientation
-- [ ] "3D storytelling." display headline is fully readable at 390px viewport width
-- [ ] All four package badges appear in the hero (including `@brewsite/chart` with "soon" label)
-- [ ] Ecosystem scene (Act 2) renders the 4-card grid legibly on a 390px screen
-- [ ] Meeting scene renders 8 characters on mobile, 30 on desktop
-- [ ] No horizontal overflow at any viewport from 375px to 2560px
-- [ ] All scene HUD text is readable on mobile (no font sizes below 13px in practice)
-- [ ] Camera framing verified on physical device or DevTools portrait mode for each scene
-- [ ] GitHub CTA terminal shows 3-package install command
-- [ ] All `console.error` output is clean on Chrome iOS, Chrome Android, Safari iOS, Chrome desktop
-- [ ] `gen:scene-dsl` runs without errors and produces `/public/scene-manifest.json`
-- [ ] TypeScript strict-mode build passes (`pnpm --filter @brewsite/website typecheck`)
-- [ ] The hamburger nav opens and navigates to each act correctly
-- [ ] `100dvh` hero height is correct on mobile (no overflow behind browser chrome)
+**Mobile (primary test surface — verify first):**
+- [ ] All 8 scenes render correctly on iOS Safari (iPhone 12+ / 390×844)
+- [ ] All 8 scenes render correctly on Android Chrome (Pixel 6+ / 412×915)
+- [ ] Scroll flow is smooth and continuous — no jarring transitions on thumb-scroll
+- [ ] All overlay text is readable over 3D backgrounds at phone width
+- [ ] Code block in Scene 3a scrolls horizontally without layout breakage
+- [ ] Terminal card in Scene 5 is readable and CTA button tappable (44px+ touch target)
+- [ ] Package badges in Scene 0 wrap cleanly to multiple rows
+- [ ] Lighthouse Performance ≥ 75 on mobile (iPhone throttled profile)
+- [ ] 60fps on iPhone 13
+
+**Desktop (verify second):**
+- [ ] All 8 scenes render correctly on Chrome, Firefox, Safari at 1440×900
+- [ ] Centered content column stays readable; side borders show 3D canvas
+- [ ] Lighthouse Performance ≥ 85 on desktop
+- [ ] 60fps on M1 MacBook Air at 1440×900
+
+**Content correctness:**
+- [ ] Package badges in Scene 0 match all current published packages
+- [ ] Code snippet in Scene 3a actually compiles as a valid BrewSite scene
+- [ ] Terminal commands in Scene 5 are correct (`npm create brewsite` works)
+- [ ] Nav menu updated with correct scene IDs and labels
+- [ ] No console errors or warnings in production build

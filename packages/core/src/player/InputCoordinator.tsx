@@ -40,6 +40,35 @@ import { computeCarouselStep } from '../input/carouselStepper';
 import { createCarouselSelectEvent } from '../input/carouselSelectTypes';
 import type { CarouselSelectSource } from '../input/carouselSelectTypes';
 
+/**
+ * Walk up from the canvas element to find the engine's visual container — the
+ * outermost positioned+clipping ancestor (e.g., the SceneReel or ScrollStage div).
+ * This container is the correct pointer/wheel event target because:
+ * - The raw <canvas> is covered by EngineOverlayHost (zIndex:10, pointer-events:auto)
+ * - Wheel events on the overlay bubble up to this container
+ * - It scopes events to this engine's visual region (not window)
+ *
+ * Heuristic: walk up from the canvas and find the outermost `position:relative`
+ * ancestor with `overflow:hidden` — this matches the SceneReel/ScrollStage pattern.
+ * Falls back to the nearest positioned ancestor if no overflow:hidden container is found.
+ */
+function findEngineContainer(el: HTMLElement): HTMLElement {
+  let bestPositioned: HTMLElement | null = null;
+  let current = el.parentElement;
+  while (current) {
+    const style = getComputedStyle(current);
+    const isPositioned = style.position !== 'static';
+    if (isPositioned) {
+      bestPositioned = current;
+      if (style.overflow === 'hidden' || style.overflowX === 'hidden' || style.overflowY === 'hidden') {
+        return current; // SceneReel/ScrollStage container
+      }
+    }
+    current = current.parentElement;
+  }
+  return bestPositioned ?? el;
+}
+
 export interface InputCoordinatorProps {
   /**
    * Inertia scroll sensitivity. Higher = faster scene scroll per wheel tick.
@@ -232,25 +261,36 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
     // changes between scenes, the controller does not reattach. This is acceptable
     // because scope changes between scenes are rare; a future iteration can add
     // scope-change detection.
-    const canvasEl = engineRef.current.canvasRef.current;
+    // Use the reactive canvasElement (state) so this effect re-runs when
+    // SceneCanvas mounts and registers its canvas. canvasRef is a ref and
+    // would not trigger re-execution, causing targetEl to resolve to `window`
+    // on first mount (InputCoordinator effect fires before SceneCanvas effect).
+    //
+    // For the pointer target, walk up from the canvas to find the nearest
+    // positioned container (the SceneReel/ScrollStage wrapper). The raw <canvas>
+    // element itself doesn't receive pointer events because EngineOverlayHost
+    // sits on top at zIndex:10 with pointer-events:auto.
+    const rawCanvasEl = engine.canvasElement;
+    const canvasContainer = rawCanvasEl ? findEngineContainer(rawCanvasEl) : null;
     const scrollContainerEl = scrollRegion?.containerRef.current ?? null;
 
     let targetEl: HTMLElement | Window | null;
     let resolvedKeyboardTarget: HTMLElement | Document | Window | null;
 
+    // Read scope from the current spec (or default to 'canvas').
+    const initialSpec = (() => {
+      const tick = engineRef.current.frameState.tick;
+      if (!tick) return null;
+      return (tick.state.widgets['__input_controller'] as SceneInputControllerSpec) ?? null;
+    })();
+    const currentScope = initialSpec?.scope ?? 'canvas';
+    const resolved = resolveInputTargets(currentScope, scrollContainerEl ?? canvasContainer, scrollContainerEl);
+
     if (props.target || props.keyboardTarget) {
       // Explicit props take precedence over scope resolution.
-      targetEl = props.target ?? scrollContainerEl ?? canvasEl;
-      resolvedKeyboardTarget = props.keyboardTarget ?? document;
+      targetEl = props.target ?? scrollContainerEl ?? canvasContainer;
+      resolvedKeyboardTarget = props.keyboardTarget ?? resolved.keyboardTarget;
     } else {
-      // Read scope from the current spec (or default to 'canvas').
-      const initialSpec = (() => {
-        const tick = engineRef.current.frameState.tick;
-        if (!tick) return null;
-        return (tick.state.widgets['__input_controller'] as SceneInputControllerSpec) ?? null;
-      })();
-      const currentScope = initialSpec?.scope ?? 'canvas';
-      const resolved = resolveInputTargets(currentScope, scrollContainerEl ?? canvasEl, scrollContainerEl);
       targetEl = resolved.pointerTarget;
       resolvedKeyboardTarget = resolved.keyboardTarget;
     }
@@ -586,6 +626,27 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
         }
       : undefined;
 
+    // ── Auto-focus on pointer enter (multi-engine keyboard isolation) ─────
+    // When the pointer enters the canvas region, focus the keyboard target so
+    // keyboard events (orbit, pan, reset) only reach the hovered canvas.
+    // Ensure the keyboard target is focusable (needs tabIndex if it doesn't have one).
+    let pointerFocusCleanup: (() => void) | null = null;
+    const focusableTarget = resolvedKeyboardTarget instanceof HTMLElement
+      ? resolvedKeyboardTarget
+      : null;
+    const pointerEventTarget = targetEl instanceof HTMLElement ? targetEl : null;
+    if (focusableTarget && focusableTarget.tabIndex < 0 && !focusableTarget.hasAttribute('tabindex')) {
+      // Make the container focusable without adding it to the tab order.
+      focusableTarget.setAttribute('tabindex', '-1');
+    }
+    if (focusableTarget && pointerEventTarget) {
+      const onPointerEnter = () => { focusableTarget.focus({ preventScroll: true }); };
+      pointerEventTarget.addEventListener('pointerenter', onPointerEnter);
+      pointerFocusCleanup = () => {
+        pointerEventTarget.removeEventListener('pointerenter', onPointerEnter);
+      };
+    }
+
     const controller = new ActionInputController(
       targetEl,
       getSpec,
@@ -738,11 +799,12 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
     return () => {
       controller.detach();
+      pointerFocusCleanup?.();
       touchCleanup?.();
       removeScrollGuard?.();
       cleanupCarouselFn();
     };
-  }, [props.target, props.keyboardTarget, pluginExtension, scrollRegion, scrollDriver]); // engine intentionally NOT in deps — use engineRef instead
+  }, [props.target, props.keyboardTarget, pluginExtension, scrollRegion, scrollDriver, engine.canvasElement]); // canvasElement triggers re-attach when SceneCanvas mounts
 
   // ── Clear widget state patches when the scene track changes ───────────────
   const sceneTrack = engine.sceneTrack;

@@ -90,18 +90,20 @@ describe('createShapeGeometry', () => {
     expect(materialCount).toBe(2);
   });
 
-  // Verify polygon geometry is bounded by the shorter dimension — the polygon
-  // radius is Math.min(w, h) / 2 so it fits within the node's size.
-  it('hexagon XY bounding box fits within shorter side', () => {
+  // Polygon geometry uses r = max(w, h) / 2 as uniform radius.
+  // For a hexagon [6, 4], r = 3, so the geometry is a regular hexagon with
+  // vertex-to-vertex diameter = 6 on both axes.
+  it('hexagon uses max dimension as uniform circumradius', () => {
     const { geometry } = createShapeGeometry('hexagon', [6, 4], 0.4);
     const bbox = new THREE.Box3().setFromBufferAttribute(
       geometry.getAttribute('position') as THREE.BufferAttribute,
     );
     const size = bbox.getSize(new THREE.Vector3());
-    // r = Math.min(6, 4) / 2 = 2, so X and Y extents ≤ 4 (diameter)
-    expect(size.x).toBeLessThanOrEqual(4 + 0.001);
-    expect(size.y).toBeLessThanOrEqual(4 + 0.001);
-    // Depth centered at origin: Z extent ≈ depth (0.4)
+    // r = max(6, 4) / 2 = 3. Vertex-to-vertex = 2r = 6 on Y axis.
+    expect(size.y).toBeCloseTo(6, 0);
+    // Flat-side-to-flat-side = 2r * cos(π/6) ≈ 5.196 on X axis.
+    expect(size.x).toBeCloseTo(2 * 3 * Math.cos(Math.PI / 6), 1);
+    // Depth: Z extent ≈ depth (0.4)
     expect(size.z).toBeCloseTo(0.4, 1);
   });
 
@@ -206,17 +208,20 @@ describe('getContentRect', () => {
     expect(getContentRect('square', [4, 4])).toEqual([4, 4]);
   });
 
-  // Regular polygon math: r = Math.min(w,h)/2, apothem = r·cos(π/N)
-  // content = [2·apothem·0.85, 2·apothem·0.85]  (symmetric, 85% of inscribed circle)
-  it('hexagon content rect is a square at 85% of inscribed circle diameter', () => {
+  // Hexagon content rect: inscribed square in a regular hexagon with r = max(w,h)/2.
+  // The compile layer clamps polygon sizes to [max, max] before reaching here.
+  it('hexagon content rect is a square inscribed within the hexagonal boundary', () => {
     const size = [4, 4] as const;
     const r = 2;
-    const apothem = r * Math.cos(Math.PI / 6);
-    const expected = 2 * apothem * 0.85;
     const [cw, ch] = getContentRect('hexagon', size);
-    expect(cw).toBeCloseTo(expected, 5);
-    expect(ch).toBeCloseTo(expected, 5);
-    expect(cw).toBe(ch); // must be a square
+    expect(cw).toBe(ch); // must be square for a regular polygon
+    expect(cw).toBeLessThan(size[0]);
+    // Verify corners fit inside the hexagon
+    const halfSide = cw / 2;
+    const cornerDist = halfSide * Math.SQRT2;
+    const apothem = r * Math.cos(Math.PI / 6);
+    const edgeDist = apothem / Math.cos(Math.PI / 12);
+    expect(cornerDist).toBeLessThanOrEqual(edgeDist + 0.001);
   });
 
   it('triangle content rect is smaller than hexagon for same size', () => {
@@ -233,9 +238,11 @@ describe('getContentRect', () => {
     expect(cwOct).toBeGreaterThan(cwHex); // octagon has larger apothem
   });
 
-  it('polygon content rect always fits within the bounding box', () => {
+  it('polygon content rect always fits within the diameter (compile layer clamps to square)', () => {
+    // The compile layer clamps polygon sizes to [max, max] before reaching the
+    // renderer, so getContentRect always receives square sizes for polygons.
     const shapes = ['triangle', 'pentagon', 'hexagon', 'heptagon', 'octagon', 'nonagon', 'decagon'] as const;
-    const size = [5, 3] as const;
+    const size = [5, 5] as const; // square (as produced by compile-time max-clamp)
     for (const shape of shapes) {
       const [cw, ch] = getContentRect(shape, size);
       expect(cw).toBeLessThanOrEqual(size[0]);
@@ -243,17 +250,19 @@ describe('getContentRect', () => {
     }
   });
 
-  // Circle — 85% of diameter (same formula as polygon with N=64, apothem ≈ r)
-  it('circle content rect is a square at ~85% of diameter', () => {
+  // Circle — inscribed square with 5% inset: side = r·√2·0.95
+  it('circle content rect is a square inscribed within the circle', () => {
     const size = [4, 4] as const;
     const r = 2;
     const [cw, ch] = getContentRect('circle', size);
-    // apothem for N=64 ≈ r, so side ≈ 2r·0.85 = 1.7r
-    const apothem64 = r * Math.cos(Math.PI / 64);
-    const expected = 2 * apothem64 * 0.70;
+    const expected = r * Math.SQRT2 * 0.95;
     expect(cw).toBeCloseTo(expected, 5);
     expect(ch).toBeCloseTo(expected, 5);
     expect(cw).toBe(ch); // must be square
+    // Content square corners must fit inside the circle
+    const halfSide = cw / 2;
+    const cornerDist = halfSide * Math.SQRT2;
+    expect(cornerDist).toBeLessThanOrEqual(r + 0.001);
   });
 
   // Diamond — inscribed rectangle: r × r

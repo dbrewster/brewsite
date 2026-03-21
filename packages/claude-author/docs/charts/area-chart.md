@@ -3,7 +3,7 @@ title: "@brewsite/charts — Area Chart"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## When to Use AreaChart
@@ -48,7 +48,7 @@ const trafficData = [
 <AreaChart
   id="channel-traffic"
   data={trafficData}
-  x={0.10} y={0.25} w={0.80} h={0.45}
+  x={"10%"} y={"25%"} w={"80%"} h={"45%"}
   stackMode="stacked"
   fillOpacity={0.85}
 >
@@ -70,7 +70,7 @@ const forecastData = [
   { month: 'Mar', forecast: 15000, low: 13200, high: 17100 },
 ];
 
-<AreaChart id="forecast-range" data={forecastData} x={0.10} y={0.25} w={0.80} h={0.45}>
+<AreaChart id="forecast-range" data={forecastData} x={"10%"} y={"25%"} w={"80%"} h={"45%"}>
   <ChartAxis axis="x" field="month" />
   <ChartAxis axis="y" field="high" />
   {/* bandField sets the lower bound of the filled region */}
@@ -113,7 +113,7 @@ export function SceneTrafficChannels() {
       <AreaChart
         id="channel-traffic"
         data={trafficData}
-        x={0.10} y={0.25} w={0.80} h={0.45}
+        x={"10%"} y={"25%"} w={"80%"} h={"45%"}
         depth={0.3}
         stackMode="stacked"
         fillOpacity={0.85}

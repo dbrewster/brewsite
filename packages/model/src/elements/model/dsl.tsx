@@ -3,7 +3,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { Resolvable } from '@brewsite/core';
+import type { Resolvable, SceneAngle } from '@brewsite/core';
 import type {
   AxisRotation,
   AxisTranslation,
@@ -22,7 +22,8 @@ export type ModelProps = {
   scale?: Resolvable<number>;
   /** World-space Z depth of the model center. Default: 0. */
   z?: Resolvable<number>;
-  rotation?: Resolvable<[number, number, number]>;
+  /** Rotation with explicit angle units [x, y, z] (Euler XYZ order). Resolved to radians at compile time. */
+  rotation?: Resolvable<[SceneAngle, SceneAngle, SceneAngle]>;
   opacity?: Resolvable<number>;
   metalness?: Resolvable<number>;
   roughness?: Resolvable<number>;

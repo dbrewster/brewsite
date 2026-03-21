@@ -6,6 +6,13 @@ import { blendNumber, blendColor } from '../../compiler/transitions/transitionTy
 import type { SpotlightRigTheme, SpotlightRigState, SpotlightLightState, Vec3Tuple } from './types';
 import type { SpotlightRigProps, SpotlightProps } from './dsl';
 import type { ThemeFamily } from '../../theme/types';
+import { resolveAngle } from '../../units/resolve';
+import type { SceneAngle } from '../../units/types';
+
+/** Resolves an optional SceneAngle to radians, returning undefined if absent. */
+function resolveAngleValue(v: SceneAngle | undefined): number | undefined {
+  return v !== undefined ? resolveAngle(v) : undefined;
+}
 
 /**
  * Default theme values for SpotlightRig.
@@ -93,7 +100,7 @@ export function resolveSpotlightLightState(
     radius:        r(lightProps.radius)        ?? r(rigProps.radius)        ?? theme.radius,
     height:        r(lightProps.height)        ?? r(rigProps.height)        ?? theme.height,
     targetY:       r(lightProps.targetY)       ?? r(rigProps.targetY)       ?? theme.targetY,
-    angle:         r(lightProps.angle)         ?? r(rigProps.angle)         ?? theme.angle,
+    angle:         resolveAngleValue(r(lightProps.angle) ?? r(rigProps.angle)) ?? theme.angle,
     penumbra:      r(lightProps.penumbra)      ?? r(rigProps.penumbra)      ?? theme.penumbra,
     decay:         r(lightProps.decay)         ?? r(rigProps.decay)         ?? theme.decay,
     distance:      r(lightProps.distance)      ?? r(rigProps.distance)      ?? theme.distance,
@@ -105,7 +112,7 @@ export function resolveSpotlightLightState(
     showHalo:      r(lightProps.showHalo)      ?? r(rigProps.showHalo)      ?? theme.showHalo,
     haloOpacity:   r(lightProps.haloOpacity)   ?? r(rigProps.haloOpacity)   ?? theme.haloOpacity,
     haloSize:      r(lightProps.haloSize)      ?? r(rigProps.haloSize)      ?? theme.haloSize,
-    phase:         lightProps.phase             ?? autoPhase,
+    phase:         lightProps.phase !== undefined ? resolveAngle(lightProps.phase) : autoPhase,
     target:        r(lightProps.target)         ?? null,
   };
 }

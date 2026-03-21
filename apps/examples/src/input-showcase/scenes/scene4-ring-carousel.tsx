@@ -56,7 +56,7 @@ const spotlights: SpotlightDef[] = Array.from({ length: 5 }, () => {
   return {
     color: randColor(),
     intensity: 20 + rng() * 30,
-    angle: Math.PI / 20 + rng() * Math.PI / 8,
+    angle: `${Math.PI / 20 + rng() * Math.PI / 8}rad` as `${number}rad`,
     orbit: ((t: number): [number, number, number] => [
       Math.sin(t * fX + pX) * aX,
       Math.sin(t * fY + pY) * aY + oY,
@@ -115,8 +115,8 @@ const ringData6 = [
 function RingCarouselViews(): JSX.Element {
   return (
     <>
-      <View id="rc1" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-1" data={ringData1} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="rc1" w={"42%"} h={"52%"}>
+        <BarChart id="is-ring-chart-1" data={ringData1} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="metric" />
           <ChartAxis axis="x" field="metric" label="Interface" />
           <ChartAxis axis="y" field="interactions" label="Interactions" />
@@ -124,8 +124,8 @@ function RingCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="rc2" w={0.42} h={0.52}>
-        <LineChart id="is-ring-chart-2" data={ringData2} x={0} y={0} w={1} h={1}
+      <View id="rc2" w={"42%"} h={"52%"}>
+        <LineChart id="is-ring-chart-2" data={ringData2} x={0} y={0} w={"100%"} h={"100%"}
           lineShape="circle" lineSmoothness={0.5} showPoints depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
@@ -134,8 +134,8 @@ function RingCarouselViews(): JSX.Element {
         </LineChart>
       </View>
 
-      <View id="rc3" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-3" data={ringData3} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="rc3" w={"42%"} h={"52%"}>
+        <BarChart id="is-ring-chart-3" data={ringData3} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="region" />
           <ChartAxis axis="x" field="region" label="Region" />
           <ChartAxis axis="y" field="throughput" label="Throughput %" />
@@ -143,8 +143,8 @@ function RingCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="rc4" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-4" data={ringData4} x={0} y={0} w={1} h={1}
+      <View id="rc4" w={"42%"} h={"52%"}>
+        <BarChart id="is-ring-chart-4" data={ringData4} x={0} y={0} w={"100%"} h={"100%"}
           orientation="horizontal" depth={0.3}>
           <ChartData keyField="tier" />
           <ChartAxis axis="x" field="tier" label="Tier" />
@@ -153,8 +153,8 @@ function RingCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="rc5" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-5" data={ringData5} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="rc5" w={"42%"} h={"52%"}>
+        <BarChart id="is-ring-chart-5" data={ringData5} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="week" />
           <ChartAxis axis="x" field="week" label="Week" />
           <ChartAxis axis="y" field="deploys" label="Deploys" />
@@ -162,8 +162,8 @@ function RingCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="rc6" w={0.42} h={0.52}>
-        <LineChart id="is-ring-chart-6" data={ringData6} x={0} y={0} w={1} h={1}
+      <View id="rc6" w={"42%"} h={"52%"}>
+        <LineChart id="is-ring-chart-6" data={ringData6} x={0} y={0} w={"100%"} h={"100%"}
           lineShape="hexagon" lineSmoothness={0.3} showPoints depth={0.3}>
           <ChartData keyField="day" />
           <ChartAxis axis="x" field="day" label="Day" />
@@ -181,7 +181,7 @@ export const RingCarouselScene = (): JSX.Element => {
   return (
     <Scene id="input-ring-carousel" primaryCarouselId={'ring-carousel-layout'}>
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={2.8} color="#d7e5ff" />
         <Directional intensity={0} color='#ffffff' position={[0, 0, 0]}/>
@@ -207,7 +207,7 @@ export const RingCarouselScene = (): JSX.Element => {
         </Action>
       </InputController>
 
-      <ViewLayout id={'ring-carousel-layout'} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={.1} w={.8}>
+      <ViewLayout id={'ring-carousel-layout'} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={"10%"} w={"80%"}>
         <RingCarouselViews />
         <CarouselTray metalness={.1} />
         <Highlight viewId="rc1" variant="primary" mode="holographic" smoke beamHeight={4} pulseSpeed={1.2} pulseIntensity={0.6} />
@@ -216,7 +216,7 @@ export const RingCarouselScene = (): JSX.Element => {
       </ViewLayout>
 
       {/* Title */}
-      <TextBox id="ring-title" x={0.02} y={0.06} w={0.38} h={0.12} layer={3}>
+      <TextBox id="ring-title" x={"2%"} y={"6%"} w={"38%"} h={"12%"} layer={3}>
         <div
           style={{
             height: '100%',
@@ -237,7 +237,7 @@ export const RingCarouselScene = (): JSX.Element => {
       </TextBox>
 
       {/* Controls reference */}
-      <TextBox id="ring-controls" x={0.42} y={0.14} w={0.38} h={0.20} layer={3}>
+      <TextBox id="ring-controls" x={"42%"} y={"14%"} w={"38%"} h={"20%"} layer={3}>
         <div
           style={{
             height: '100%',

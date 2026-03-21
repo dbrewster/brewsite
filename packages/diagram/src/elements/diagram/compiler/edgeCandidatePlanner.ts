@@ -139,11 +139,13 @@ export function inferBundleHints(
 
     const sourceFace: FaceId = allPositiveY ? 'top' : 'bottom';
     const sourceNormal = getFaceNormalLocal(sourceFace);
-    const sourceAnchorHint: Vec3 = [
-      sourcePos[0] + sourceNormal[0] * sourceSize[0] * 0.5,
-      sourcePos[1] + sourceNormal[1] * sourceSize[1] * 0.5,
-      sourcePos[2] + sourceNormal[2] * sourceSize[2] * 0.5,
-    ];
+    // Use getFaceCenterLocal to ensure the Z coordinate matches the actual face
+    // center (z - d/2 for planar faces). The previous formula (pos + normal * size/2)
+    // produced Z=0 for top/bottom faces, which is the front face Z — not the side
+    // face center Z used by the port planner. This mismatch caused Z-plane jumps
+    // in bundled edge paths (the shared trunk at Z=0 stitched to individual
+    // fan-out segments at Z=-d/2, creating visible backward Y motion with tilt).
+    const sourceAnchorHint: Vec3 = getFaceCenterLocal(sourcePos, sourceSize, sourceFace);
 
     for (const req of group) {
       const targetNode = nodeMap.get(req.toId);

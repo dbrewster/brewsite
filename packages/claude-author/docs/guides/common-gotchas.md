@@ -3,7 +3,7 @@ title: Common Gotchas
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-21
 ---
 
 ## Entry Transition on the Wrong Scene
@@ -59,9 +59,9 @@ function MyScene() {
 
 **Correct:**
 ```tsx
-// Just use plain numbers/arrays in scene files
+// Just use unit strings in scene files
 function MyScene() {
-  return <Scene id="s1"><Model x={0.5} y={0.4} w={0.6} h={0.8} /></Scene>;
+  return <Scene id="s1"><Model x={"50%"} y={"40%"} w={"60%"} h={"80%"} /></Scene>;
 }
 ```
 
@@ -112,18 +112,18 @@ function GoodScene() {
 
 **Cause:** Assuming Y=0 is the bottom of the screen (standard 3D Y-up convention). In NVS, Y=0 is the TOP.
 
-**Rule:** NVS Y-axis matches CSS: `y={0}` is top edge, `y={1}` is bottom edge. The internal conversion to Three.js world coordinates applies the Y-flip automatically.
+**Rule:** NVS Y-axis matches CSS: `y={"0%"}` is top edge, `y={"100%"}` is bottom edge. The internal conversion to Three.js world coordinates applies the Y-flip automatically.
 
 **Wrong:**
 ```tsx
 // Intending to place something near the bottom — this puts it near the TOP
-<Model id="footer-model" x={0.5} y={0.1} w={0.8} h={0.2} />
+<Model id="footer-model" x={"50%"} y={"10%"} w={"80%"} h={"20%"} />
 ```
 
 **Correct:**
 ```tsx
 // Near the bottom: high Y value
-<Model id="footer-model" x={0.5} y={0.8} w={0.8} h={0.2} />
+<Model id="footer-model" x={"50%"} y={"80%"} w={"80%"} h={"20%"} />
 ```
 
 ---
@@ -329,45 +329,45 @@ mergeSnapshot(prev, next) {
 
 **Cause:** The node's `size` is too small to fit an icon, label, and sublabel. The fit-to-content layout automatically scales down the icon to prevent overflow, but very small nodes produce unreadable results.
 
-**Rule:** Use the standard recipe sizes as a floor. For icon + label + sublabel rectangles, `[0.15, 0.08]` is the standard starting point. For circles/hexagons use `[0.12, 0.12]` (square). For very content-rich nodes, increase height to `[0.15, 0.10]` or more. See the full sizing table in [layout-spatial-awareness.md](./layout-spatial-awareness.md).
+**Rule:** Use the standard recipe sizes as a floor. For icon + label + sublabel rectangles, `["15u", "8u"]` is the standard starting point. For circles/hexagons use `["12u", "12u"]` (square). For very content-rich nodes, increase height to `["15u", "10u"]` or more. See the full sizing table in [layout-spatial-awareness.md](./layout-spatial-awareness.md).
 
 **Wrong:**
 ```tsx
 // Too small — icon will be scaled down to near-invisible
-<DiagramNode id="svc" label="Service" sublabel="v2.1" icon="tech:docker" size={[0.05, 0.03]} />
+<DiagramNode id="svc" label="Service" sublabel="v2.1" icon="tech:docker" size={["5u", "3u"]} />
 ```
 
 **Correct:**
 ```tsx
 // Standard size for icon + label + sublabel rectangle
-<DiagramNode id="svc" label="Service" sublabel="v2.1" icon="tech:docker" size={[0.15, 0.08]} />
+<DiagramNode id="svc" label="Service" sublabel="v2.1" icon="tech:docker" size={["15u", "8u"]} />
 ```
 
 ---
 
-## Using Old Content-Unit Values for Diagram Node Sizes or Thickness
+## Using Bare Numbers Instead of Unit Strings for Diagram Values
 
-**Symptom:** Diagram nodes are enormous (4x the viewport width) or the layout looks completely wrong because you used legacy content-unit values like `[4, 2]` for node sizes. Or node thickness values like `1.0` produce absurdly deep blocks.
+**Symptom:** TypeScript errors or unexpected layout results because you used bare numbers like `0.15` instead of unit strings like `"15u"` for node sizes, gap, spacing, or thickness.
 
-**Cause:** All diagram dimensional props — node `size`, `thickness`, `cornerRadius`, edge `thickness`, group `borderWidth`/`borderHeight`, and layout `gap`/`spacing` — are **NVS fractions [0..1]**, representing fractions of the diagram viewport width. Old content-unit values are far too large in the NVS system.
+**Cause:** All diagram dimensional props — node `size`, `thickness`, `cornerRadius`, edge `thickness`, group `borderWidth`/`borderHeight`, and layout `gap`/`spacing` — now require **`SceneLength` unit strings** (e.g. `"15u"`, `"8u"`, `"50%"`). Bare fractional numbers are no longer accepted.
 
-**Rule:** All dimensional values are NVS fractions [0..1]. The standard node size is `[0.15, 0.08]`. Standard node thickness ranges from `0.033` (thin card) to `0.210` (deep block). Standard edge thickness ranges from `0.008` to `0.011`. Standard cornerRadius ranges from `0.006` to `0.014`.
+**Rule:** All dimensional values must use explicit unit strings. The standard node size is `["15u", "8u"]`. Standard node thickness ranges from `"3.3u"` (thin card) to `"21u"` (deep block). Standard edge thickness ranges from `"0.8u"` to `"1.1u"`. Standard cornerRadius ranges from `"0.6u"` to `"1.4u"`.
 
 **Wrong:**
 ```tsx
-// Legacy content-unit values — these are now 4x the viewport width!
+// Bare numbers — no longer accepted
 <Diagram id="d1" x={0.1} y={0.1} w={0.8} h={0.8}>
   <GridLayout columns={3} />
-  <DiagramNode id="n1" label="API" size={[4, 2]} thickness={1.0} />  {/* wrong — old content units */}
+  <DiagramNode id="n1" label="API" size={[0.15, 0.08]} thickness={0.075} />  {/* wrong — bare numbers */}
 </Diagram>
 ```
 
 **Correct:**
 ```tsx
-// All values are NVS fractions [0..1]
-<Diagram id="d1" x={0.1} y={0.1} w={0.8} h={0.8}>
+// SceneLength unit strings
+<Diagram id="d1" x={"10%"} y={"10%"} w={"80%"} h={"80%"}>
   <GridLayout columns={3} />
-  <DiagramNode id="n1" label="API" size={[0.15, 0.08]} thickness={0.075} />  {/* NVS fractions */}
+  <DiagramNode id="n1" label="API" size={["15u", "8u"]} thickness={"7.5u"} />  {/* unit strings */}
 </Diagram>
 ```
 
@@ -377,49 +377,49 @@ mergeSnapshot(prev, next) {
 
 **Symptom:** A node intended to be square renders as a rectangle.
 
-**Cause:** Using unequal width and height values in the `size` prop. After the aspect ratio correction, `size={[0.12, 0.12]}` renders as a true square, and `size={[0.15, 0.08]}` renders as a rectangle.
+**Cause:** Using unequal width and height values in the `size` prop. After the aspect ratio correction, `size={["12u", "12u"]}` renders as a true square, and `size={["15u", "8u"]}` renders as a rectangle.
 
-**Rule:** For square nodes, always use equal width and height: `size={[0.12, 0.12]}`. For rectangular nodes, use different values: `size={[0.15, 0.08]}`.
+**Rule:** For square nodes, always use equal width and height: `size={["12u", "12u"]}`. For rectangular nodes, use different values: `size={["15u", "8u"]}`.
 
 **Wrong:**
 ```tsx
 // Intended to be square but renders as rectangle
-<DiagramNode id="icon-node" shape="circle" size={[0.15, 0.08]} />
+<DiagramNode id="icon-node" shape="circle" size={["15u", "8u"]} />
 ```
 
 **Correct:**
 ```tsx
 // Equal dimensions = square (or true circle for circle shape)
-<DiagramNode id="icon-node" shape="circle" size={[0.12, 0.12]} />
+<DiagramNode id="icon-node" shape="circle" size={["12u", "12u"]} />
 ```
 
 ---
 
-## Using Old World-Unit Values for FlowLayout Gap or GridLayout Spacing
+## Using Excessively Large Gap or Spacing Values
 
-**Symptom:** Diagram nodes appear tiny — much smaller than the authored `size` values suggest. A node with `size={[0.15, 0.08]}` (15% of viewport) renders at 2-3% instead. Increasing `size` back to old values like `[8, 8]` produces expected results.
+**Symptom:** Diagram nodes appear tiny — much smaller than the authored `size` values suggest. A node with `size={["15u", "8u"]}` renders at a fraction of its expected size.
 
-**Cause:** The `gap` or `spacing` value is still in old world units (e.g., `gap={0.9}` or `spacing={[2.4, 1.1]}`). These values are now NVS fractions. A `gap={0.9}` means 90% of the viewport height per gap — the total layout overflows `[0..1]`, and the `normalizeToViewport` pass uniformly scales everything down to fit, shrinking nodes far below their authored size.
+**Cause:** The `gap` or `spacing` value is excessively large (e.g., `gap={"90u"}` or `spacing={["24u", "11u"]}`). When the total of all item sizes + gaps exceeds the viewport, the `normalizeToViewport` pass uniformly scales everything down to fit, shrinking nodes far below their authored size.
 
-**Rule:** All layout spacing props (`gap`, `spacing`, `margin`, `groupPadding`, `titleGap`) are NVS fractions `[0..1]`. FlowLayout default gap is `0.06`. GridLayout default spacing is `[0.06, 0.06]`. The total of all item sizes + gaps along the flow axis should stay ≤ 1.0 to avoid automatic scale-down.
+**Rule:** All layout spacing props (`gap`, `spacing`, `margin`, `groupPadding`, `titleGap`) use `SceneLength` unit strings. FlowLayout default gap is `"6u"`. GridLayout default spacing is `["6u", "6u"]`. The total of all item sizes + gaps along the flow axis should fit within the viewport to avoid automatic scale-down.
 
 **Wrong:**
 ```tsx
-{/* gap=0.9 is 90% of viewport — layout overflows, everything scales to ~25% of authored size */}
-<Diagram id="d1" x={0} y={0} w={1} h={1}>
-  <FlowLayout direction="top-down" gap={0.9} />
-  <DiagramNode id="a" label="Service A" size={[0.15, 0.08]} />
-  <DiagramNode id="b" label="Service B" size={[0.15, 0.08]} />
+{/* gap="90u" is enormous — layout overflows, everything scales down */}
+<Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
+  <FlowLayout direction="top-down" gap={"90u"} />
+  <DiagramNode id="a" label="Service A" size={["15u", "8u"]} />
+  <DiagramNode id="b" label="Service B" size={["15u", "8u"]} />
 </Diagram>
 ```
 
 **Correct:**
 ```tsx
-{/* gap=0.06 is 6% of viewport — layout fits, nodes render at authored size */}
-<Diagram id="d1" x={0} y={0} w={1} h={1}>
-  <FlowLayout direction="top-down" gap={0.06} />
-  <DiagramNode id="a" label="Service A" size={[0.15, 0.08]} />
-  <DiagramNode id="b" label="Service B" size={[0.15, 0.08]} />
+{/* gap="6u" is standard — layout fits, nodes render at authored size */}
+<Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
+  <FlowLayout direction="top-down" gap={"6u"} />
+  <DiagramNode id="a" label="Service A" size={["15u", "8u"]} />
+  <DiagramNode id="b" label="Service B" size={["15u", "8u"]} />
 </Diagram>
 ```
 
@@ -530,7 +530,7 @@ api.setWidgetState(widgetId, { ...state, bounds, z, opacity });
   <>
     <Camera mode="world" position={[0, 1.5, 5]} target={[0, 0.5, 0]} />
     <Lighting><Ambient intensity={0.8} /></Lighting>
-    <Diagram id="arch"><DiagramNode id="api" label="API" size={[0.15, 0.08]} /></Diagram>
+    <Diagram id="arch"><DiagramNode id="api" label="API" size={["15u", "8u"]} /></Diagram>
   </>
 }>
   <ContentSlide title="Architecture"><Body>Our system.</Body></ContentSlide>
@@ -582,6 +582,70 @@ createSlideTheme({ timing: { entranceDuration: 300 } })  // 300 is not a valid p
 ```tsx
 createSlideTheme({ timing: { entranceDuration: 0.3 } })  // Entrance completes at 30% progress
 ```
+
+---
+
+## 3D Element in Layout Slot Doesn't Render
+
+**Symptom:** A 3D element (e.g., `<BarChart>`, `<Diagram>`) passed as a layout slot child doesn't appear in the WebGL canvas. It either renders as an empty HTML region or doesn't render at all.
+
+**Cause:** The 3D element is wrapped inside a custom React component. The deck compiler's smart layout routing inspects the top-level element type via `getNodeHandler()`. If the 3D element is nested inside a wrapper component, the compiler sees the wrapper (which has no registered NodeHandler) and routes it as HTML content to a `<TextBox>`.
+
+**Rule:** 3D DSL elements must be **direct children** of the layout slot. Fragment wrappers (`<>...</>`) are fine — the compiler expands one level of fragments. But custom React component wrappers are opaque to the classifier.
+
+**Wrong:**
+```tsx
+function MyChart() {
+  return <BarChart id="rev" x={"0%"} y={"0%"} w={"100%"} h={"100%"} data={chartData} />;
+}
+
+<ContentSlide title="Revenue">
+  <MyChart />  {/* Compiler sees MyChart, not BarChart — routed as HTML */}
+</ContentSlide>
+```
+
+**Correct:**
+```tsx
+<ContentSlide title="Revenue">
+  <BarChart id="rev" x={"0%"} y={"0%"} w={"100%"} h={"100%"} data={chartData} />
+</ContentSlide>
+```
+
+If you must use a wrapper for organization, pass the 3D element via a prop or use `sceneDsl` instead.
+
+---
+
+## All Slides Load Upfront Even with loadPolicy
+
+**Symptom:** You set `loadPolicy` on `SlidePlayer` or passed it as a prop somewhere, but all slide assets still load eagerly on mount.
+
+**Cause:** `loadPolicy` is a prop on `<SceneEngine>`, not on `<SlidePlayer>`. `SlidePlayer` renders inside a parent `SceneEngine` context — it does not own the engine lifecycle.
+
+**Rule:** Set `loadPolicy` on the parent `<SceneEngine>`.
+
+**Wrong:**
+```tsx
+{/* loadPolicy is not a SlidePlayer prop — this has no effect */}
+<SceneEngine plugins={[corePlugin(), slidesPlugin()]}>
+  <SlidePlayer loadPolicy={{ eager: [0], preloadAhead: 1 }}>
+    ...
+  </SlidePlayer>
+</SceneEngine>
+```
+
+**Correct:**
+```tsx
+<SceneEngine
+  plugins={[corePlugin(), slidesPlugin()]}
+  loadPolicy={{ eager: [0], preloadAhead: 1 }}
+>
+  <SlidePlayer>
+    ...
+  </SlidePlayer>
+</SceneEngine>
+```
+
+`SceneLoadPolicy` controls which scenes load eagerly (blocking `assetsReady`) and how many scenes ahead to preload in the background. When omitted, all ILoadable widgets load upfront (backward-compatible default).
 
 ---
 

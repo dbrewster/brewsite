@@ -4,6 +4,7 @@ import type { CarouselScrubberState, CarouselScrubberStyle, ViewHighlight } from
 import type { CarouselScrubberProps } from './dsl';
 import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 import { blendNumber, blendColor, blendMaterialApplication } from '../../compiler/transitions/transitionTypes';
+import { resolveToNVS } from '../../units/resolve';
 
 /** Default visual style for the carousel scrubber. */
 export const DEFAULT_CAROUSEL_SCRUBBER_STYLE: CarouselScrubberStyle = {
@@ -83,7 +84,7 @@ export function compileCarouselScrubber(
     gap: props.gap ?? 0.02,
     nvsBounds: bounds,
     viewExtent: viewExtent ?? bounds,
-    outerMargin: props.outerMargin ?? 0,
+    outerMargin: props.outerMargin !== undefined ? resolveToNVS(props.outerMargin) : 0,
     zStep: carouselConfig?.zStep ?? 0,
     spread: carouselConfig?.spread ?? 0.45,
     viewHighlights: [],

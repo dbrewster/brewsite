@@ -60,7 +60,7 @@ describe('resolveEffectiveLayout', () => {
 
   it('hierarchical parent + hierarchical child → merges specified props only', () => {
     const parent = hierarchical({ direction: 'left-right', alignment: 'right' });
-    const child = { kind: 'hierarchical', spacing: [1, 1] } as const;
+    const child = { kind: 'hierarchical', spacing: ['100%', '100%'] } as const;
     const resolved = resolveEffectiveLayout(child, parent) as ResolvedHierarchicalLayout;
     expect(resolved.direction).toBe('left-right');
     expect(resolved.alignment).toBe('right');
@@ -84,7 +84,7 @@ describe('resolveEffectiveLayout', () => {
   });
 
   it('manual layout → groupPadding and titleGap from child, rest not applicable', () => {
-    const resolved = resolveEffectiveLayout({ kind: 'manual', titleGap: 1, groupPadding: 2 }, undefined);
+    const resolved = resolveEffectiveLayout({ kind: 'manual', titleGap: '100%', groupPadding: '200%' }, undefined);
     expect(resolved.kind).toBe('manual');
     expect(resolved.titleGap).toBe(1);
     expect(resolved.groupPadding).toEqual([2, 2, 2, 2]);
@@ -100,7 +100,7 @@ describe('resolveEffectiveLayout', () => {
   it('uses theme root default kind when own and parent are absent', () => {
     const themeLayout: DiagramThemeLayoutConfig = {
       defaultKind: 'hierarchical',
-      hierarchical: { spacing: [7, 8] },
+      hierarchical: { spacing: ['700%', '800%'] },
     };
     const defaults = resolveThemeLayoutDefaults(themeLayout);
     const resolved = resolveEffectiveLayout(undefined, undefined, defaults);
@@ -110,7 +110,7 @@ describe('resolveEffectiveLayout', () => {
 
   it('uses same-kind theme defaults when own kind differs from parent kind', () => {
     const defaults = resolveThemeLayoutDefaults({
-      grid: { spacing: [6, 6], margin: [1, 2] },
+      grid: { spacing: ['600%', '600%'], margin: ['100%', '200%'] },
     });
     const parent = hierarchical();
     const resolved = resolveEffectiveLayout({ kind: 'grid' }, parent, defaults) as ResolvedGridLayout;
@@ -168,7 +168,7 @@ describe('resolveGroupLayouts', () => {
     ];
     const root = grid();
     const defaults = resolveThemeLayoutDefaults({
-      hierarchical: { spacing: [9, 9], alignment: 'right' },
+      hierarchical: { spacing: ['900%', '900%'], alignment: 'right' },
     });
     const layouts = resolveGroupLayouts(groups, root, defaults);
     const resolved = layouts.get('g2') as ResolvedHierarchicalLayout;
@@ -189,7 +189,7 @@ describe('resolveLayout', () => {
 
   it('grid: respects explicit positions, only auto-assigns missing ones', () => {
     const nodes = [
-      makeNode('a', { position: [10, 10, 0] }),
+      makeNode('a', { position: ['1000%', '1000%', '0%'] }),
       makeNode('b'),
     ];
     const positions = resolveLayout(nodes, [], grid());
@@ -234,8 +234,8 @@ describe('resolveLayout', () => {
     // must equal exactly spacing[1] = 3, not the current behaviour where it is dominated
     // by globalMaxHeight and becomes (20 - 2) / 2 + spacing = 11 instead of 3.
     const nodes = [
-      makeNode('tall', { size: [4, 20] }),
-      makeNode('short', { size: [4, 2] }),
+      makeNode('tall', { size: ['400%', '2000%'] }),
+      makeNode('short', { size: ['400%', '200%'] }),
     ];
     const edges = [makeEdge('tall', 'short')];
     const spacing: [number, number] = [2, 3];
@@ -258,7 +258,7 @@ describe('resolveLayout', () => {
   it('hierarchical: anchors auto layout to explicit node Y at the same level', () => {
     // Explicit node at level 0 should anchor the auto-placed level 0 node.
     const nodes = [
-      makeNode('explicit', { position: [0, 8, 0] as [number, number, number] }),
+      makeNode('explicit', { position: ['0%', '800%', '0%'] }),
       makeNode('auto-1'),
       makeNode('auto-2'),
     ];
@@ -292,9 +292,9 @@ describe('resolveLayout — grid', () => {
 
   it('uses consistent horizontal edge gaps for mixed item sizes', () => {
     const nodes = [
-      makeNode('group-left', { size: [20, 10] }),
-      makeNode('node-mid', { size: [4, 2] }),
-      makeNode('group-right', { size: [20, 10] }),
+      makeNode('group-left', { size: ['2000%', '1000%'] }),
+      makeNode('node-mid', { size: ['400%', '200%'] }),
+      makeNode('group-right', { size: ['2000%', '1000%'] }),
     ];
     const spacing: [number, number] = [3, 2];
     const positions = resolveLayout(nodes, [], grid({ columns: 3, spacing }));
@@ -317,10 +317,10 @@ describe('resolveLayout — grid', () => {
 
   it('uses consistent vertical edge gaps for mixed row heights', () => {
     const nodes = [
-      makeNode('top-tall', { size: [8, 12] }),
-      makeNode('top-short', { size: [8, 2] }),
-      makeNode('bottom-short-a', { size: [8, 2] }),
-      makeNode('bottom-short-b', { size: [8, 2] }),
+      makeNode('top-tall', { size: ['800%', '1200%'] }),
+      makeNode('top-short', { size: ['800%', '200%'] }),
+      makeNode('bottom-short-a', { size: ['800%', '200%'] }),
+      makeNode('bottom-short-b', { size: ['800%', '200%'] }),
     ];
     const spacing: [number, number] = [2, 4];
     const positions = resolveLayout(nodes, [], grid({ columns: 2, spacing }));
@@ -427,8 +427,8 @@ describe('resolveLayout — hierarchical', () => {
 
   it('top-down: spacing[0] is exact horizontal edge gap for mixed widths in a level', () => {
     const nodes = [
-      makeNode('wide', { size: [20, 2] }),
-      makeNode('narrow', { size: [4, 2] }),
+      makeNode('wide', { size: ['2000%', '200%'] }),
+      makeNode('narrow', { size: ['400%', '200%'] }),
     ];
     const positions = resolveLayout(nodes, [], hierarchical({ direction: 'top-down', spacing: [3, 2] }));
     const wide = positions.get('wide')!;
@@ -534,8 +534,8 @@ describe('resolveLayoutWithGroups', () => {
 
   it('grouped explicit positions are treated as local offsets under parent auto-layout', () => {
     const nodes = [
-      makeNode('a', { position: [-2, 0, 0] as [number, number, number] }),
-      makeNode('b', { position: [2, 0, 0] as [number, number, number] }),
+      makeNode('a', { position: ['-200%', '0%', '0%'] }),
+      makeNode('b', { position: ['200%', '0%', '0%'] }),
       makeNode('c'),
     ];
     const sizes = makeSize(nodes);
@@ -585,8 +585,8 @@ describe('resolveLayoutWithGroups', () => {
     const nodes = [makeNode('a'), makeNode('b')];
     const sizes = makeSize(nodes);
 
-    const groupsTight = [makeGroup('g1', ['a', 'b'], { layout: { kind: 'grid', spacing: [1, 1] } })];
-    const groupsWide = [makeGroup('g1', ['a', 'b'], { layout: { kind: 'grid', spacing: [20, 20] } })];
+    const groupsTight = [makeGroup('g1', ['a', 'b'], { layout: { kind: 'grid', spacing: ['100%', '100%'] } })];
+    const groupsWide = [makeGroup('g1', ['a', 'b'], { layout: { kind: 'grid', spacing: ['2000%', '2000%'] } })];
 
     const positionsTight = resolveWithGroups(nodes, [], groupsTight, grid(), sizes);
     const positionsWide = resolveWithGroups(nodes, [], groupsWide, grid(), sizes);
@@ -635,12 +635,12 @@ describe('resolveLayoutWithGroups', () => {
 
   it('all-explicit groups still obey parent layout spacing while preserving local offsets', () => {
     const consoleNodes = [
-      makeNode('con-a', { position: [-20, -6.5, 0] as [number, number, number] }),
-      makeNode('con-b', { position: [-15, -6.5, 0] as [number, number, number] }),
+      makeNode('con-a', { position: ['-2000%', '-650%', '0%'] }),
+      makeNode('con-b', { position: ['-1500%', '-650%', '0%'] }),
     ];
     const filterNodes = [
-      makeNode('if-a', { position: [0, -6.5, 0] as [number, number, number] }),
-      makeNode('if-b', { position: [5, -6.5, 0] as [number, number, number] }),
+      makeNode('if-a', { position: ['0%', '-650%', '0%'] }),
+      makeNode('if-b', { position: ['500%', '-650%', '0%'] }),
     ];
     const allNodes = [...consoleNodes, ...filterNodes];
     const sizes = makeSize(allNodes);
@@ -670,9 +670,9 @@ describe('resolveLayoutWithGroups', () => {
 
   it('ungrouped explicit nodes stay fixed while grouped explicit nodes follow parent layout', () => {
     const nodes = [
-      makeNode('a', { position: [-10, 0, 0] as [number, number, number] }),
-      makeNode('b', { position: [-5, 0, 0] as [number, number, number] }),
-      makeNode('api', { position: [0, -3, 0] as [number, number, number] }), // ungrouped
+      makeNode('a', { position: ['-1000%', '0%', '0%'] }),
+      makeNode('b', { position: ['-500%', '0%', '0%'] }),
+      makeNode('api', { position: ['0%', '-300%', '0%'] }), // ungrouped
     ];
     const sizes = makeSize(nodes);
     const groups = [makeGroup('g1', ['a', 'b'])];
@@ -768,10 +768,10 @@ describe('resolveLayoutWithGroups', () => {
     const nodes = [
       makeNode('admin'),
       makeNode('users'),
-      makeNode('con-a', { position: [-10, 0, 0] as [number, number, number] }),
-      makeNode('con-b', { position: [-6, 0, 0] as [number, number, number] }),
-      makeNode('in-a', { position: [6, 0, 0] as [number, number, number] }),
-      makeNode('in-b', { position: [10, 0, 0] as [number, number, number] }),
+      makeNode('con-a', { position: ['-1000%', '0%', '0%'] }),
+      makeNode('con-b', { position: ['-600%', '0%', '0%'] }),
+      makeNode('in-a', { position: ['600%', '0%', '0%'] }),
+      makeNode('in-b', { position: ['1000%', '0%', '0%'] }),
     ];
     const sizes = makeSize(nodes);
     const groups = [
@@ -823,10 +823,10 @@ describe('resolveLayoutWithGroups', () => {
 
 describe('resolveGroupBoundsMap', () => {
   it('groupPadding: 2 → uniform 2 on all sides', () => {
-    const nodes = [makeNode('a', { position: [0, 0, 0] })];
+    const nodes = [makeNode('a', { position: ['0%', '0%', '0%'] })];
     const sizes = makeSize(nodes);
     const positions = new Map([['a', [0, 0, 0] as const]]);
-    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: 2 } })];
+    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: '200%' } })];
     const groupLayouts = resolveGroupLayouts(groups, grid());
     const bounds = resolveGroupBoundsMap(groups, positions, sizes, groupLayouts).get('g1')!;
     expect(bounds.padding).toEqual([2, 2, 2, 2]);
@@ -837,10 +837,10 @@ describe('resolveGroupBoundsMap', () => {
   });
 
   it('groupPadding: [1, 2] → top/bottom=1, left/right=2', () => {
-    const nodes = [makeNode('a', { position: [0, 0, 0] })];
+    const nodes = [makeNode('a', { position: ['0%', '0%', '0%'] })];
     const sizes = makeSize(nodes);
     const positions = new Map([['a', [0, 0, 0] as const]]);
-    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: [1, 2] } })];
+    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: ['100%', '200%'] } })];
     const groupLayouts = resolveGroupLayouts(groups, grid());
     const bounds = resolveGroupBoundsMap(groups, positions, sizes, groupLayouts).get('g1')!;
     expect(bounds.padding).toEqual([1, 2, 1, 2]);
@@ -851,10 +851,10 @@ describe('resolveGroupBoundsMap', () => {
   });
 
   it('groupPadding: [1, 2, 3, 4] → explicit per-side padding', () => {
-    const nodes = [makeNode('a', { position: [0, 0, 0] })];
+    const nodes = [makeNode('a', { position: ['0%', '0%', '0%'] })];
     const sizes = makeSize(nodes);
     const positions = new Map([['a', [0, 0, 0] as const]]);
-    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: [1, 2, 3, 4] } })];
+    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: ['100%', '200%', '300%', '400%'] } })];
     const groupLayouts = resolveGroupLayouts(groups, grid());
     const bounds = resolveGroupBoundsMap(groups, positions, sizes, groupLayouts).get('g1')!;
     expect(bounds.padding).toEqual([1, 2, 3, 4]);
@@ -865,20 +865,20 @@ describe('resolveGroupBoundsMap', () => {
   });
 
   it('titleGap propagates to GroupBounds.titleGap', () => {
-    const nodes = [makeNode('a', { position: [0, 0, 0] })];
+    const nodes = [makeNode('a', { position: ['0%', '0%', '0%'] })];
     const sizes = makeSize(nodes);
     const positions = new Map([['a', [0, 0, 0] as const]]);
-    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', titleGap: 0.9 } })];
+    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', titleGap: '90%' } })];
     const groupLayouts = resolveGroupLayouts(groups, grid());
     const bounds = resolveGroupBoundsMap(groups, positions, sizes, groupLayouts).get('g1')!;
     expect(bounds.titleGap).toBe(0.9);
   });
 
   it('bounds.padding is [top, right, bottom, left] tuple', () => {
-    const nodes = [makeNode('a', { position: [0, 0, 0] })];
+    const nodes = [makeNode('a', { position: ['0%', '0%', '0%'] })];
     const sizes = makeSize(nodes);
     const positions = new Map([['a', [0, 0, 0] as const]]);
-    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: [1, 2, 3, 4] } })];
+    const groups = [makeGroup('g1', ['a'], { layout: { kind: 'grid', groupPadding: ['100%', '200%', '300%', '400%'] } })];
     const groupLayouts = resolveGroupLayouts(groups, grid());
     const bounds = resolveGroupBoundsMap(groups, positions, sizes, groupLayouts).get('g1')!;
     expect(bounds.padding).toEqual([1, 2, 3, 4]);
@@ -891,9 +891,9 @@ describe('resolveLayoutWithGroups — connection affinity', () => {
     // Closest-edge-wins: a aligns to c, not the mean of b and c, and not the group center.
     const nodes = [
       makeNode('a'),
-      makeNode('b', { position: [0, 0, 0] as [number, number, number] }),
-      makeNode('c', { position: [1, 0, 0] as [number, number, number] }),
-      makeNode('d', { position: [4, 0, 0] as [number, number, number] }),
+      makeNode('b', { position: ['0%', '0%', '0%'] }),
+      makeNode('c', { position: ['100%', '0%', '0%'] }),
+      makeNode('d', { position: ['400%', '0%', '0%'] }),
     ];
     const sizes = makeSize(nodes);
     const groups = [makeGroup('g1', ['b', 'c', 'd'])];
@@ -915,15 +915,15 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
     // Root: hierarchical top-down. Group: GridLayout (columns=4).
     // All nodes have no explicit positions.
     const nodes = [
-      makeNode('in-episodic', { size: [7, 2.8] }),
-      makeNode('s1', { size: [5, 2.8] }),
-      makeNode('s2', { size: [5, 2.8] }),
-      makeNode('s3', { size: [5, 2.8] }),
-      makeNode('s4', { size: [5, 2.8] }),
-      makeNode('s5', { size: [5, 2.8] }),
-      makeNode('s6', { size: [5, 2.8] }),
-      makeNode('s7', { size: [5, 2.8] }),
-      makeNode('out-neo', { size: [7, 2.8] }),
+      makeNode('in-episodic', { size: ['700%', '280%'] }),
+      makeNode('s1', { size: ['500%', '280%'] }),
+      makeNode('s2', { size: ['500%', '280%'] }),
+      makeNode('s3', { size: ['500%', '280%'] }),
+      makeNode('s4', { size: ['500%', '280%'] }),
+      makeNode('s5', { size: ['500%', '280%'] }),
+      makeNode('s6', { size: ['500%', '280%'] }),
+      makeNode('s7', { size: ['500%', '280%'] }),
+      makeNode('out-neo', { size: ['700%', '280%'] }),
     ];
     const groups = [
       makeGroup('g1', ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], {
@@ -936,7 +936,7 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
       makeEdge('s4', 's5'), makeEdge('s5', 's6'), makeEdge('s6', 's7'),
       makeEdge('s7', 'out-neo'),
     ];
-    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const sizes = makeSize(nodes);
     const groupLayouts = resolveGroupLayouts(groups, hierarchical());
     const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
 
@@ -959,15 +959,15 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
     // Fix: affinity must be skipped when candidates.length === 1 AND the node is alone at
     // its hierarchical level. Both nodes must stay near X=0 (group center).
     const nodes = [
-      makeNode('in-episodic', { size: [7, 2.8] }),
-      makeNode('s1', { size: [5, 2.8] }),
-      makeNode('s2', { size: [5, 2.8] }),
-      makeNode('s3', { size: [5, 2.8] }),
-      makeNode('s4', { size: [5, 2.8] }),
-      makeNode('s5', { size: [5, 2.8] }),
-      makeNode('s6', { size: [5, 2.8] }),
-      makeNode('s7', { size: [5, 2.8] }),
-      makeNode('out-neo', { size: [7, 2.8] }),
+      makeNode('in-episodic', { size: ['700%', '280%'] }),
+      makeNode('s1', { size: ['500%', '280%'] }),
+      makeNode('s2', { size: ['500%', '280%'] }),
+      makeNode('s3', { size: ['500%', '280%'] }),
+      makeNode('s4', { size: ['500%', '280%'] }),
+      makeNode('s5', { size: ['500%', '280%'] }),
+      makeNode('s6', { size: ['500%', '280%'] }),
+      makeNode('s7', { size: ['500%', '280%'] }),
+      makeNode('out-neo', { size: ['700%', '280%'] }),
     ];
     const groups = [
       makeGroup('g1', ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], {
@@ -980,7 +980,7 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
       makeEdge('s4', 's5'), makeEdge('s5', 's6'), makeEdge('s6', 's7'),
       makeEdge('s7', 'out-neo'),
     ];
-    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const sizes = makeSize(nodes);
     const groupLayouts = resolveGroupLayouts(groups, hierarchical());
     const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
 
@@ -999,9 +999,9 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
     // so affinity is a no-op: both remain near X=0 (group center). Primary Y ordering still holds.
     const nodes = [
       makeNode('entry'),
-      makeNode('a', { size: [4, 2] }),
-      makeNode('b', { size: [4, 2] }),
-      makeNode('c', { size: [4, 2] }),
+      makeNode('a', { size: ['400%', '200%'] }),
+      makeNode('b', { size: ['400%', '200%'] }),
+      makeNode('c', { size: ['400%', '200%'] }),
       makeNode('exit'),
     ];
     const groups = [makeGroup('g1', ['a', 'b', 'c'], { layout: { kind: 'grid', columns: 3 } })];
@@ -1009,7 +1009,7 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
       makeEdge('entry', 'a'),  // sole edge from entry into group
       makeEdge('c', 'exit'),   // sole edge from group to exit
     ];
-    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const sizes = makeSize(nodes);
     const groupLayouts = resolveGroupLayouts(groups, hierarchical());
     const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
 
@@ -1030,16 +1030,16 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
     // → closest wins = mid. src should be near mid's X, not left's X, and not the mean.
     const nodes = [
       makeNode('src'),
-      makeNode('left', { size: [4, 2] }),
-      makeNode('mid',  { size: [4, 2] }),
-      makeNode('right', { size: [4, 2] }),
+      makeNode('left', { size: ['400%', '200%'] }),
+      makeNode('mid',  { size: ['400%', '200%'] }),
+      makeNode('right', { size: ['400%', '200%'] }),
     ];
     const groups = [makeGroup('g1', ['left', 'mid', 'right'], { layout: { kind: 'grid', columns: 3 } })];
     const edges = [
       makeEdge('src', 'left'),   // edgeIndex 0 — far left of group
       makeEdge('src', 'mid'),    // edgeIndex 1 — center of group (closer to src natural X=0)
     ];
-    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const sizes = makeSize(nodes);
     const groupLayouts = resolveGroupLayouts(groups, hierarchical());
     const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
 
@@ -1056,19 +1056,17 @@ describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup
     // src connects to both. Both are equidistant from src's natural X=0.
     // DSL order: left-node edge first, right-node edge second.
     // Expected: src aligns with left-node (earlier in DSL).
-    const leftOffset  = -5;
-    const rightOffset =  5;
     const nodes = [
       makeNode('src'),
-      makeNode('left-node',  { position: [leftOffset,  0, 0] as [number, number, number] }),
-      makeNode('right-node', { position: [rightOffset, 0, 0] as [number, number, number] }),
+      makeNode('left-node',  { position: ['-500%', '0%', '0%'] }),
+      makeNode('right-node', { position: ['500%', '0%', '0%'] }),
     ];
     const groups = [makeGroup('g1', ['left-node', 'right-node'])];
     const edges = [
       makeEdge('src', 'left-node'),   // edgeIndex 0 (DSL-first)
       makeEdge('src', 'right-node'),  // edgeIndex 1 (DSL-second)
     ];
-    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const sizes = makeSize(nodes);
     const groupLayouts = resolveGroupLayouts(groups, hierarchical());
     const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
 
@@ -1141,7 +1139,7 @@ const flow = (overrides: Partial<ResolvedFlowLayout> = {}): ResolvedFlowLayout =
 
 describe('resolveFlowLayout', () => {
   it('top-down: mixed heights maintain correct edge-to-edge gap', () => {
-    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 4] }), makeNode('c', { size: [4, 2] })];
+    const nodes = [makeNode('a', { size: ['400%', '200%'] }), makeNode('b', { size: ['400%', '400%'] }), makeNode('c', { size: ['400%', '200%'] })];
     const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['a', 'b', 'c'], [4, 2]);
     // a: center=0, half=1, trailing=-1
     // b: center=-1-2-2=-5, half=2, trailing=-7
@@ -1154,7 +1152,7 @@ describe('resolveFlowLayout', () => {
   });
 
   it('left-right: mixed widths maintain correct edge-to-edge gap', () => {
-    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [6, 2] }), makeNode('c', { size: [2, 2] })];
+    const nodes = [makeNode('a', { size: ['400%', '200%'] }), makeNode('b', { size: ['600%', '200%'] }), makeNode('c', { size: ['200%', '200%'] })];
     const result = resolveFlowLayout(nodes, flow({ direction: 'left-right', gap: 1 }), ['a', 'b', 'c'], [4, 2]);
     // a: center=0, half=2, trailing=2
     // b: center=2+1+3=6, half=3, trailing=9
@@ -1169,9 +1167,9 @@ describe('resolveFlowLayout', () => {
   it('synthetic group block (__group__::id) is treated as a regular node by size', () => {
     // Flow layout receives synthetic nodes for child groups with their padded sizes.
     const nodes = [
-      makeNode('a', { size: [4, 2] }),
-      makeNode('__group__::grp', { size: [8, 6], label: '__group__::grp' }),
-      makeNode('b', { size: [4, 2] }),
+      makeNode('a', { size: ['400%', '200%'] }),
+      makeNode('__group__::grp', { size: ['800%', '600%'], label: '__group__::grp' }),
+      makeNode('b', { size: ['400%', '200%'] }),
     ];
     const result = resolveFlowLayout(
       nodes,
@@ -1187,7 +1185,7 @@ describe('resolveFlowLayout', () => {
   });
 
   it('gap=0: items placed immediately adjacent (no space between)', () => {
-    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
+    const nodes = [makeNode('a', { size: ['400%', '200%'] }), makeNode('b', { size: ['400%', '200%'] })];
     const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 0 }), ['a', 'b'], [4, 2]);
     expect(result.get('a')).toEqual([0, 0, 0]);
     // a: center=0, half=1, trailing=-1; b: center=-1-0-1=-2
@@ -1195,7 +1193,7 @@ describe('resolveFlowLayout', () => {
   });
 
   it('single item: placed at primary axis origin', () => {
-    const nodes = [makeNode('solo', { size: [6, 3] })];
+    const nodes = [makeNode('solo', { size: ['600%', '300%'] })];
     const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['solo'], [4, 2]);
     expect(result.get('solo')).toEqual([0, 0, 0]);
   });
@@ -1217,7 +1215,7 @@ describe('resolveFlowLayout', () => {
   });
 
   it('childrenOrder entries not present in nodes are silently dropped', () => {
-    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
+    const nodes = [makeNode('a', { size: ['400%', '200%'] }), makeNode('b', { size: ['400%', '200%'] })];
     const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'phantom', 'b'], [4, 2]);
     // a above b; phantom not in result
     expect(result.get('a')![1]).toBeGreaterThan(result.get('b')![1]);
@@ -1229,10 +1227,10 @@ describe('resolveFlowLayout', () => {
     // Root: FlowLayout top-down — items: nodeA, group g1 (containing x,y), nodeB
     // childrenOrder: a, g1, b — group is between the two nodes
     const nodes = [
-      makeNode('a', { size: [4, 2] }),
-      makeNode('b', { size: [4, 2] }),
-      makeNode('x', { size: [4, 2] }),
-      makeNode('y', { size: [4, 2] }),
+      makeNode('a', { size: ['400%', '200%'] }),
+      makeNode('b', { size: ['400%', '200%'] }),
+      makeNode('x', { size: ['400%', '200%'] }),
+      makeNode('y', { size: ['400%', '200%'] }),
     ];
     const groups = [makeGroup('g1', ['x', 'y'])];
     const sizes = makeSize(nodes);

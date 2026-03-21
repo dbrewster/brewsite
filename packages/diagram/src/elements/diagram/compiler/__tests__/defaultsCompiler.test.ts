@@ -3,18 +3,18 @@
 import { describe, it, expect } from 'vitest';
 import { buildNodeDefaults, buildEdgeDefaults, buildGroupDefaults } from '../defaultsCompiler';
 import { darkGlassTheme } from '../../themes/darkGlass';
+import { resolveToNVS } from '@brewsite/core';
 
 // ─── buildNodeDefaults ────────────────────────────────────────────────────────
 
 describe('buildNodeDefaults — theme-driven defaults', () => {
   it('uses theme.node.defaultSize for size', () => {
     const nd = buildNodeDefaults(darkGlassTheme);
-    expect(nd.size).toEqual(darkGlassTheme.node.defaultSize);
     expect(nd.size).toEqual([0.15, 0.08]);
   });
 
   it('uses theme.node.defaultSize from a custom theme, not a hardcoded constant', () => {
-    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultSize: [6, 3] as const } };
+    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultSize: ['600%', '300%'] as const } };
     const nd = buildNodeDefaults(customTheme);
     expect(nd.size).toEqual([6, 3]);
   });
@@ -52,7 +52,7 @@ describe('buildNodeDefaults — theme-driven defaults', () => {
   });
 
   it('reads iconDepth from theme.node.defaultIconDepth', () => {
-    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultIconDepth: 0.15 } };
+    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultIconDepth: '15%' } };
     const nd = buildNodeDefaults(customTheme);
     expect(nd.iconDepth).toBe(0.15);
   });
@@ -126,7 +126,7 @@ describe('buildEdgeDefaults — theme-driven defaults', () => {
   });
 
   it('reads thickness from theme.edge.defaultThickness', () => {
-    const customTheme = { ...darkGlassTheme, edge: { ...darkGlassTheme.edge, defaultThickness: 0.08 } };
+    const customTheme = { ...darkGlassTheme, edge: { ...darkGlassTheme.edge, defaultThickness: '8%' } };
     const ed = buildEdgeDefaults(customTheme);
     expect(ed.thickness).toBe(0.08);
   });
@@ -153,7 +153,7 @@ describe('buildEdgeDefaults — theme-driven defaults', () => {
 
   it('reads flowTurnRadius from theme.edge', () => {
     const ed = buildEdgeDefaults(darkGlassTheme);
-    expect(ed.flowTurnRadius).toBe(darkGlassTheme.edge.flowTurnRadius);
+    expect(ed.flowTurnRadius).toBe(resolveToNVS(darkGlassTheme.edge.flowTurnRadius));
   });
 
   it('reads flowBundleStrength from theme.edge', () => {

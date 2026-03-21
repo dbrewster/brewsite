@@ -58,7 +58,7 @@ const spotlights: SpotlightDef[] = Array.from({ length: 7 }, () => {
   return {
     color:     randColor(),
     intensity: 60 + rng() * 50,
-    angle:     Math.PI / 28 + rng() * Math.PI / 10,
+    angle:     `${Math.PI / 28 + rng() * Math.PI / 10}rad` as `${number}rad`,
     orbit:     ((t: number): [number, number, number] => [
       Math.sin(t * fX + pX) * aX,
       Math.sin(t * fY + pY) * aY + oY,
@@ -91,7 +91,7 @@ function SharedEnv(): JSX.Element {
     <>
       <ProgressManager scrollUnits={800} />
       <Floor variant='grid' negativeZExtent={20}/>
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <SpotlightRig center={[0, 0, 4]} target={[0, 0, -5]} height={1} showBeam={false} distance={0} decay={1} penumbra={0.5}>
         {spotlights.map((s, i) => <Spotlight key={i} {...s} />)}
       </SpotlightRig>
@@ -111,8 +111,8 @@ function CarouselViews(): JSX.Element {
   return (
     <>
       {/* index 0 */}
-      <View id="cv1" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-1" data={dataA} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="cv1" w={"40%"} h={"50%"}>
+        <BarChart id="carousel-chart-1" data={dataA} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score A" />
@@ -120,47 +120,47 @@ function CarouselViews(): JSX.Element {
         </BarChart>
       </View>
       {/* index 1 — diagram adjacent to charts; ring z-offset ≈−2.8 instead of ≈−12.2 */}
-      <View id="cv5" w={0.4} h={0.5}>
-        <Diagram id="cf-overview-2" x={0} y={0} w={1} h={1} scale={1.4}>
-          <FlowLayout direction="top-down" gap={0.06} />
+      <View id="cv5" w={"40%"} h={"50%"}>
+        <Diagram id="cf-overview-2" x={0} y={0} w={"100%"} h={"100%"} scale={1.4}>
+          <FlowLayout direction="top-down" gap={"6%"} />
 
           <DiagramNode
             id="cf-db"
             label=".swarm/memory.db"
             sublabel="SQLite · single file · 12 tables"
-            size={[0.30, 0.10]}
+            size={["0.3u", "0.1u"]}
             glow={{ intensity: 0.12 }}
           />
 
           <DiagramGroup id="cf-categories" variant="container">
-            <GridLayout columns={2} spacing={[0.12, 0.06]} />
+            <GridLayout columns={2} spacing={["12%", "6%"]} />
 
             <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
           </DiagramGroup>
 
@@ -171,8 +171,8 @@ function CarouselViews(): JSX.Element {
         </Diagram>
       </View>
       {/* index 2 */}
-      <View id="cv2" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-2" data={dataB} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="cv2" w={"40%"} h={"50%"}>
+        <BarChart id="carousel-chart-2" data={dataB} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score B" />
@@ -180,8 +180,8 @@ function CarouselViews(): JSX.Element {
         </BarChart>
       </View>
       {/* index 3 */}
-      <View id="cv3" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-3" data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="cv3" w={"40%"} h={"50%"}>
+        <BarChart id="carousel-chart-3" data={dataC} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score C" />
@@ -189,8 +189,8 @@ function CarouselViews(): JSX.Element {
         </BarChart>
       </View>
       {/* index 4 */}
-      <View id="cv4" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-4" data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="cv4" w={"40%"} h={"50%"}>
+        <BarChart id="carousel-chart-4" data={dataC} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score C" />
@@ -198,8 +198,8 @@ function CarouselViews(): JSX.Element {
         </BarChart>
       </View>
       {/* index 5 */}
-      <View id="cv6" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-6" orientation={'horizontal'} data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="cv6" w={"40%"} h={"50%"}>
+        <BarChart id="carousel-chart-6" orientation={'horizontal'} data={dataC} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score C" />
@@ -207,8 +207,8 @@ function CarouselViews(): JSX.Element {
         </BarChart>
       </View>
       {/* index 6 */}
-      <View id="cv7" w={0.4} h={0.5}>
-        <LineChart id="carousel-chart-7" data={dataC} x={0} y={0} w={1} h={1}
+      <View id="cv7" w={"40%"} h={"50%"}>
+        <LineChart id="carousel-chart-7" data={dataC} x={0} y={0} w={"100%"} h={"100%"}
                    lineShape="circle"
                    lineSmoothness={0.5}
                    showPoints={true}

@@ -34,11 +34,13 @@ describe('resolveInputTargets', () => {
     expect(result.keyboardTarget).toBe(stage);
   });
 
-  it('falls back keyboard target to document when stageContainer is null', () => {
+  it('falls back keyboard target to canvasContainer when stageContainer is null', () => {
     const canvas = document.createElement('div');
     const result = resolveInputTargets('canvas', canvas, null);
     expect(result.pointerTarget).toBe(canvas);
-    expect(result.keyboardTarget).toBe(document);
+    // When no scroll stage, keyboard events go to the canvas container itself
+    // (multi-engine: each canvas receives keyboard events when focused).
+    expect(result.keyboardTarget).toBe(canvas);
   });
 
   it('falls back both targets when both containers are null', () => {

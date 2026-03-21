@@ -24,6 +24,7 @@ const makeState = (overrides: Partial<ImagePanelState> = {}): ImagePanelState =>
   glowScale: 1.4,
   glowOpacity: 0.35,
   enabled: true,
+  uniformSizing: false,
   ...overrides,
 });
 

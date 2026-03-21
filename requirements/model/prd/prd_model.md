@@ -3,7 +3,7 @@ title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
 status: approved
 owner: Toolkit Product
-last_updated: 2026-03-17
+last_updated: 2026-03-21
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
@@ -32,6 +32,9 @@ change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "v1 release readiness audit: barrel export audit completed. Promoted 12 types to public barrel including AxisRotation, AxisTranslation, PoseGroup, ModelPose, CustomAnimationContext, CustomAnimationOp, LabelColor, SceneMotion, modelTransitionSpec, playbackTransitionSpec, compileAnimation, resolveClipRangeSeconds. These are now importable from the main @brewsite/model entry point."
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system migration. ModelProps.rotation changed from Resolvable<[number, number, number]> to Resolvable<[SceneAngle, SceneAngle, SceneAngle]> as part of the cross-package CSS-inspired unit system. SceneAngle accepts '${number}deg' | '${number}rad' | 0. Compiled state (SceneModel.rotation: Vec3) remains number (radians) — only DSL authoring surface changed. Semver impact is major. Added SceneAngle to @brewsite/core dependency list. Documented known gap: ModelProps x/y/w/h not yet migrated to SceneLength (low-priority follow-up). Updated DSL examples to use unit strings. Referenced migration guide at packages/claude-author/docs/migration/unit-system.md."
 ---
 
 # @brewsite/model — GLTF Model & Label System
@@ -176,11 +179,11 @@ The full DSL surface lives in `ModelWidget.ts` as null-returning stubs. `dsl.tsx
 <Model
   type="robot"          // Required: matches manifest model type; determines widget to route to
   id="robot-1"          // Required: widget instance ID in the runtime registry
-  scale={1}
+  scale={1}             // Dimensionless multiplier (viewport-relative)
   z={0}                 // World-space Z depth (default 0)
-  rotation={[0, 0, 0]}
+  rotation={["0deg", "0deg", "0deg"]}  // SceneAngle triples: "Ndeg" or "Nrad"
   opacity={1}
-  x={0} y={0} w={1} h={1}  // NVS sub-region (defaults to fullscreen)
+  x={0} y={0} w={1} h={1}  // NVS sub-region (bare numbers; see Known Gaps below)
   enabled={true}
 >
   <Playback>
@@ -379,9 +382,9 @@ export type ScenePlayback = {
 
 export type SceneModel = {
   /**
-   * Viewport-relative scale factor. The world-space scale applied to the model's Object3D is:
-   * `worldScale = scale * context.coords.visibleWorldHeight`. A value of `0.06` is typical
-   * for a human figure (≈ 6% of viewport height).
+   * Viewport-relative scale factor (dimensionless). The world-space scale applied to the
+   * model's Object3D is: `worldScale = scale * context.coords.visibleWorldHeight`.
+   * A value of `0.06` is typical for a human figure (≈ 6% of viewport height).
    */
   scale: number;
   /**
@@ -397,6 +400,7 @@ export type SceneModel = {
   nvsY: number;
   /** World-space Z depth of the model center. Default: 0. */
   z: number;
+  /** Rotation in radians (Euler XYZ). Compiled from SceneAngle DSL props at compile time. */
   rotation: Vec3;
   opacity?: number;
   metalness?: number;
@@ -433,9 +437,9 @@ export type SceneModelInstanceState = {
 export type ModelProps = {
   type: string;                         // Required: manifest model type
   id: string;                           // Required: widget instance ID
-  scale?: Resolvable<number>;
-  z?: Resolvable<number>;
-  rotation?: Resolvable<[number, number, number]>;
+  scale?: Resolvable<number>;           // Dimensionless viewport-relative multiplier
+  z?: Resolvable<number>;               // World-space Z depth
+  rotation?: Resolvable<[SceneAngle, SceneAngle, SceneAngle]>;  // e.g. ["0deg", "45deg", "0deg"]
   opacity?: Resolvable<number>;
   metalness?: Resolvable<number>;
   roughness?: Resolvable<number>;
@@ -443,10 +447,10 @@ export type ModelProps = {
   roughnessMultiplier?: Resolvable<number>;
   enabled?: Resolvable<boolean>;
   reset?: Resolvable<boolean>;
-  x?: number;   // NVS x-coordinate of viewport region [0, 1], default 0
-  y?: number;   // NVS y-coordinate of viewport region [0, 1], default 0
-  w?: number;   // NVS width of viewport region [0, 1], default 1
-  h?: number;   // NVS height of viewport region [0, 1], default 1
+  x?: number;   // NVS x-coordinate of viewport region [0, 1], default 0 (see Known Gaps)
+  y?: number;   // NVS y-coordinate of viewport region [0, 1], default 0 (see Known Gaps)
+  w?: number;   // NVS width of viewport region [0, 1], default 1 (see Known Gaps)
+  h?: number;   // NVS height of viewport region [0, 1], default 1 (see Known Gaps)
   children?: ReactNode;
 };
 
@@ -908,19 +912,33 @@ The `compileAnimation()` function (called from `ModelWidget.compileExtra()`) res
 
 Inside the `CUSTOM_NODE_HANDLER`, the model calls `api.composeBounds(localBounds)` to resolve its NVS bounds when placed inside a parent `<View>`. This returns `localBounds` unchanged at the root level (identity). The composed `nvsBounds` is stored on `SceneModelInstanceState.nvsBounds` and reflected by `ModelWidget.nvsBounds` (satisfying `INVSBounded`) for use by `LabelPositionerSyncer`.
 
+### Scene Unit System
+
+The `@brewsite/model` DSL uses the cross-package CSS-inspired scene unit system for angular props. `ModelProps.rotation` accepts `Resolvable<[SceneAngle, SceneAngle, SceneAngle]>` where `SceneAngle` is `"${number}deg"` | `"${number}rad"` | 0. The `modelDslHandler` resolves these to radians at compile time before storing in `SceneModel.rotation: Vec3`. Compiled state remains pure `number` throughout — the unit system is confined to the DSL authoring surface.
+
+Dimensionless props (`scale`, `opacity`, `metalness`, `roughness`, `metalnessMultiplier`, `roughnessMultiplier`) remain `number` because they are multipliers or normalized [0, 1] values, not spatial measurements. World-space `z` remains `number` because it is a raw world-space depth value, not an NVS coordinate.
+
+**Known gap (low priority):** `ModelProps.x`, `y`, `w`, `h` (NVS sub-region) remain bare `number` and have not been migrated to `SceneLength`. These are static NVS layout coordinates (not animatable `Resolvable` props) and are consumed directly by `api.composeBounds()`. Migration to `SceneLength` with `%` units is a low-priority follow-up.
+
 ---
 
 ## 9. Breaking Change Assessment
 
-**Semver impact: None** for current consumers. The existing DSL surface (`<Model>`, `<BodyPart>`, `<Animation>`, `<Motion>`) is stable. The `SceneModel` type changed its coordinate representation from `position: Vec3` to `nvsX/nvsY/z` (scalars) — this was an internal migration and `SceneModelInstanceState` is not expected to be constructed directly by consumers (they use DSL props).
+**Semver impact: Major** (scene unit system). The `ModelProps.rotation` DSL prop changed from `Resolvable<[number, number, number]>` to `Resolvable<[SceneAngle, SceneAngle, SceneAngle]>`. Consumers must update rotation values from bare numbers (e.g., `rotation={[0, Math.PI / 4, 0]}`) to explicit angle unit strings (e.g., `rotation={["0deg", "45deg", "0deg"]}`). The `SceneAngle` type is `"${number}deg"` | `"${number}rad"` | 0. The literal `0` is accepted as a shorthand for zero rotation on any axis.
 
-`instanceTransitionSpec` has been removed. Consumers must use `functionalInstanceTransitionSpec` instead.
+This is part of a cross-package CSS-inspired scene unit system. All BrewSite DSL spatial props now require explicit unit strings. Compiled state types (`SceneModel.rotation: Vec3`) remain `number` (radians) — only the DSL authoring surface changed. The `modelDslHandler` resolves `SceneAngle` values to radians at compile time.
+
+See the migration guide at `packages/claude-author/docs/migration/unit-system.md` for a comprehensive list of changes across all packages.
+
+Previous breaking changes (already shipped):
+- `SceneModel` coordinate representation changed from `position: Vec3` to `nvsX/nvsY/z` (scalars) — internal migration; `SceneModelInstanceState` is not expected to be constructed directly by consumers.
+- `instanceTransitionSpec` has been removed. Consumers must use `functionalInstanceTransitionSpec` instead.
 
 ---
 
 ## 10. Dependencies
 
-- `@brewsite/core` (peer): `ISceneElement`, `IRenderable`, `ILoadable`, `IDslComposite`, `IAttachmentHost`, `IRenderContributor`, `IHasCustomDslHandler`, `INVSBounded`, `IContainedRenderable`, `CUSTOM_NODE_HANDLER`, `ViewportScaleContext`, `NVSRect`, `Vec3`, `Resolvable`, `FunctionalTransitionSpec`, `ElementTransitionSpec`, `blendNumber`, `blendVec3`, `blendOpacity`, `blendColor`, `blendAxisRotation`, `blendAxisTranslation`, `resolveEnabledByOpacity`, `transitionT`, `registerNode`, `getNodeHandler`, `validateNVSScalar`, `validateNVSRect`.
+- `@brewsite/core` (peer): `ISceneElement`, `IRenderable`, `ILoadable`, `IDslComposite`, `IAttachmentHost`, `IRenderContributor`, `IHasCustomDslHandler`, `INVSBounded`, `IContainedRenderable`, `CUSTOM_NODE_HANDLER`, `ViewportScaleContext`, `NVSRect`, `Vec3`, `Resolvable`, `SceneAngle`, `FunctionalTransitionSpec`, `ElementTransitionSpec`, `blendNumber`, `blendVec3`, `blendOpacity`, `blendColor`, `blendAxisRotation`, `blendAxisTranslation`, `resolveEnabledByOpacity`, `transitionT`, `registerNode`, `getNodeHandler`, `validateNVSScalar`, `validateNVSRect`.
 - `three` (peer): `GLTFLoader`, `AnimationMixer`, `AnimationAction`, `Camera`, `Vector3`.
 - `react` (peer): context, hooks, element creation.
 

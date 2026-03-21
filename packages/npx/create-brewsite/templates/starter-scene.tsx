@@ -4,7 +4,7 @@ import { Camera, Background, Lighting, Ambient, Directional } from '@brewsite/co
 export function IntroScene(): JSX.Element {
   return (
     <Scene id="intro">
-      <Camera mode="orbit" distance={5} azimuth={0} polar={70} fov={45} />
+      <Camera mode="orbit" distance={5} azimuth={0} polar={"70deg"} fov={"45deg"} />
       <Background color="#0f172a" />
       <Lighting>
         <Ambient intensity={0.4} />

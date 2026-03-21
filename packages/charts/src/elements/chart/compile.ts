@@ -1,7 +1,7 @@
 // Pure compilation functions for the chart element — no Three.js, no React render.
 
-import { blendNumber, blendOpacity, validateNVSRect } from '@brewsite/core';
-import type { FunctionalTransitionSpec, NVSRect, TransitionContext } from '@brewsite/core';
+import { blendNumber, blendOpacity, validateNVSRect, resolveToNVS, isUniformUnit, resolveAngle } from '@brewsite/core';
+import type { FunctionalTransitionSpec, NVSRect, TransitionContext, SceneLength, SceneAngle } from '@brewsite/core';
 import { normalizeDataInput } from '../../data/transforms';
 import type {
   ChartState,
@@ -49,6 +49,7 @@ export const DEFAULT_CHART_STATE: ChartState = {
   z: 0,
   rotation: [0, 0, 0],
   bounds: { width: 1.0, height: 1.0, depth: 0.4 },
+  uniformSizing: false,
   dataSource: { type: 'named', name: '' },
   transforms: [],
   xAxis: null,
@@ -265,11 +266,19 @@ export function compileChart(
   const xAxisDsl = axisDsls.find((a) => a.axis === 'x') ?? null;
   const yAxisDsl = axisDsls.find((a) => a.axis === 'y') ?? null;
 
-  const x = dsl.x ?? 0;
-  const y = dsl.y ?? 0;
-  const w = dsl.w ?? 1;
-  const h = dsl.h ?? 1;
+  // Resolve SceneLength DSL values to NVS fractions
+  const x = dsl.x !== undefined ? resolveToNVS(dsl.x) : 0;
+  const y = dsl.y !== undefined ? resolveToNVS(dsl.y) : 0;
+  const w = dsl.w !== undefined ? resolveToNVS(dsl.w) : 1;
+  const h = dsl.h !== undefined ? resolveToNVS(dsl.h) : 1;
   const localBounds: NVSRect = { x, y, w, h };
+
+  // Determine uniformSizing: true if any size/position prop uses the `u` unit
+  const uniformSizing =
+    (dsl.w !== undefined && isUniformUnit(dsl.w)) ||
+    (dsl.h !== undefined && isUniformUnit(dsl.h)) ||
+    (dsl.x !== undefined && isUniformUnit(dsl.x)) ||
+    (dsl.y !== undefined && isUniformUnit(dsl.y));
 
   // Compose into parent view/region if present. Identity when no parent.
   const nvsBounds: NVSRect = composeBoundsFn ? composeBoundsFn(localBounds) : localBounds;
@@ -316,17 +325,23 @@ export function compileChart(
   const localOpacity = dsl.opacity ?? 1;
   const composedOpacity = composeOpacityFn ? composeOpacityFn(localOpacity) : localOpacity;
 
+  // Resolve rotation angles (SceneAngle → radians)
+  const rotation: readonly [number, number, number] = dsl.rotation
+    ? [resolveAngle(dsl.rotation[0]), resolveAngle(dsl.rotation[1]), resolveAngle(dsl.rotation[2])]
+    : DEFAULT_CHART_STATE.rotation;
+
   return {
     type: kind,
     nvsX: nvsBounds.x + nvsBounds.w / 2,
     nvsY: nvsBounds.y + nvsBounds.h / 2,
     z: composedZ,
-    rotation: dsl.rotation ?? DEFAULT_CHART_STATE.rotation,
+    rotation,
     bounds: {
       width: nvsBounds.w,
       height: nvsBounds.h,
       depth: boundsDepth,
     },
+    uniformSizing,
     dataSource,
     transforms: dataDsl?.transforms ?? [],
     filterGroup: dataDsl?.filterGroup,

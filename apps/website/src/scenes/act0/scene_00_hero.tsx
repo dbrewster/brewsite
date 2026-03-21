@@ -8,7 +8,7 @@ import {dwellFn} from '../../utils/pacing';
 
 const MIRROR_RES = isMobile ? 512 : 1024;
 
-export const scene00Hero = (
+export const Scene00Hero = () => (
   <Scene id="website-hero-00">
     <ProgressManager
       scrollUnits={3600}
@@ -20,7 +20,7 @@ export const scene00Hero = (
       mode="world"
       position={isMobile ? [0, 2, 12] : [0, 2, 10]}
       target={[0, 1.5, 0]}
-      fov={isMobile ? 60 : 52}
+      fov={isMobile ? "60deg" : "52deg"}
     />
 
     <Lighting intensityScale={1}>
@@ -28,11 +28,10 @@ export const scene00Hero = (
       <Directional intensity={0.6} color="#4488ff" position={[-8, 12, 10]} />
       <Directional intensity={0.3} color="#00d8ff" position={[10, 6, 8]} />
     </Lighting>
-    <Background color="#050910" opacity={1} cssSize="cover" cssPosition="center" />
     <Floor enabled position={[0, 0, 0]}>
       <FloorMirror
         mirrorColor="#050910"
-        mirrorOpacity={0.2}
+        mirrorOpacity={0.1}
         mirrorResolution={MIRROR_RES}
         mirrorClipBias={0.003}
       />
@@ -41,9 +40,9 @@ export const scene00Hero = (
       enabled
       text="BrewSite"
       fontUrl="/fonts/DancingScript-Bold.woff"
-      x={0.1} y={0.2} w={0.8} h={0.35}
+      x={0.1} y={0.1} w={0.8} h={0.35}
       z={-2}
-      tilt={-Math.PI / 10}
+      tilt={0}
       color="#00f5ff"
       emissiveColor="#00d8ff"
       intensity={1.3}
@@ -67,12 +66,13 @@ export const scene00Hero = (
         <div className="hero-content hero-content--below-sign">
           <div className="hero-packages">
             <span className="hero-package-badge">@brewsite/core</span>
-            <span className="hero-package-badge">@brewsite/model</span>
             <span className="hero-package-badge">@brewsite/diagram</span>
-            <span className="hero-package-badge hero-package-badge--soon">
-              @brewsite/chart
-              <span className="hero-package-badge__soon-label">↗ soon</span>
-            </span>
+            <span className="hero-package-badge">@brewsite/model</span>
+            <span className="hero-package-badge">@brewsite/charts</span>
+            <span className="hero-package-badge">@brewsite/slides</span>
+            <span className="hero-package-badge">@brewsite/screens</span>
+            <span className="hero-package-badge">@brewsite/textures</span>
+            <span className="hero-package-badge">@brewsite/themes</span>
           </div>
         </div>
 

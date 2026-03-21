@@ -418,4 +418,12 @@ export type SceneTrack = {
    * Only present when at least one scene has overlay content.
    */
   sceneOverlays?: Map<string, ReactNode>;
+  /**
+   * Scene-to-widget membership mapping. Maps scene index → set of widget IDs
+   * that have non-default state in that scene.
+   *
+   * Produced by compileSceneTrack(). Consumed by RuntimeDriverImpl for
+   * partitioned asset loading. Absent when all scenes are loaded upfront.
+   */
+  sceneMembership?: Map<number, Set<string>>;
 };

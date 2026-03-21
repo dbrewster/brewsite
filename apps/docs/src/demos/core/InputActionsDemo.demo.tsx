@@ -52,7 +52,7 @@ export default function InputActionsDemo(): JSX.Element {
           mode="orbit"
           target={[0, 0, 0]}
           azimuth={0}
-          polar={1.2}
+          polar={"1.2rad"}
           distance={6}
           interaction={{ enabled: true }}
         />

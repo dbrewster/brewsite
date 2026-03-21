@@ -26,6 +26,7 @@ import type {
 } from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
+import { resolveAngle, resolveToNVS } from '../../units/resolve';
 
 /** Camera DSL component — returns null; consumed purely by the compiler. */
 export const Camera = (_props: CameraProps): null => null;
@@ -123,15 +124,22 @@ export class CameraWidget
 
     let descriptor: SceneCamera['descriptor'];
     if (p.mode === 'world' && 'position' in p && 'target' in p) {
-      descriptor = { mode: 'world', position: p.position, target: p.target, up: p.up };
+      descriptor = {
+        mode: 'world',
+        position: p.position,
+        target: p.target,
+        up: p.up,
+        ...(p.nvsTarget ? { nvsTarget: [resolveToNVS(p.nvsTarget[0]), resolveToNVS(p.nvsTarget[1])] as const } : {}),
+      };
     } else if (p.mode === 'orbit' && 'target' in p && 'azimuth' in p) {
       descriptor = {
         mode: 'orbit',
         target: p.target,
-        azimuth: p.azimuth,
-        polar: p.polar,
+        azimuth: resolveAngle(p.azimuth),
+        polar: resolveAngle(p.polar),
         distance: p.distance,
         up: p.up,
+        ...(p.nvsTarget ? { nvsTarget: [resolveToNVS(p.nvsTarget[0]), resolveToNVS(p.nvsTarget[1])] as const } : {}),
       };
     } else if (p.mode === 'fitFloorDepth' && 'floorY' in p) {
       descriptor = {
@@ -154,18 +162,38 @@ export class CameraWidget
       };
     }
 
+    // Resolve SceneAngle fov → degrees for compiled state.
+    // CameraLens.fov is stored as degrees (Three.js convention).
+    // resolveAngle() converts to radians, so convert back to degrees.
+    const resolvedFov = p.fov !== undefined
+      ? resolveAngle(p.fov) * (180 / Math.PI)
+      : undefined;
+
+    // Resolve interaction polar angle limits from SceneAngle → number (radians).
+    const resolvedInteraction = p.interaction
+      ? {
+          ...p.interaction,
+          minPolarAngle: p.interaction.minPolarAngle !== undefined
+            ? resolveAngle(p.interaction.minPolarAngle)
+            : undefined,
+          maxPolarAngle: p.interaction.maxPolarAngle !== undefined
+            ? resolveAngle(p.interaction.maxPolarAngle)
+            : undefined,
+        }
+      : undefined;
+
     const state: SceneCamera = {
       enabled: true,
       descriptor,
       lens: {
-        fov: p.fov,
+        fov: resolvedFov,
         focalLength: p.focalLength,
         filmGauge: p.filmGauge,
         near: p.near,
         far: p.far,
       },
       post: p.exposure !== undefined ? { exposure: p.exposure } : undefined,
-      interaction: p.interaction,
+      interaction: resolvedInteraction,
       transitionIn: p.transitionIn,
     };
     api.setWidgetState(this.widgetId, state);

@@ -55,7 +55,7 @@ export default function MultiSceneDemo(): JSX.Element {
       </Scene>
 
       <Scene key="s2" id="s2">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={1.0} polar={1.2} distance={6} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"1rad"} polar={"1.2rad"} distance={6} />
         <Lighting>
           <Ambient color="#8855ff" intensity={0.6} />
         </Lighting>

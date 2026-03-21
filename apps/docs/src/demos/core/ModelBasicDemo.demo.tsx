@@ -67,8 +67,8 @@ export default function ModelBasicDemo(): JSX.Element {
       </Scene>
 
       <Scene key="s2" id="s2" >
-        <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.8} polar={1.3} distance={4} />
-        <Model type="MaleDummy" id="character" rotation={[0, 1.2, 0]}>
+        <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={"0.8rad"} polar={"1.3rad"} distance={4} />
+        <Model type="MaleDummy" id="character" rotation={[0, "1.2rad", 0]}>
           <Playback>
             <Animation clipName="chat-relax-m" enabled clipRepeat />
           </Playback>

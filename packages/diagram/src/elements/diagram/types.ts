@@ -1,7 +1,18 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
 import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
-import type { InputActionSpec, SceneTheme, NVSRect, ThemeFamily, MaterialApplication } from '@brewsite/core';
+import type {
+  InputActionSpec,
+  SceneTheme,
+  NVSRect,
+  ThemeFamily,
+  MaterialApplication,
+  SceneLength,
+  SceneAngle,
+  SceneSize2,
+  ScenePosition3,
+  ScenePadding,
+} from '@brewsite/core';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
@@ -62,18 +73,17 @@ export interface DiagramThemeNodeConfig {
   /** Emissive intensity on the front face [0–1], tinted to node color */
   readonly defaultEmissiveIntensity: number;
   /**
-   * Default physical thickness (Z-depth) of node prism boxes as an NVS fraction
-   * of the diagram viewport width.
-   * 0.033 = card-like (neonCyber), 0.075 = standard block (enterprise), 0.210 = deep block (midnight).
+   * Default physical thickness (Z-depth) of node prism boxes as a SceneLength.
+   * "3.3%" = card-like (neonCyber), "7.5%" = standard block (enterprise), "21%" = deep block (midnight).
    */
-  readonly defaultThickness: number;
+  readonly defaultThickness: SceneLength;
   /**
-   * Corner radius as an NVS fraction of the diagram viewport width.
+   * Corner radius as a SceneLength.
    * Converted to world units in render.ts alongside size and thickness.
    * 0 = sharp BoxGeometry; > 0 = rounded box geometry.
    * Ignored for non-rect shapes (cylinder, oval, hexagon, etc.).
    */
-  readonly cornerRadius: number;
+  readonly cornerRadius: SceneLength;
   /** Glow sprite intensity behind each node [0–1]. 0 = no glow sprite. */
   readonly glowIntensity: number;
   /** Default label text color (CSS hex) */
@@ -87,12 +97,10 @@ export interface DiagramThemeNodeConfig {
   /** Default 3D icon rendering style when not specified per-node */
   readonly defaultIconStyle: SvgIcon3DStyle;
   /**
-   * Default node size as NVS fractions [width, height].
-   * width ∈ [0..1]: fraction of diagram viewport width.
-   * height ∈ [0..1]: fraction of diagram viewport height.
-   * Default: [0.15, 0.08] — 15% wide, 8% tall, 2:1 aspect ratio.
+   * Default node size as a SceneSize2.
+   * Example: ["15%", "8%"] — 15% wide, 8% tall, 2:1 aspect ratio.
    */
-  readonly defaultSize: readonly [number, number];
+  readonly defaultSize: SceneSize2;
   /**
    * Default icon scale as a fraction of node face dimensions [0..1].
    * 1.0 = icon fills full node width; 0.6 = 60% of node width.
@@ -100,17 +108,17 @@ export interface DiagramThemeNodeConfig {
    */
   readonly defaultIconScale: number;
   /**
-   * Default 3D icon extrusion depth in NVS units.
+   * Default 3D icon extrusion depth as a SceneLength.
    * Per-node iconDepth overrides this.
-   * darkGlass default: 0.15
+   * darkGlass default: "15%"
    */
-  readonly defaultIconDepth: number;
+  readonly defaultIconDepth: SceneLength;
   /** Default fill color for SVG icons on nodes. Defaults to '#ffffff' when absent. */
   readonly defaultIconColor?: string;
-  /** Default border line width in NVS units. Default: 0.005 when absent. */
-  readonly defaultNodeBorderWidth?: number;
-  /** Default border frame Z-depth in NVS units. Default: 0.005 when absent. */
-  readonly defaultNodeBorderHeight?: number;
+  /** Default border line width as a SceneLength. Default: "0.5%" when absent. */
+  readonly defaultNodeBorderWidth?: SceneLength;
+  /** Default border frame Z-depth as a SceneLength. Default: "0.5%" when absent. */
+  readonly defaultNodeBorderHeight?: SceneLength;
   /**
    * Glow sprite size as a multiple of the node bounding box [0.5..4].
    * 2.2 = glow is 2.2× the node footprint. Controls glow halo radius.
@@ -153,8 +161,8 @@ export interface DiagramThemeEdgeConfig {
   readonly defaultFlowSpeed: number;
   /** Default flow pulse width (0–1 along edge UV). */
   readonly defaultFlowWidth: number;
-  /** Default tube radius as an NVS fraction of the diagram viewport width. */
-  readonly defaultThickness: number;
+  /** Default tube radius as a SceneLength. */
+  readonly defaultThickness: SceneLength;
   /** PBR metalness for edge tubes [0–1] */
   readonly defaultMetalness: number;
   /** PBR roughness for edge tubes [0–1] */
@@ -197,19 +205,19 @@ export interface DiagramThemeEdgeConfig {
    */
   readonly organicVariation: number;
   /** Default turn radius for canonical flow routing. */
-  readonly flowTurnRadius: number;
+  readonly flowTurnRadius: SceneLength;
   /** Default outward face-normal stub distance for canonical flow routing. */
-  readonly flowFaceStub: number;
+  readonly flowFaceStub: SceneLength;
   /** Controls how long compatible sibling flow edges remain on a shared trunk before splitting. */
   readonly flowBundleStrength: number;
   /** Default obstacle padding used by canonical flow routing. */
-  readonly flowObstaclePadding: number;
+  readonly flowObstaclePadding: SceneLength;
   /** Bias toward direct target ingress after splitting from a flow trunk. */
   readonly flowTargetApproachBias: number;
   /** Default depth below the authored diagram plane for underpass routing. */
-  readonly flowUnderpassDepth: number;
+  readonly flowUnderpassDepth: SceneLength;
   /** Default vertical clearance used when entering and leaving an underpass. */
-  readonly flowUnderpassClearance: number;
+  readonly flowUnderpassClearance: SceneLength;
   /** Cost penalty multiplier for turns in the flow visibility search. */
   readonly flowTurnPenalty: number;
   /** Cost penalty applied when the flow router must puncture an obstacle. */
@@ -226,10 +234,10 @@ export interface DiagramThemeGroupConfig {
   readonly defaultColor: string;
   /** Default border color (CSS hex) */
   readonly defaultBorderColor: string;
-  /** Default border width as an NVS fraction of the diagram viewport width. */
-  readonly defaultBorderWidth: number;
-  /** Default border height (Z-depth) as an NVS fraction of the diagram viewport width. */
-  readonly defaultBorderHeight: number;
+  /** Default border width as a SceneLength. */
+  readonly defaultBorderWidth: SceneLength;
+  /** Default border height (Z-depth) as a SceneLength. */
+  readonly defaultBorderHeight: SceneLength;
   /** Default fill opacity [0–1] */
   readonly defaultFillOpacity: number;
   /** Default border opacity [0–1] */
@@ -298,34 +306,34 @@ export interface DiagramThemeLayoutConfig {
   /** Defaults applied when resolving a grid layout. */
   readonly grid?: {
     readonly columns?: number | 'auto';
-    readonly spacing?: readonly [number, number];
-    readonly margin?: number | readonly [number, number];
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly spacing?: SceneSize2;
+    readonly margin?: SceneLength | SceneSize2;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
     readonly alignment?: LayoutAlignment;
     readonly disconnected?: LayoutDisconnected;
   };
   /** Defaults applied when resolving a hierarchical layout. */
   readonly hierarchical?: {
     readonly direction?: 'top-down' | 'left-right';
-    readonly spacing?: readonly [number, number];
-    readonly margin?: number | readonly [number, number];
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly spacing?: SceneSize2;
+    readonly margin?: SceneLength | SceneSize2;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
     readonly alignment?: LayoutAlignment;
     readonly disconnected?: LayoutDisconnected;
   };
   /** Defaults applied when resolving a manual layout. */
   readonly manual?: {
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
   };
   /** Defaults applied when resolving a flow layout. */
   readonly flow?: {
     readonly direction?: 'top-down' | 'left-right';
-    readonly gap?: number;
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly gap?: SceneLength;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
   };
 }
 
@@ -564,30 +572,29 @@ export type LayoutDisconnected = 'next-to' | 'after';
  */
 export interface BaseLayoutDSL {
   /**
-   * Gap between adjacent node footprints [colGap, rowGap] in NVS fractions.
+   * Gap between adjacent node footprints [colGap, rowGap] as SceneSize2.
    * CSS box model: spacing is the gap between expanded footprints (see margin).
-   * Default: [0.06, 0.06] for grid, [0.045, 0.045] for hierarchical.
+   * Default: ["6%", "6%"] for grid, ["4.5%", "4.5%"] for hierarchical.
    */
-  readonly spacing?: readonly [number, number];
+  readonly spacing?: SceneSize2;
   /**
-   * Per-node breathing room in NVS fractions.
+   * Per-node breathing room as a SceneLength or SceneSize2.
    * Expands each node's claimed bounding box before spacing is applied.
-   * number     → uniform margin on all axes
-   * [h, v]     → separate horizontal (x) and vertical (y) margin
+   * SceneLength → uniform margin on all axes
+   * SceneSize2  → separate horizontal (x) and vertical (y) margin
    * Default: 0
    */
-  readonly margin?: number | readonly [number, number];
+  readonly margin?: SceneLength | SceneSize2;
   /**
-   * Padding inside the group boundary box in NVS fractions (CSS shorthand).
-   * Default: 0.035 (all sides)
+   * Padding inside the group boundary box as ScenePadding (CSS shorthand).
+   * Default: "3.5%"
    */
-  readonly groupPadding?: LayoutPadding;
+  readonly groupPadding?: ScenePadding;
   /**
-   * Gap in NVS fractions between the group title label
-   * and the top of the group's content area.
-   * Default: 0.025
+   * Gap between the group title label and the top of the group's content area as a SceneLength.
+   * Default: "2.5%"
    */
-  readonly titleGap?: number;
+  readonly titleGap?: SceneLength;
   /**
    * Alignment of nodes within a grid row or hierarchical level.
    * Default: 'left' for grid, 'center' for hierarchical.
@@ -636,10 +643,10 @@ export interface HierarchicalLayoutDSL extends BaseLayoutDSL {
  */
 export interface ManualLayoutDSL {
   readonly kind: 'manual';
-  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 */
-  readonly groupPadding?: LayoutPadding;
-  /** Gap between group title label and content area in NVS fractions. Default: 0.025 */
-  readonly titleGap?: number;
+  /** Padding inside group boundary boxes as ScenePadding. Default: "3.5%" */
+  readonly groupPadding?: ScenePadding;
+  /** Gap between group title label and content area as a SceneLength. Default: "2.5%" */
+  readonly titleGap?: SceneLength;
 }
 
 /**
@@ -658,20 +665,20 @@ export interface FlowLayoutDSL {
    */
   readonly direction?: 'top-down' | 'left-right';
   /**
-   * Edge-to-edge gap between adjacent item footprints in NVS fractions.
-   * Not center-to-center. Default: 0.06.
+   * Edge-to-edge gap between adjacent item footprints as a SceneLength.
+   * Not center-to-center. Default: "6%".
    */
-  readonly gap?: number;
+  readonly gap?: SceneLength;
   /**
-   * Padding inside group boundary boxes in NVS fractions (CSS shorthand).
-   * Default: 0.035 (all sides)
+   * Padding inside group boundary boxes as ScenePadding (CSS shorthand).
+   * Default: "3.5%"
    */
-  readonly groupPadding?: LayoutPadding;
+  readonly groupPadding?: ScenePadding;
   /**
-   * Gap between group title label and group content area in NVS fractions.
-   * Default: 0.025
+   * Gap between group title label and group content area as a SceneLength.
+   * Default: "2.5%"
    */
-  readonly titleGap?: number;
+  readonly titleGap?: SceneLength;
 }
 
 /** Discriminated union of all layout DSL types. */
@@ -715,14 +722,14 @@ export interface DiagramEnterConfig {
  * All fields are optional; compile.ts fills in defaults.
  */
 export interface DiagramExitDSL {
-  readonly to?: readonly [number, number, number];
+  readonly to?: ScenePosition3;
   readonly fade?: boolean;
   readonly easing?: DiagramEasing;
 }
 
 /** Raw DSL props from <Enter> before compile.ts applies defaults. */
 export interface DiagramEnterDSL {
-  readonly from?: readonly [number, number, number];
+  readonly from?: ScenePosition3;
   readonly fade?: boolean;
   readonly easing?: DiagramEasing;
 }
@@ -775,6 +782,9 @@ export interface DiagramNodeState {
    * NOT the same as z-axis depth layering (use `position[2]` for that).
    */
   readonly thickness: number;
+
+  /** When true, all size-like fields use vmin scaling. When false, per-axis (existing). */
+  readonly uniformSizing: boolean;
 
   /** CSS hex color for the node box face (e.g., '#dae8fc') */
   readonly color: string;
@@ -999,6 +1009,9 @@ export interface DiagramEdgeState {
    */
   readonly thickness: number;
 
+  /** When true, thickness uses vmin scaling. When false, per-axis (existing). */
+  readonly uniformSizing: boolean;
+
   /**
    * Explicit path commands for the edge path, in normalized diagram space.
    * The canonical 'flow' router uses this as the source of truth; renderers consume
@@ -1089,6 +1102,9 @@ export interface DiagramGroupState {
      */
     readonly titleGap: number;
   };
+
+  /** When true, all size-like fields use vmin scaling. When false, per-axis (existing). */
+  readonly uniformSizing: boolean;
 
   /** CSS hex fill color for the group interior. Typically semi-transparent. */
   readonly color: string;
@@ -1269,10 +1285,10 @@ export interface DiagramNodeDSL {
    * Lucid imports: x/y are Lucid pixel coordinates (origin per the diagram's pivot setting).
    * If omitted, auto-layout assigns a position based on declaration order.
    */
-  readonly position?: readonly [number, number, number];
-  readonly size?: readonly [number, number];
-  /** Node prism Z-depth as an NVS fraction of diagram viewport width. Overrides theme default. */
-  readonly thickness?: number;
+  readonly position?: ScenePosition3;
+  readonly size?: SceneSize2;
+  /** Node prism Z-depth as a SceneLength. Overrides theme default. */
+  readonly thickness?: SceneLength;
   readonly color?: string;
   /**
    * Explicit color for the node's box/depth faces (sides, top, bottom, back).
@@ -1286,10 +1302,10 @@ export interface DiagramNodeDSL {
    */
   readonly sideColor?: string;
   readonly borderColor?: string;
-  /** Border line width in NVS units. Overrides theme default. */
-  readonly borderWidth?: number;
-  /** Border frame Z-depth in NVS units. Overrides theme default. */
-  readonly borderHeight?: number;
+  /** Border line width as a SceneLength. Overrides theme default. */
+  readonly borderWidth?: SceneLength;
+  /** Border frame Z-depth as a SceneLength. Overrides theme default. */
+  readonly borderHeight?: SceneLength;
   readonly metalness?: number;
   readonly roughness?: number;
   /**
@@ -1300,8 +1316,8 @@ export interface DiagramNodeDSL {
    * - object: full control — `{ intensity?: number; color?: string }`
    */
   readonly glow?: boolean | DiagramNodeGlowConfig;
-  /** Corner radius as an NVS fraction of diagram viewport width. Overrides theme default. */
-  readonly cornerRadius?: number;
+  /** Corner radius as a SceneLength. Overrides theme default. */
+  readonly cornerRadius?: SceneLength;
   readonly labelColor?: string;
   readonly sublabelColor?: string;
   /** When true, sublabel text wraps at the node content width. Default: false. */
@@ -1319,8 +1335,8 @@ export interface DiagramNodeDSL {
   readonly iconScale?: number;
   /** 3D icon rendering style. Default: from theme (typically 'layered'). */
   readonly iconStyle?: SvgIcon3DStyle;
-  /** Icon extrusion depth in NVS units. Default: from theme (0.15). */
-  readonly iconDepth?: number;
+  /** Icon extrusion depth as a SceneLength. Default: from theme ("15%"). */
+  readonly iconDepth?: SceneLength;
   /** Override icon fill color for this node (CSS hex). Defaults to theme's defaultIconColor. */
   readonly iconColor?: string;
   readonly groupId?: string;
@@ -1347,18 +1363,18 @@ export interface DiagramEdgeDSL {
   /** Optional flow pulse color (defaults to edge color) */
   readonly flowColor?: string;
   readonly color?: string;
-  /** Tube radius as an NVS fraction of diagram viewport width. Overrides theme default. */
-  readonly thickness?: number;
+  /** Tube radius as a SceneLength. Overrides theme default. */
+  readonly thickness?: SceneLength;
   readonly opacity?: number;
   /**
    * Per-edge routing algorithm override. Overrides the diagram theme's edge.routing.
    * `routing="flow"` is the canonical obstacle-aware routing mode.
    */
   readonly routing?: EdgeRoutingAlgorithm;
-  /** Optional per-edge override for canonical flow turn radius. */
-  readonly flowTurnRadius?: number;
-  /** Optional per-edge override for canonical flow face stub length. */
-  readonly flowFaceStub?: number;
+  /** Optional per-edge override for canonical flow turn radius as a SceneLength. */
+  readonly flowTurnRadius?: SceneLength;
+  /** Optional per-edge override for canonical flow face stub length as a SceneLength. */
+  readonly flowFaceStub?: SceneLength;
   /** Optional per-edge override for flow trunk duration. 0 disables bundling for that edge's source set. */
   readonly flowBundleStrength?: number;
   /** Optional per-edge override for direct target ingress preference after a split. */
@@ -1462,16 +1478,16 @@ export interface DiagramDSL {
    * Used by resolveFlowLayout to sequence root-level items in JSX declaration order.
    */
   readonly childrenOrder?: ReadonlyArray<string>;
-  /** NVS left edge [0..1]. Default: 0. Replaces legacy viewportBounds.x. */
-  readonly x?: number;
-  /** NVS top edge [0..1]. Default: 0. Replaces legacy viewportBounds.y. */
-  readonly y?: number;
-  /** NVS width [0..1]. Default: 1. Replaces legacy viewportBounds.w. */
-  readonly w?: number;
-  /** NVS height [0..1]. Default: 1. Replaces legacy viewportBounds.h. */
-  readonly h?: number;
-  /** Pitch tilt in radians applied to diagram geometry group. Default: 0. */
-  readonly tilt?: number;
+  /** NVS left edge as a SceneLength. Default: 0. */
+  readonly x?: SceneLength;
+  /** NVS top edge as a SceneLength. Default: 0. */
+  readonly y?: SceneLength;
+  /** NVS width as a SceneLength. Default: "100%". */
+  readonly w?: SceneLength;
+  /** NVS height as a SceneLength. Default: "100%". */
+  readonly h?: SceneLength;
+  /** Pitch tilt as a SceneAngle applied to diagram geometry group. Default: 0. */
+  readonly tilt?: SceneAngle;
   /** World-space Z depth of the diagram's geometry plane. Default: 0. */
   readonly z?: number;
   /** World-space geometry scale multiplier. Default: 1. */

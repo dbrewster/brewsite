@@ -3,7 +3,7 @@ title: "@brewsite/screens Package"
 doc_type: prd
 owner: Toolkit Product
 status: current
-updated: 2026-03-15
+updated: 2026-03-21
 version_history:
   - version: "0.1.0"
     date: 2026-03-13
@@ -22,6 +22,14 @@ version_history:
       fractions (nvsX, nvsY, nvsWidth, nvsHeight) not world-unit position/width/height.
       Fixed shared overlay: uses CSS3DRenderer div from acquireCSS3DContext(), not a
       data-brewsite-screen-overlay div. Updated all prop tables and code examples.
+  - version: "1.0.0"
+    date: 2026-03-21
+    summary: >
+      Scene unit system: all NVS spatial DSL props (x, y, width, height) now require
+      SceneLength unit strings (e.g. "50%", "60u"). Rotation props require SceneAngle
+      unit strings (e.g. "0.2rad", "45deg"). Bare numbers except 0 are TypeScript
+      errors. Compiled state remains number. Semver major breaking change.
+      Migration guide: packages/claude-author/docs/migration/unit-system.md.
 ---
 
 # @brewsite/screens Package
@@ -68,7 +76,7 @@ Before this package, `Screen` and `ImagePanel` lived inside `@brewsite/diagram`.
 
 1. `screensPlugin()` must register `Screen`, `MediaScreen`, and `ImagePanel` DSL node handlers via `configureRegistry`. Widget instances must be created lazily on first compile encounter — no ID enumeration is required from the consumer.
 2. `<Screen>` must render a live interactive `<iframe>` element as a `CSS3DObject` placed in a shared `CSS3DRenderer` scene. The `CSS3DRenderer` is acquired via `acquireCSS3DContext()` from `css3dSetup.ts`, which creates a singleton `CSS3DRenderer` instance per canvas parent element with reference counting. Full 3D rotation is supported — the iframe tilts in 3D space via CSS3D transforms.
-3. `compileScreen()` must apply NVS validation in development mode using `validateNVSScalar()` for `nvsX`, `nvsY`, and `nvsWidth`. No rotation warnings are emitted — full 3D rotation is supported.
+3. `compileScreen()` resolves `SceneLength` and `SceneAngle` unit strings to `number` values via `resolveSceneLength()` and `resolveSceneAngle()`. The compiled state contains only `number`. No rotation warnings are emitted — full 3D rotation is supported.
 4. `<MediaScreen>` must support two mutually exclusive source modes: a video file URL (`src`) and a live `MediaStream` referenced by registry key (`streamId`).
 5. `MediaScreenWidget.registerStream(key, stream)` and `MediaScreenWidget.unregisterStream(key)` must be static methods that accept `MediaStream` objects from any source (file, camera, display capture).
 6. `useDisplayCapture(streamId, options?)` must: call `navigator.mediaDevices.getDisplayMedia()` only in response to a user gesture (consumer calls `startCapture()` from a click handler); automatically call `unregisterStream` when the video track ends or the component unmounts; expose `isCapturing`, `error`, `startCapture`, and `stopCapture`.
@@ -121,11 +129,11 @@ import { Screen } from '@brewsite/screens';
 <Screen
   id="product-demo"
   src="https://app.example.com/demo"
-  x={0.5}
-  y={0.5}
+  x={"50%"}
+  y={"50%"}
   z={0}
-  rotation={[0, 0.2, 0]}   // full 3D rotation supported via CSS3DRenderer
-  width={0.625}
+  rotation={[0, "0.2rad", 0]}   // full 3D rotation supported via CSS3DRenderer
+  width={"62.5%"}
   bezel="dark"
   glow
   glowColor="#88ccff"
@@ -138,13 +146,13 @@ import { Screen } from '@brewsite/screens';
 |------|------|---------|-------|
 | `id` | `string` | required | Stable across scenes |
 | `src` | `string` | required | iframe URL |
-| `x` | `number` | `0.5` | NVS horizontal center [0..1] |
-| `y` | `number` | `0.5` | NVS vertical center [0..1] |
+| `x` | `SceneLength` | `"50%"` | NVS horizontal center |
+| `y` | `SceneLength` | `"50%"` | NVS vertical center |
 | `z` | `number` | `0` | World-space depth |
-| `rotation` | `[x,y,z]` rad | `[0,0,0]` | Full 3D rotation via CSS3DRenderer |
+| `rotation` | `[SceneAngle, SceneAngle, SceneAngle]` | `[0,0,0]` | Full 3D rotation via CSS3DRenderer |
 | `scale` | `number` | `1` | |
-| `width` | `number` | `0.625` | NVS width fraction [0..1] |
-| `height` | `number` | `undefined` | NVS height fraction [0..1]; derived from 16:9 if omitted |
+| `width` | `SceneLength` | `"62.5%"` | NVS width |
+| `height` | `SceneLength` | `undefined` | NVS height; derived from 16:9 if omitted |
 | `bezel` | `ScreenBezelVariant` | `'dark'` | `'none' \| 'thin' \| 'dark' \| 'light' \| 'chrome'` |
 | `bezelThickness` | `number` | `0.3` | World units |
 | `opacity` | `number` | `1` | Applies to bezel + iframe |
@@ -169,9 +177,9 @@ import { MediaScreen } from '@brewsite/screens';
 <MediaScreen
   id="product-video"
   src="/videos/demo.mp4"
-  x={0.5}
-  y={0.5}
-  width={10}
+  x={"50%"}
+  y={"50%"}
+  width={"62.5%"}
   autoPlay
   loop
   muted
@@ -184,9 +192,9 @@ import { MediaScreen } from '@brewsite/screens';
 <MediaScreen
   id="screen-capture"
   streamId="capture-stream"
-  x={0.5}
-  y={0.5}
-  width={12}
+  x={"50%"}
+  y={"50%"}
+  width={"62.5%"}
   glow
 />
 ```
@@ -198,12 +206,12 @@ import { MediaScreen } from '@brewsite/screens';
 | `id` | `string` | required | Stable across scenes |
 | `src` | `string` | — | Video file URL. Mutually exclusive with `streamId` |
 | `streamId` | `string` | — | Registry key for a live `MediaStream`. Mutually exclusive with `src` |
-| `x` | `number` | `0.5` | Normalized viewport X (0–1) |
-| `y` | `number` | `0.5` | Normalized viewport Y (0–1) |
+| `x` | `SceneLength` | `"50%"` | NVS horizontal center |
+| `y` | `SceneLength` | `"50%"` | NVS vertical center |
 | `z` | `number` | `0` | World-space Z |
-| `width` | `number` | `0.5` | NVS width fraction [0..1] |
-| `height` | `number` | `undefined` | NVS height fraction [0..1]; inferred from video aspect ratio if omitted |
-| `rotation` | `[x,y,z]` rad | `[0,0,0]` | Fully supported — pure WebGL |
+| `width` | `SceneLength` | `"62.5%"` | NVS width |
+| `height` | `SceneLength` | `undefined` | NVS height; inferred from video aspect ratio if omitted |
+| `rotation` | `[SceneAngle, SceneAngle, SceneAngle]` | `[0,0,0]` | Fully supported — pure WebGL |
 | `scale` | `number` | `1` | |
 | `autoPlay` | `boolean` | `true` | |
 | `loop` | `boolean` | `true` | |
@@ -229,7 +237,7 @@ import { MediaScreenWidget } from '@brewsite/screens';
 MediaScreenWidget.registerStream('my-stream', mediaStream);
 
 // In scene DSL:
-<MediaScreen id="feed" streamId="my-stream" x={0.5} y={0.5} />
+<MediaScreen id="feed" streamId="my-stream" x={"50%"} y={"50%"} />
 
 // Cleanup:
 MediaScreenWidget.unregisterStream('my-stream');
@@ -249,11 +257,11 @@ import { ImagePanel } from '@brewsite/screens';
 <ImagePanel
   id="product-screenshot"
   src="/images/dashboard-dark.webp"
-  x={0.5}
-  y={0.5}
+  x={"50%"}
+  y={"50%"}
   z={0}
-  rotation={[0, 0.2, 0]}
-  width={0.6}
+  rotation={[0, "0.2rad", 0]}
+  width={"60%"}
   bezel="chrome"
   gloss={0.6}
   selfIllumination={0.2}
@@ -269,13 +277,13 @@ import { ImagePanel } from '@brewsite/screens';
 |------|------|---------|-------|
 | `id` | `string` | required | Stable across scenes |
 | `src` | `string` | required | Image URL (PNG, JPG, WebP) |
-| `x` | `number` | `0.5` | NVS horizontal center [0..1] |
-| `y` | `number` | `0.5` | NVS vertical center [0..1] |
+| `x` | `SceneLength` | `"50%"` | NVS horizontal center |
+| `y` | `SceneLength` | `"50%"` | NVS vertical center |
 | `z` | `number` | `0` | World-space depth |
-| `rotation` | `[x,y,z]` rad | `[0,0,0]` | Fully supported — pure WebGL. Tilt freely |
+| `rotation` | `[SceneAngle, SceneAngle, SceneAngle]` | `[0,0,0]` | Fully supported — pure WebGL. Tilt freely |
 | `scale` | `number` | `1` | |
-| `width` | `number` | `0.6` | NVS width fraction [0..1] |
-| `height` | `number` | `undefined` | NVS height fraction [0..1]; inferred from texture aspect ratio when omitted |
+| `width` | `SceneLength` | `"60%"` | NVS width |
+| `height` | `SceneLength` | `undefined` | NVS height; inferred from texture aspect ratio when omitted |
 | `bezel` | `ImagePanelBezelVariant` | `'dark'` | `'none' \| 'thin' \| 'dark' \| 'light' \| 'chrome'` |
 | `bezelThickness` | `number` | `0.3` | World units |
 | `opacity` | `number` | `1` | |
@@ -319,7 +327,7 @@ function CaptureButton() {
 }
 
 // In scene DSL, reference the same streamId:
-<MediaScreen id="screen-feed" streamId="screen-capture" x={0.5} y={0.5} width={12} />
+<MediaScreen id="screen-feed" streamId="screen-capture" x={"50%"} y={"50%"} width={"62.5%"} />
 ```
 
 **Hook interface:**
@@ -454,7 +462,11 @@ The following symbols were removed from `@brewsite/diagram`'s public API:
 
 **Migration:** update import paths from `@brewsite/diagram` to `@brewsite/screens` and replace manual widget registration with `screensPlugin()`.
 
-`@brewsite/screens` v0.1.0 itself introduces no breaking changes (initial release).
+**Semver impact for `@brewsite/screens` v1.0.0: major breaking change — scene unit system.**
+
+All NVS spatial DSL props (`x`, `y`, `width`, `height`) require `SceneLength` unit strings (e.g. `"50%"`, `"60u"`). Rotation props require `SceneAngle` unit strings (e.g. `"0.2rad"`, `"45deg"`). Bare numbers except literal `0` are TypeScript errors. Compiled state remains `number` — only the DSL authoring surface is affected. World-space values (`z`, `bezelThickness`) and dimensionless values (`opacity`, `scale`, `gloss`, `glossRoughness`, `selfIllumination`, `glowScale`, `glowOpacity`) remain `number`.
+
+See `packages/claude-author/docs/migration/unit-system.md` for the full migration guide.
 
 ## Risks & Mitigations
 

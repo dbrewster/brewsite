@@ -1,15 +1,12 @@
-import { Fragment } from 'react';
 import type { JSX } from 'react';
-import { scene00Hero } from './act0/scene_00_hero';
-import { scene01CoreIntro } from './act1_act2/scene_01_core_intro';
-import { scene02CoreBaked } from './act1_act2/scene_02_core_baked';
-import { scene01ModelWide } from './act3_act4/scene_01_model';
-import { scene02Meeting } from './act3_act4/scene_02_meeting';
-import { scene01SimpleDiagram } from './act5_act6/scene_01_simple_diagram';
-import { scene02ArchOverview } from './act5_act6/scene_02_arch_overview';
-import { scene03ArchDetail } from './act5_act6/scene_03_arch_detail';
-import { scene02Combined } from './act7/scene_02_combined';
-import { scene01Github } from './act8/scene_01_github';
+import { Scene00Hero } from './act0/scene_00_hero';
+import { Scene01FlatWorld } from './act1/scene_01_flat_world';
+import { Scene02aDimensionalShift } from './act2/scene_02a_dimensional_shift';
+import { Scene02bBeyondDiagrams } from './act2/scene_02b_beyond_diagrams';
+import { Scene03aTheCode } from './act3/scene_03a_the_code';
+import { Scene03bPipeline } from './act3/scene_03b_pipeline';
+import { Scene04Ecosystem } from './act4/scene_04_ecosystem';
+import { Scene05Cta } from './act5/scene_05_cta';
 
 export type WebsiteNavTarget = {
   readonly num: string;
@@ -18,27 +15,23 @@ export type WebsiteNavTarget = {
 };
 
 export const websiteFlowScenes: JSX.Element[] = [
-  <Fragment key="website-hero-00">{scene00Hero}</Fragment>,
-  <Fragment key="website-presentation-01">{scene01CoreIntro}</Fragment>,
-  <Fragment key="website-presentation-02">{scene02CoreBaked}</Fragment>,
-  <Fragment key="website-model-01">{scene01ModelWide}</Fragment>,
-  <Fragment key="website-meeting-01">{scene02Meeting}</Fragment>,
-  <Fragment key="website-diagram-simple">{scene01SimpleDiagram}</Fragment>,
-  <Fragment key="website-arch-overview">{scene02ArchOverview}</Fragment>,
-  <Fragment key="website-arch-detail">{scene03ArchDetail}</Fragment>,
-  <Fragment key="website-full-02">{scene02Combined}</Fragment>,
-  <Fragment key="website-github-01">{scene01Github}</Fragment>,
+  <Scene00Hero />,
+  <Scene01FlatWorld />,
+  <Scene02aDimensionalShift />,
+  <Scene02bBeyondDiagrams />,
+  <Scene03aTheCode />,
+  <Scene03bPipeline />,
+  <Scene04Ecosystem />,
+  <Scene05Cta />,
 ];
 
 export const websiteNavTargets: WebsiteNavTarget[] = [
-  { num: '00', label: 'BrewSite',       sceneId: 'website-hero-00' },
-  { num: '01', label: 'The Engine',     sceneId: 'website-presentation-01' },
-  { num: '02', label: 'How It Works',   sceneId: 'website-presentation-02' },
-  { num: '03', label: 'Models',         sceneId: 'website-model-01' },
-  { num: '04', label: 'At Scale',       sceneId: 'website-meeting-01' },
-  { num: '05', label: 'Diagrams',       sceneId: 'website-diagram-simple' },
-  { num: '06', label: 'Architecture',   sceneId: 'website-arch-overview' },
-  { num: '07', label: 'Drill-Down',     sceneId: 'website-arch-detail' },
-  { num: '08', label: 'Full Stack',     sceneId: 'website-full-02' },
-  { num: '09', label: 'Get Started',    sceneId: 'website-github-01' },
+  { num: '00', label: 'BrewSite',      sceneId: 'website-hero-00' },
+  { num: '01', label: 'The Problem',   sceneId: 'website-flat-world' },
+  { num: '02', label: 'Dimensional',   sceneId: 'website-dimensional-shift' },
+  { num: '03', label: 'The Toolkit',   sceneId: 'website-beyond-diagrams' },
+  { num: '04', label: 'The Code',      sceneId: 'website-the-code' },
+  { num: '05', label: 'The Engine',    sceneId: 'website-pipeline' },
+  { num: '06', label: 'Ecosystem',     sceneId: 'website-ecosystem' },
+  { num: '07', label: 'Get Started',   sceneId: 'website-get-started' },
 ];

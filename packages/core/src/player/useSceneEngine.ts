@@ -34,6 +34,7 @@ import {
   getTransitionProgress,
 } from '../input/transitionAnimator';
 import type { TransitionEasing } from '../input/transitionAnimator';
+import type { SceneLoadPolicy } from '../runtime/types';
 const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';
 
 export type UseSceneEngineOptions = {
@@ -55,6 +56,11 @@ export type UseSceneEngineOptions = {
   defaultTransitionDuration?: number;
   /** Default easing for programmatic scene transition animations. Default: easeInOut. */
   defaultTransitionEasing?: TransitionEasing;
+  /**
+   * Scene-level lazy loading policy. When provided, assets are loaded
+   * per-scene instead of all-at-once.
+   */
+  loadPolicy?: SceneLoadPolicy;
   onReady?: () => void;
   onError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
@@ -72,6 +78,12 @@ export type UseSceneEngineResult = {
   // ── Canvas wiring ─────────────────────────────────────────────────────────────
   /** Ref to the canvas element managed by SceneCanvas. Used by ActionInput for pointer/wheel events. */
   canvasRef: MutableRefObject<HTMLCanvasElement | null>;
+  /**
+   * Reactive canvas element. Changes when SceneCanvas mounts/unmounts.
+   * Use as a dependency to re-run effects after the canvas becomes available.
+   * Unlike canvasRef (a ref), this triggers re-renders.
+   */
+  canvasElement: HTMLCanvasElement | null;
   setCanvasRef(el: HTMLCanvasElement | null): void;
   setViewportSize(w: number, h: number): void;
   setBackgroundRef(el: HTMLDivElement | null): void;
@@ -229,6 +241,9 @@ export type UseSceneEngineResult = {
 
   // ── Overlay content ───────────────────────────────────────────────────────────
   sceneOverlays: Map<string, ReactNode>;
+
+  /** Ref to the RuntimeDriverImpl instance — used by SceneLoadStateContext. */
+  driverRef: MutableRefObject<RuntimeDriverImpl | null>;
 
   debug?: {
     assetsReady: boolean;
@@ -554,6 +569,11 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       onWidgetError: options.onWidgetError,
     });
     driverRef.current = driver;
+
+    // Configure lazy loading before initialize()
+    if (options.loadPolicy) {
+      driver.setLoadPolicy(options.loadPolicy);
+    }
 
     // Seed the driver with the current viewport size so the NVS coordinate service
     // uses real canvas dimensions from the very first tick.
@@ -925,6 +945,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     progress: frameState.progress,
     variableStore,
     canvasRef: canvasElementRef,
+    canvasElement: canvas,
     setCanvasRef,
     setViewportSize,
     setBackgroundRef,
@@ -960,6 +981,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setAutoAdvancePaused,
     interactionCallbacksRef,
     sceneOverlays: sceneTrack?.sceneOverlays ?? new Map(),
+    driverRef,
     debug: {
       assetsReady,
       viewport: { ...viewportRef.current },

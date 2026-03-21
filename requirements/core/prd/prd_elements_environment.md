@@ -3,8 +3,11 @@ title: "BrewSite Core — Environment Elements"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: Floor.rotation and Floor.rotationRelative now require SceneAngle tuples (e.g. ['-90deg', 0, 0]). Floor.textureRotation requires SceneAngle. Lighting spot.angle and spot.depthPhase require SceneAngle. World-space values (position, scale, negativeZExtent, intensity, opacity) remain number. Compiled SceneFloor and SceneLighting state remains number. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "Codebase alignment: added surfaceMaterial (string — named material preset) and materialApplication (MaterialApplication) fields to FloorSurfacePhysical type and DSL props documentation. Updated module pattern listing to note these fields."
@@ -364,8 +367,8 @@ export type SceneFloor = {
   debug?: boolean;
   placement?: FloorPlacement;
   position?: [number, number, number];
-  rotation?: [number, number, number];
-  rotationRelative?: [number, number, number];
+  rotation?: [SceneAngle, SceneAngle, SceneAngle];          // e.g. ['-90deg', 0, 0]
+  rotationRelative?: [SceneAngle, SceneAngle, SceneAngle];  // e.g. ['0deg', '45deg', '0deg']
   scale?: number;
   negativeZExtent?: number;
   negativeZEdge?: FloorNegativeZEdge;
@@ -395,7 +398,7 @@ export type FloorSurfacePhysical = {
   envMapIntensity?: number;
   textureRepeat?: [number, number];
   textureOffset?: [number, number];
-  textureRotation?: number;
+  textureRotation?: SceneAngle;  // e.g. '0.5rad', '45deg'
   normalMapUrl?: string;
   normalScale?: [number, number];
   roughnessMapUrl?: string;

@@ -17,7 +17,7 @@ export function SceneLightingPanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-lighting-base">
-        <Camera mode="world" position={[3, 2, 9]} target={[0, 1, 0]} fov={45} />
+        <Camera mode="world" position={[3, 2, 9]} target={[0, 1, 0]} fov={"45deg"} />
         <Background color="#0a1220" />
         <Lighting>
           <Ambient color="#2244ff" intensity={0.4} />
@@ -31,7 +31,7 @@ export function SceneLightingPanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-lighting">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="world" position={[3, 2, 7]} target={[0, 1, 0]} fov={45} />
+        <Camera mode="world" position={[3, 2, 7]} target={[0, 1, 0]} fov={"45deg"} />
         <Background color="#0a1220" />
         <Lighting>
           <Ambient color="#2244ff" intensity={0.4} />

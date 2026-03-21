@@ -39,9 +39,10 @@ export function mergeGhostNodeSnapshot(
       iconScale:     node.label !== undefined ? node.iconScale     : prevNode.iconScale,
       sublabelColor: node.label !== undefined ? node.sublabelColor : prevNode.sublabelColor,
       // Layout geometry (only when DSL omitted position entirely).
-      position:  node.positionInherited ? prevNode.position  : node.position,
-      size:      node.positionInherited ? prevNode.size      : node.size,
-      thickness: node.positionInherited ? prevNode.thickness : node.thickness,
+      position:       node.positionInherited ? prevNode.position       : node.position,
+      size:           node.positionInherited ? prevNode.size           : node.size,
+      thickness:      node.positionInherited ? prevNode.thickness      : node.thickness,
+      uniformSizing:  node.positionInherited ? prevNode.uniformSizing  : node.uniformSizing,
       // Clear the flag — the state is now fully resolved.
       positionInherited: undefined,
     };

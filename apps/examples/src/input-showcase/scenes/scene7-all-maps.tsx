@@ -66,7 +66,7 @@ const spotlights: SpotlightDef[] = Array.from({ length: 4 }, () => {
   return {
     color: randColor(),
     intensity: 55 + rng() * 45,
-    angle: Math.PI / 28 + rng() * Math.PI / 10,
+    angle: `${Math.PI / 28 + rng() * Math.PI / 10}rad` as `${number}rad`,
     orbit: ((t: number): [number, number, number] => [
       Math.sin(t * fX + pX) * aX,
       Math.sin(t * fY + pY) * aY + oY,
@@ -118,8 +118,8 @@ const amData5 = [
 function AllMapsViews(): JSX.Element {
   return (
     <>
-      <View id="am-v1" w={0.38} h={0.48}>
-        <BarChart id="is-am-chart-1" data={amData1} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="am-v1" w={"38%"} h={"48%"}>
+        <BarChart id="is-am-chart-1" data={amData1} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="product" />
           <ChartAxis axis="x" field="product" label="Product" />
           <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
@@ -127,8 +127,8 @@ function AllMapsViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="am-v2" w={0.38} h={0.48}>
-        <LineChart id="is-am-chart-2" data={amData2} x={0} y={0} w={1} h={1}
+      <View id="am-v2" w={"38%"} h={"48%"}>
+        <LineChart id="is-am-chart-2" data={amData2} x={0} y={0} w={"100%"} h={"100%"}
           lineShape="circle" lineSmoothness={0.5} showPoints depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Quarter" />
@@ -137,8 +137,8 @@ function AllMapsViews(): JSX.Element {
         </LineChart>
       </View>
 
-      <View id="am-v3" w={0.38} h={0.48}>
-        <BarChart id="is-am-chart-3" data={amData3} x={0} y={0} w={1} h={1}
+      <View id="am-v3" w={"38%"} h={"48%"}>
+        <BarChart id="is-am-chart-3" data={amData3} x={0} y={0} w={"100%"} h={"100%"}
           orientation="horizontal" depth={0.3}>
           <ChartData keyField="layer" />
           <ChartAxis axis="x" field="layer" label="Layer" />
@@ -147,8 +147,8 @@ function AllMapsViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="am-v4" w={0.38} h={0.48}>
-        <LineChart id="is-am-chart-4" data={amData4} x={0} y={0} w={1} h={1}
+      <View id="am-v4" w={"38%"} h={"48%"}>
+        <LineChart id="is-am-chart-4" data={amData4} x={0} y={0} w={"100%"} h={"100%"}
           lineShape="hexagon" lineSmoothness={0.3} showPoints depth={0.3}>
           <ChartData keyField="sprint" />
           <ChartAxis axis="x" field="sprint" label="Sprint" />
@@ -157,8 +157,8 @@ function AllMapsViews(): JSX.Element {
         </LineChart>
       </View>
 
-      <View id="am-v5" w={0.38} h={0.48}>
-        <BarChart id="is-am-chart-5" data={amData5} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="am-v5" w={"38%"} h={"48%"}>
+        <BarChart id="is-am-chart-5" data={amData5} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="region" />
           <ChartAxis axis="x" field="region" label="Region" />
           <ChartAxis axis="y" field="active" label="Active Users" />
@@ -205,7 +205,7 @@ export const AllMapsScene = (): JSX.Element => {
   return (
     <Scene id="input-all-maps" primaryCarouselId={LAYOUT_ID}>
       <ProgressManager scrollUnits={1000} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={45} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"45deg"} />
       <Lighting intensityScale={1}>
         <Ambient intensity={0.5} color="#d7e8ff" />
         <Directional intensity={1.0} color="#7af0ff" position={[-5, 10, 8]} />
@@ -275,7 +275,7 @@ export const AllMapsScene = (): JSX.Element => {
       </ViewLayout>
 
       {/* Title panel */}
-      <TextBox id="am-title" x={0.01} y={0.06} w={0.38} h={0.14} layer={5}>
+      <TextBox id="am-title" x={"1%"} y={"6%"} w={"38%"} h={"14%"} layer={5}>
         <div
           style={{
             height: '100%',
@@ -299,7 +299,7 @@ export const AllMapsScene = (): JSX.Element => {
       </TextBox>
 
       {/* Scope explanation */}
-      <TextBox id="am-scope" x={0.01} y={0.22} w={0.38} h={0.38} layer={5}>
+      <TextBox id="am-scope" x={"1%"} y={"22%"} w={"38%"} h={"38%"} layer={5}>
         <div
           style={{
             height: '100%',
@@ -338,7 +338,7 @@ export const AllMapsScene = (): JSX.Element => {
       </TextBox>
 
       {/* Full cheatsheet */}
-      <TextBox id="am-cheatsheet" x={0.01} y={0.62} w={0.38} h={0.32} layer={5}>
+      <TextBox id="am-cheatsheet" x={"1%"} y={"62%"} w={"38%"} h={"32%"} layer={5}>
         <div
           style={{
             height: '100%',

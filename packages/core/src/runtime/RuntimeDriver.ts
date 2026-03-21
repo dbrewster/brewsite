@@ -4,7 +4,7 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
-import type { RuntimeDriver as IRuntimeDriver, RealtimeClock } from './types';
+import type { RuntimeDriver as IRuntimeDriver, RealtimeClock, SceneLoadPolicy, SceneMembership } from './types';
 import type {
   RenderContribution,
   AnimationTickContext,
@@ -71,6 +71,36 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private sceneLifecycleWidgets: ISceneLifecycle[];
   private readonly maxAnimBoostPerFrame: number;
 
+  /** Scene load policy. When null, all widgets load upfront (backward compat). */
+  private loadPolicy: SceneLoadPolicy | null = null;
+
+  /** Scene-to-widget membership mapping. Set by setSceneTrack(). */
+  private _sceneMembership: SceneMembership | null = null;
+
+  /** Scenes whose ILoadable widgets have finished loading. */
+  private _loadedScenes = new Set<number>();
+
+  /** Scenes currently being loaded. */
+  private _loadingScenes = new Set<number>();
+
+  /** Listeners notified when loadedScenes/loadingScenes change. */
+  private _sceneLoadListeners = new Set<() => void>();
+
+  /**
+   * Cached snapshot for useSyncExternalStore. A new object is created only
+   * when _loadedScenes or _loadingScenes actually change (in _notifySceneLoadListeners).
+   * Between changes, getSceneLoadState() returns the same reference — this satisfies
+   * useSyncExternalStore's requirement for referential stability of unchanged snapshots.
+   * Sets are defensively copied so consumers cannot corrupt driver state.
+   */
+  private _sceneLoadStateSnapshot: { loadedScenes: ReadonlySet<number>; loadingScenes: ReadonlySet<number> } = {
+    loadedScenes: new Set(),
+    loadingScenes: new Set(),
+  };
+
+  /** Last observed scene index — used for preload-ahead triggers. */
+  private _lastObservedSceneIndex = -1;
+
   assetsReady = false;
 
   /** Widget state patches applied on top of compiled state each tick. Set via patchWidgetStates(). */
@@ -101,13 +131,20 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     );
   }
 
+  /** Scene-to-widget membership mapping, populated after setSceneTrack(). */
+  get sceneMembership(): SceneMembership | null {
+    return this._sceneMembership;
+  }
+
   /**
-   * Synchronously initializes the runtime with the Three.js scene, camera, and renderer.
-   * - Re-reads widget lists to capture lazily-registered widgets from DSL compilation.
-   * - Resolves the first ICameraFocusTarget from the registry (usually CameraWidget).
-   * - Calls initialize() on all IRenderable widgets, injecting scene, camera, and renderer.
-   * - Starts async asset loading as a fire-and-forget; completion fires onAssetsReady.
+   * Configures scene-level lazy loading. Must be called before initialize().
+   * When set, _loadAssets() in initialize() becomes a no-op; partitioned
+   * loading is triggered from setSceneTrack() instead.
    */
+  setLoadPolicy(policy: SceneLoadPolicy): void {
+    this.loadPolicy = policy;
+  }
+
   /** Update the canvas dimensions used for NVS→world coordinate conversion. */
   setViewportSize(width: number, height: number): void {
     this.viewportWidth = width;
@@ -173,6 +210,12 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   }
 
   private async _loadAssets(): Promise<void> {
+    // When loadPolicy is configured, skip upfront loading.
+    // Partitioned loading is triggered from setSceneTrack().
+    if (this.loadPolicy) {
+      return;
+    }
+
     // Individual load() rejections are caught; the engine continues with remaining widgets.
     const loadables = this.widgetRegistry.getLoadables();
     await Promise.all(
@@ -216,10 +259,18 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.sampler = createSceneTrackSampler(track);
     this.track = track;
 
+    // Store scene membership from compilation output.
+    this._sceneMembership = track.sceneMembership ?? null;
+
     // Re-read widget lists — compilation may have lazily registered new widgets
     // via type factories (e.g. ModelWidget created on first <Model> encounter).
     // Any new renderables discovered here need to be initialized and loaded.
     this._refreshWidgetLists();
+
+    // Trigger partitioned loading when a load policy is configured.
+    if (this.loadPolicy && this._sceneMembership) {
+      void this._loadEagerScenes();
+    }
   }
 
   /**
@@ -302,6 +353,146 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.onAssetsReady?.();
   }
 
+  /**
+   * Loads assets for eager scenes (blocking assetsReady) then starts
+   * preloading ahead scenes in the background.
+   */
+  private async _loadEagerScenes(): Promise<void> {
+    const policy = this.loadPolicy!;
+    const eagerIndices = policy.eager ?? [0];
+
+    // Load eager scenes — these block assetsReady.
+    await this._loadScenesAssets(eagerIndices);
+
+    // Mark assets ready once eager scenes are loaded.
+    this.attachContainedRenderables();
+    this.assetsReady = true;
+    this.onAssetsReady?.();
+
+    // Preload ahead from the first eager scene.
+    const currentScene = eagerIndices[0] ?? 0;
+    this._preloadAhead(currentScene);
+  }
+
+  /**
+   * Loads ILoadable widgets for the given scene indices.
+   * Skips widgets that are already loaded or currently loading.
+   * Updates _loadedScenes and _loadingScenes sets.
+   */
+  private async _loadScenesAssets(sceneIndices: number[]): Promise<void> {
+    const membership = this._sceneMembership;
+    if (!membership) return;
+
+    // Collect widget IDs from requested scenes that haven't been loaded yet.
+    const widgetIdsToLoad = new Set<string>();
+    const scenesToMark = new Set<number>();
+
+    for (const idx of sceneIndices) {
+      if (this._loadedScenes.has(idx)) continue;
+      scenesToMark.add(idx);
+      const widgetIds = membership.get(idx);
+      if (!widgetIds) continue;
+      for (const id of widgetIds) {
+        widgetIdsToLoad.add(id);
+      }
+    }
+
+    if (widgetIdsToLoad.size === 0) {
+      // All widgets for these scenes are already loaded.
+      for (const idx of scenesToMark) {
+        this._loadedScenes.add(idx);
+      }
+      this._notifySceneLoadListeners();
+      return;
+    }
+
+    // Mark scenes as loading.
+    for (const idx of scenesToMark) {
+      this._loadingScenes.add(idx);
+    }
+    this._notifySceneLoadListeners();
+
+    // Load only the ILoadable widgets in the requested scenes that aren't already loaded.
+    const loadables = this.widgetRegistry.getLoadables()
+      .filter((w) => widgetIdsToLoad.has(w.widgetId) && !w.isLoaded);
+
+    await Promise.all(
+      loadables.map((w) =>
+        w.load(this.manifest).catch((e: unknown) => {
+          const err = e instanceof Error ? e : new Error(String(e));
+          this.loadErroredWidgets.add(w.widgetId);
+          this.onWidgetError?.(w.widgetId, err);
+        }),
+      ),
+    );
+
+    // Attach any IContainedRenderable widgets that were just loaded.
+    // Without this, contained models loaded via preload-ahead would never
+    // be parented to their host's attachment point.
+    this.attachContainedRenderables();
+
+    // Mark scenes as loaded (not loading).
+    for (const idx of scenesToMark) {
+      this._loadingScenes.delete(idx);
+      this._loadedScenes.add(idx);
+    }
+    this._notifySceneLoadListeners();
+  }
+
+  /**
+   * Preloads scenes ahead of the current scene index (non-blocking).
+   */
+  private _preloadAhead(currentSceneIndex: number): void {
+    const policy = this.loadPolicy;
+    if (!policy || !this._sceneMembership) return;
+    // Use sceneWindows.length as the authoritative scene count, not
+    // _sceneMembership.size — empty scenes (no widgets) may be absent
+    // from the membership map but still exist in the track.
+    const totalScenes = this.track?.sceneWindows.length ?? 0;
+    const ahead = policy.preloadAhead ?? 1;
+
+    const indicesToPreload: number[] = [];
+    for (let i = 1; i <= ahead; i++) {
+      const idx = currentSceneIndex + i;
+      if (idx < totalScenes && !this._loadedScenes.has(idx) && !this._loadingScenes.has(idx)) {
+        indicesToPreload.push(idx);
+      }
+    }
+
+    if (indicesToPreload.length > 0) {
+      void this._loadScenesAssets(indicesToPreload);
+    }
+  }
+
+  /** Subscribe to scene load state changes. Returns unsubscribe function. */
+  subscribeSceneLoadState(listener: () => void): () => void {
+    this._sceneLoadListeners.add(listener);
+    return () => this._sceneLoadListeners.delete(listener);
+  }
+
+  /**
+   * Returns the cached snapshot. Same object reference between state changes —
+   * required by useSyncExternalStore for referential stability.
+   */
+  getSceneLoadState(): { loadedScenes: ReadonlySet<number>; loadingScenes: ReadonlySet<number> } {
+    return this._sceneLoadStateSnapshot;
+  }
+
+  /**
+   * Creates a new snapshot (new object identity signals change to useSyncExternalStore),
+   * then notifies all subscribed listeners. Sets are defensively copied so consumers
+   * cannot mutate driver internals.
+   */
+  private _notifySceneLoadListeners(): void {
+    this._sceneLoadStateSnapshot = {
+      loadedScenes: new Set(this._loadedScenes),
+      loadingScenes: new Set(this._loadingScenes),
+    };
+    for (const listener of this._sceneLoadListeners) {
+      listener();
+    }
+  }
+
   tick(options: {
     deltaSeconds: number;
     globalProgress: number;
@@ -347,6 +538,12 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       this.applyErroredWidgets.clear();
     }
     this.currentTick = tick;
+
+    // Trigger preload-ahead on scene change (lazy loading mode).
+    if (this.loadPolicy && tick && tick.sceneIndex !== this._lastObservedSceneIndex) {
+      this._lastObservedSceneIndex = tick.sceneIndex;
+      this._preloadAhead(tick.sceneIndex);
+    }
 
     // ── Step 2: Compute effectiveDeltaSeconds ────────────────────────────────
     // animationTimeScale is stored on the segment for the outgoing transition
@@ -521,6 +718,11 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   dispose(): void {
     this.loadErroredWidgets.clear();
     this.applyErroredWidgets.clear();
+    this._loadedScenes.clear();
+    this._loadingScenes.clear();
+    this._sceneLoadListeners.clear();
+    this._sceneMembership = null;
+    this._lastObservedSceneIndex = -1;
     for (const renderable of this.renderables) {
       try {
         renderable.dispose();

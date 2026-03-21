@@ -10,6 +10,7 @@ import type {
   ChartLineShape,
 } from './types';
 import type { DataInput } from '../../data/types';
+import type { SceneLength, SceneAngle } from '@brewsite/core';
 
 // Suppress unused import warning — React is required for JSX context in .tsx files
 void React;
@@ -28,12 +29,18 @@ export type BaseChartDSL = {
   readonly dataUrl?: string;
   readonly opacity?: number;
   readonly interactive?: boolean;
-  readonly x?: number;
-  readonly y?: number;
-  readonly w?: number;
-  readonly h?: number;
+  /** NVS X position — SceneLength with explicit unit (e.g. "50%", "50u"). */
+  readonly x?: SceneLength;
+  /** NVS Y position — SceneLength with explicit unit (e.g. "50%", "50u"). */
+  readonly y?: SceneLength;
+  /** NVS width — SceneLength with explicit unit (e.g. "100%", "60u"). */
+  readonly w?: SceneLength;
+  /** NVS height — SceneLength with explicit unit (e.g. "100%", "60u"). */
+  readonly h?: SceneLength;
+  /** World-space Z offset. Stays number (not a unit type). */
   readonly z?: number;
-  readonly rotation?: readonly [number, number, number];
+  /** Rotation angles — each axis as SceneAngle (e.g. "0deg", "0.5rad"). */
+  readonly rotation?: readonly [SceneAngle, SceneAngle, SceneAngle];
   /**
    * 3D extrusion depth of chart geometry in world units.
    * Only the depth dimension is meaningful — width/height are always derived from w/h.

@@ -3,8 +3,11 @@ title: "BrewSite Core — Cross-Package Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system note: SceneTheme types are unaffected — all theme token values remain number/string (colors, opacity, world-space sizes). Downstream packages (@brewsite/diagram DiagramTheme, @brewsite/charts ChartTheme) that use theme-derived spatial default values (e.g. default node size, default spacing) now express those defaults as SceneLength/SceneSize2 unit strings. See per-package PRDs for details."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Core over-engineering audit confirmation: ThemeKeyContext.ts file deleted from codebase (was already removed from PRD documentation in prior v1 readiness audit). Module listing verified — ThemeKeyContext.ts is no longer present in packages/core/src/theme/."

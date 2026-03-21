@@ -3,7 +3,7 @@ title: Slide Navigation
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-21
 ---
 
 ## Default Navigation
@@ -207,6 +207,31 @@ const startOfSlide2 = computeSlideStartProgress(scrollUnits, 2);
 ```
 
 Note: this returns raw scroll-space progress, not engine-space progress. For programmatic navigation via `engine.beginTransition()`, use `index / (totalSlides - 1)` directly.
+
+---
+
+## Display Sizing: scaleMode and referenceWidth
+
+`SlidePlayer` exposes two props that control how the deck fits within the display:
+
+```tsx
+<SlidePlayer scaleMode="contain" referenceWidth={1920}>
+  ...
+</SlidePlayer>
+```
+
+**`scaleMode`** — Controls how the AR-locked content box fits in the container. Default: `'contain'`.
+
+| Value | Behavior |
+|---|---|
+| `'contain'` | Letterbox/pillarbox to fit entirely within container (default for presentations) |
+| `'cover'` | Fill container, cropping content that overflows |
+| `'fit-width'` | Match container width, allow vertical overflow |
+| `'fit-height'` | Match container height, allow horizontal overflow |
+
+**`referenceWidth`** — Reference pixel width for content scaling. Default: `1920`. Content authored at this pixel width scales proportionally to all displays via the `--scene-scale` CSS variable. A deck authored at `referenceWidth={1920}` renders identically on a 1080p monitor and a 4K display — only the pixel density changes.
+
+These props pass through to the internal `EngineARContainer`. The `scaleMode` default intentionally differs from `EngineARContainer`'s own default of `'fit-width'` — presentations use `'contain'` because slide content should never be cropped.
 
 ---
 

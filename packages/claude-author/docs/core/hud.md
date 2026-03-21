@@ -3,7 +3,7 @@ title: HUD and Overlay System Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## HUD System Overview
@@ -79,7 +79,7 @@ import { TextBox } from '@brewsite/core';
   <Background color="#0a0a14" />
 
   {/* TextBox at top-left quadrant */}
-  <TextBox key="title" x={0.04} y={0.06} w={0.45} h={0.2}>
+  <TextBox key="title" x={"4%"} y={"6%"} w={"45%"} h={"20%"}>
     <h2 style={{ color: '#ffffff', margin: 0, fontSize: '2rem' }}>
       Scene Title
     </h2>
@@ -94,10 +94,10 @@ import { TextBox } from '@brewsite/core';
 
 | Prop | Type | Required | Description |
 |---|---|---|---|
-| `x` | `number` | yes | NVS x position. 0 = left edge, 1 = right edge |
-| `y` | `number` | yes | NVS y position. 0 = top edge, 1 = bottom edge |
-| `w` | `number` | yes | NVS width [0..1] |
-| `h` | `number` | yes | NVS height [0..1] |
+| `x` | `SceneLength` | yes | NVS x position. `"0%"` = left edge, `"100%"` = right edge |
+| `y` | `SceneLength` | yes | NVS y position. `"0%"` = top edge, `"100%"` = bottom edge |
+| `w` | `SceneLength` | yes | NVS width, e.g. `"50%"` |
+| `h` | `SceneLength` | yes | NVS height, e.g. `"100%"` |
 | `layer` | `number` | no | CSS z-index (default 0) |
 | `overflow` | `'hidden' \| 'visible'` | no | Content overflow. Default `'hidden'` |
 | `id` | `string` | no | Optional id (also used for React key) |
@@ -109,15 +109,15 @@ import { TextBox } from '@brewsite/core';
 
 ### `<TextBox>` inside `<View>`
 
-`<TextBox>` inside a `<View>` is positioned relative to the View's content bounds, not the full viewport. The compiler wraps it in a positioned container div matching the View's NVS region, so `x=0 y=0 w=1 h=1` fills the View, not the page.
+`<TextBox>` inside a `<View>` is positioned relative to the View's content bounds, not the full viewport. The compiler wraps it in a positioned container div matching the View's NVS region, so `x={"0%"} y={"0%"} w={"100%"} h={"100%"}` fills the View, not the page.
 
 ```tsx
-<View id="right-panel" x={0.5} y={0} w={0.5} h={1}>
+<View id="right-panel" x={"50%"} y={"0%"} w={"50%"} h={"100%"}>
   {/* Model fills the view */}
-  <Model type="Robot" id="robot" x={0} y={0} w={1} h={1} />
+  <Model type="Robot" id="robot" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
 
   {/* TextBox is also relative to right-panel bounds */}
-  <TextBox key="caption" x={0.05} y={0.85} w={0.9} h={0.12}>
+  <TextBox key="caption" x={"5%"} y={"85%"} w={"90%"} h={"12%"}>
     <p style={{ color: 'white', margin: 0, fontSize: '0.9rem' }}>
       Caption inside the view
     </p>
@@ -155,12 +155,12 @@ Give all overlay elements React `key` props. The compiler collects them into a `
 ## HUD Positioning
 
 HUD content uses NVS (Normalized Viewport Space):
-- `x=0` → left edge of the canvas
-- `x=1` → right edge
-- `y=0` → top edge
-- `y=1` → bottom edge
+- `x={"0%"}` → left edge of the canvas
+- `x={"100%"}` → right edge
+- `y={"0%"}` → top edge
+- `y={"100%"}` → bottom edge
 
-`<TextBox x={0} y={0} w={1} h={1}>` fills the entire canvas. All positions are fractions of the rendered canvas size — they are aspect-ratio-independent.
+`<TextBox x={"0%"} y={"0%"} w={"100%"} h={"100%"}>` fills the entire canvas. All positions are percentages of the rendered canvas size — they are aspect-ratio-independent.
 
 For content not using `<TextBox>`, use `position: absolute` with percentage-based `left`/`top`/`width`/`height` values, since the `EngineOverlayHost` container has `position: absolute; inset: 0`.
 
@@ -240,12 +240,12 @@ export function HeroScene() {
       <Background color="#030510" />
 
       {/* Model occupies right 55% */}
-      <View id="model-area" x={0.42} y={0} w={0.55} h={1}>
-        <Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
+      <View id="model-area" x={"42%"} y={"0%"} w={"55%"} h={"100%"}>
+        <Model type="Robot" id="robot" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
       </View>
 
       {/* Headline — top-left */}
-      <TextBox key="headline" x={0.04} y={0.12} w={0.40} h={0.18}>
+      <TextBox key="headline" x={"4%"} y={"12%"} w={"40%"} h={"18%"}>
         <h1 style={{
           margin: 0,
           fontFamily: 'var(--brewsite-font-family, sans-serif)',
@@ -259,7 +259,7 @@ export function HeroScene() {
       </TextBox>
 
       {/* Body copy */}
-      <TextBox key="body" x={0.04} y={0.32} w={0.38} h={0.30}>
+      <TextBox key="body" x={"4%"} y={"32%"} w={"38%"} h={"30%"}>
         <p style={{
           margin: 0,
           fontFamily: 'var(--brewsite-font-family, sans-serif)',
@@ -274,7 +274,7 @@ export function HeroScene() {
       </TextBox>
 
       {/* Badge — top right */}
-      <TextBox key="badge" x={0.86} y={0.06} w={0.12} h={0.06} layer={5}>
+      <TextBox key="badge" x={"86%"} y={"6%"} w={"12%"} h={"6%"} layer={5}>
         <div style={{
           background: 'rgba(64, 128, 255, 0.25)',
           border: '1px solid rgba(64, 128, 255, 0.5)',

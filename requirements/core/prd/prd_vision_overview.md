@@ -3,8 +3,11 @@ title: "BrewSite Core — Vision & Overview"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-17
+updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: all DSL-authored spatial values across the toolkit now require explicit SceneLength/SceneAngle unit strings (e.g. '50%', '15u', '45deg'). Bare numbers except 0 are TypeScript errors. The units/ module in @brewsite/core resolves unit strings to NVS numbers at compile time. Compiled state and the SceneTrack remain number. This is a semver major breaking change across all published packages."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "Codebase alignment: renamed camera.dolly to camera.zoom; added carousel-scrubber element to core elements listing; added material preset system description to widget layer; added highlight palette system to theming section."

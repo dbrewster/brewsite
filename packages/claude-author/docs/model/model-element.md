@@ -3,7 +3,7 @@ title: "@brewsite/model — Model Element DSL Reference"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## Model Element Overview
@@ -24,13 +24,13 @@ All props come from `ModelProps` in `packages/model/src/elements/model/dsl.tsx`.
 |---|---|---|---|
 | `type` | `string` | required | Asset manifest model type key. Must match a `ModelMeta.type` in the manifest. |
 | `id` | `string` | required | Unique widget ID. Used by runtime registry. Must match the ID in `widgetSetup.ts` (when using factory pattern) and can be used as `targetId` in `<Camera>`. |
-| `x` | `number` | `0` | NVS left edge of the model's viewport region [0..1]. |
-| `y` | `number` | `0` | NVS top edge of the model's viewport region [0..1]. |
-| `w` | `number` | `1` | NVS width of the model's viewport region [0..1]. |
-| `h` | `number` | `1` | NVS height of the model's viewport region [0..1]. |
+| `x` | `SceneLength` | `"0%"` | NVS left edge of the model's viewport region. Accepts `"15%"`, `"15u"`, `"10vw"`, or `0`. |
+| `y` | `SceneLength` | `"0%"` | NVS top edge of the model's viewport region. Accepts `"50%"`, `"15u"`, `"10vh"`, or `0`. |
+| `w` | `SceneLength` | `"100%"` | NVS width of the model's viewport region. Accepts `"70%"`, `"15u"`, `"10vw"`, or `0`. |
+| `h` | `SceneLength` | `"100%"` | NVS height of the model's viewport region. Accepts `"100%"`, `"15u"`, `"10vh"`, or `0`. |
 | `scale` | `Resolvable<number>` | from manifest | Viewport-relative scale. `scale * visibleWorldHeight` = world-space scale. A value of `0.06` = 6% of viewport height. |
 | `z` | `Resolvable<number>` | `0` | World-space Z depth of the model center. |
-| `rotation` | `Resolvable<[number, number, number]>` | `[0,0,0]` | Euler rotation in radians `[x, y, z]`. |
+| `rotation` | `Resolvable<[SceneAngle, SceneAngle, SceneAngle]>` | `[0,0,0]` | Euler rotation `[x, y, z]`. Accepts `"45deg"`, `"0.78rad"`, or `0`. |
 | `opacity` | `Resolvable<number>` | `1` | Global opacity [0..1]. Applied to all meshes. |
 | `metalness` | `Resolvable<number>` | from manifest | Global metalness override [0..1]. Overrides all mesh materials. |
 | `roughness` | `Resolvable<number>` | from manifest | Global roughness override [0..1]. Overrides all mesh materials. |
@@ -40,37 +40,37 @@ All props come from `ModelProps` in `packages/model/src/elements/model/dsl.tsx`.
 | `reset` | `Resolvable<boolean>` | `false` | When `true`, resets state back to manifest defaults before applying props. |
 | `children` | `ReactNode` | — | `<Playback>`, `<BodyParts>` children. |
 
-The NVS props `x`, `y`, `w`, `h` define the model's viewport region (its `nvsBounds`). The model's NVS center position is computed as `(x + w/2, y + h/2)`. Scale is applied relative to the visible world height.
+The NVS props `x`, `y`, `w`, `h` define the model's viewport region (its `nvsBounds`) using `SceneLength` unit strings. The model's NVS center position is computed as `(x + w/2, y + h/2)`. Scale is applied relative to the visible world height.
 
 ---
 
 ## Model Positioning
 
-NVS coordinates: `x=0` is left, `x=1` is right, `y=0` is top, `y=1` is bottom.
+NVS coordinates: `x={"0%"}` is left, `x={"100%"}` is right, `y={"0%"}` is top, `y={"100%"}` is bottom.
 
-The `x`, `y`, `w`, `h` props define a rectangular region. The model's world-space center is placed at the center of that region. Scale is viewport-relative.
+The `x`, `y`, `w`, `h` props define a rectangular region using `SceneLength` unit strings. The model's world-space center is placed at the center of that region. Scale is viewport-relative.
 
 **Common layouts:**
 
 ```tsx
 {/* Full-screen, centered */}
-<Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
+<Model type="Robot" id="robot" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
 
 {/* Center stage with margins — model fills middle 70% horizontally */}
-<Model type="Robot" id="robot" scale={0.06} x={0.15} y={0} w={0.7} h={1} />
+<Model type="Robot" id="robot" scale={0.06} x={"15%"} y={"0%"} w={"70%"} h={"100%"} />
 
 {/* Right half — model on right side, text on left */}
-<Model type="Robot" id="robot" scale={0.06} x={0.5} y={0} w={0.5} h={1} />
+<Model type="Robot" id="robot" scale={0.06} x={"50%"} y={"0%"} w={"50%"} h={"100%"} />
 
 {/* Left of center, slightly inset */}
-<Model type="Robot" id="robot" scale={0.06} x={0.1} y={0.05} w={0.45} h={0.9} />
+<Model type="Robot" id="robot" scale={0.06} x={"10%"} y={"5%"} w={"45%"} h={"90%"} />
 ```
 
-When a `<Model>` is nested inside a `<View>`, the NVS props are relative to the View's content bounds. A model with `x={0} y={0} w={1} h={1}` inside a View fills that View's region:
+When a `<Model>` is nested inside a `<View>`, the NVS props are relative to the View's content bounds. A model with `x={"0%"} y={"0%"} w={"100%"} h={"100%"}` inside a View fills that View's region:
 
 ```tsx
-<View id="right-panel" x={0.38} y={0} w={0.62} h={1} padding={[0.05, 0.04]}>
-  <Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
+<View id="right-panel" x={"38%"} y={"0%"} w={"62%"} h={"100%"} padding={["5%", "4%"]}>
+  <Model type="Robot" id="robot" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
 </View>
 ```
 
@@ -83,7 +83,7 @@ Animations are defined in the asset manifest's `animations` array. Each animatio
 Use `<Playback>` and `<Animation>` as children of `<Model>`:
 
 ```tsx
-<Model type="Robot" id="robot" scale={0.06} x={0.15} y={0} w={0.7} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={"15%"} y={"0%"} w={"70%"} h={"100%"}>
   <Playback>
     <Animation
       enabled
@@ -127,14 +127,14 @@ To change the animation when a new scene enters, simply use a different `clipNam
 
 ```tsx
 // Scene A — idle
-<Model type="Robot" id="robot" scale={0.06} x={0.25} y={0} w={0.5} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={"25%"} y={"0%"} w={"50%"} h={"100%"}>
   <Playback>
     <Animation enabled clipName="idle" weight={1} clipRepeat />
   </Playback>
 </Model>
 
 // Scene B — talking animation, shifted left
-<Model type="Robot" id="robot" scale={0.06} x={0.1} y={0} w={0.5} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={"10%"} y={"0%"} w={"50%"} h={"100%"}>
   <Playback>
     <Animation enabled clipName="chat-relax-f" weight={1} fadeInSeconds={0.4} clipRepeat />
   </Playback>
@@ -148,7 +148,7 @@ The model smoothly moves from its Scene A position to Scene B position during th
 `<Motion>` applies real-time bone overrides using `commands` (instantaneous) or `scenes` (time-coded). These run on top of animation clips each frame.
 
 ```tsx
-<Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
   <Playback>
     <Animation enabled clipName="idle" clipRepeat />
     <Motion
@@ -177,7 +177,7 @@ Entry transitions (fade in from a starting state) can be authored by setting `op
 
 ```tsx
 <Scene id="intro" transition={{ enter: [0, 0.3] }}>
-  <Model type="Robot" id="robot" scale={0.06} x={0.15} y={0} w={0.7} h={1} opacity={1} />
+  <Model type="Robot" id="robot" scale={0.06} x={"15%"} y={"0%"} w={"70%"} h={"100%"} opacity={1} />
 </Scene>
 ```
 
@@ -196,7 +196,7 @@ When the model appears for the first time (no prior scene had it), it uses its m
 `<BodyPart>` overrides material and pose properties on a named bone or mesh. Nest them inside `<BodyParts>`:
 
 ```tsx
-<Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
   <BodyParts>
     {/* Highlight the head with an accent color */}
     <BodyPart id="Head" color="#7ffcff" opacity={1}>
@@ -271,7 +271,7 @@ function SceneIntro() {
         type="Robot"
         id="robot"
         scale={0.06}
-        x={0.15} y={0} w={0.7} h={1}
+        x={"15%"} y={"0%"} w={"70%"} h={"100%"}
         opacity={1}
       />
     </Scene>
@@ -293,7 +293,7 @@ function SceneAnimation() {
         type="Robot"
         id="robot"
         scale={0.06}
-        x={0.25} y={0} w={0.5} h={1}
+        x={"25%"} y={"0%"} w={"50%"} h={"100%"}
         opacity={1}
       >
         <Playback>
@@ -325,7 +325,7 @@ function SceneLabels() {
         type="Robot"
         id="robot"
         scale={0.06}
-        x={0.1} y={0} w={0.8} h={1}
+        x={"10%"} y={"0%"} w={"80%"} h={"100%"}
         opacity={1}
       >
         <Playback>

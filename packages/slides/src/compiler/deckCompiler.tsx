@@ -34,7 +34,7 @@ import type {
   AgendaSlideProps,
 } from '../dsl';
 // DSL imports from @brewsite/core — used to construct <Scene> children
-import { TextBox, Scene, ProgressManager, Floor, Background, Lighting, Ambient, View } from '@brewsite/core';
+import { TextBox, Scene, ProgressManager, Floor, Background, Lighting, Ambient, View, Camera, getNodeHandler } from '@brewsite/core';
 import { SlideMetaDsl } from '../plugin';
 
 // ─── Internal Types ───────────────────────────────────────────────────────────
@@ -162,6 +162,89 @@ function countAnimatedListItems(children: React.ReactNode): number {
     }
   });
   return total;
+}
+
+// ─── Content Type Classification ─────────────────────────────────────────────
+
+type RegionContentType = 'html' | '3d' | 'mixed';
+
+type ClassifiedContent = {
+  contentType: RegionContentType;
+  htmlChildren: React.ReactNode[];
+  dslChildren: React.ReactNode[];
+};
+
+/**
+ * Classifies region content into HTML vs 3D DSL elements.
+ * 3D elements are identified by having a registered NodeHandler.
+ *
+ * Fragment children are expanded one level. Nested React components
+ * that internally render 3D elements are NOT detected — only the
+ * top-level element type is inspected.
+ *
+ * @param children - The ReactNode content of a layout region slot.
+ * @returns Classification result with separated children arrays.
+ */
+export function classifyRegionContent(children: React.ReactNode): ClassifiedContent {
+  const htmlChildren: React.ReactNode[] = [];
+  const dslChildren: React.ReactNode[] = [];
+
+  // Flatten one level of Fragments
+  const flatChildren: React.ReactNode[] = [];
+  Children.forEach(children, (child) => {
+    if (isValidElement(child) && child.type === React.Fragment) {
+      // Expand fragment children
+      Children.forEach(
+        (child.props as { children?: React.ReactNode }).children,
+        (fragmentChild) => flatChildren.push(fragmentChild),
+      );
+    } else {
+      flatChildren.push(child);
+    }
+  });
+
+  for (const child of flatChildren) {
+    if (isValidElement(child) && getNodeHandler(child.type) !== undefined) {
+      dslChildren.push(child);
+    } else {
+      htmlChildren.push(child);
+    }
+  }
+
+  const has3d = dslChildren.length > 0;
+  const hasHtml = htmlChildren.length > 0;
+  const contentType: RegionContentType =
+    has3d && hasHtml ? 'mixed' :
+    has3d ? '3d' :
+    'html';
+
+  return { contentType, htmlChildren, dslChildren };
+}
+
+/**
+ * Returns true if the ReactNode tree contains an element of the given type
+ * at the top level. Expands one level of Fragments.
+ */
+function hasElementOfType(node: React.ReactNode, type: unknown): boolean {
+  let found = false;
+  Children.forEach(node, (child) => {
+    if (isValidElement(child)) {
+      if (child.type === type) {
+        found = true;
+      } else if (child.type === React.Fragment) {
+        // Expand fragment one level
+        Children.forEach(
+          (child.props as { children?: React.ReactNode }).children,
+          (fragmentChild) => {
+            if (isValidElement(fragmentChild) && fragmentChild.type === type) {
+              found = true;
+            }
+          },
+        );
+      }
+    }
+  });
+  return found;
 }
 
 /**
@@ -458,9 +541,14 @@ export function buildSceneElements(
       ? extractLayoutInfo(layoutEl)
       : { layout: 'blank' as SlideLayout, title: undefined, hasTitle: false, contentChildren: null };
 
-    // Build TextBox children for each region
-    const textBoxElements = slideSpec.regions.map((region) => {
+    // Build region elements — smart routing classifies content as HTML, 3D, or mixed.
+    // Track whether any region emits a routed 3D View (used for default Camera injection).
+    let hasRouted3D = false;
+
+    const regionElements = slideSpec.regions.flatMap((region) => {
       let regionContent: React.ReactNode = null;
+      // Content that should be classified for smart routing (set by classifiable paths)
+      let classifiableContent: React.ReactNode | null = null;
       const data = layoutInfo.contentChildren;
 
       if (slideSpec.layout === 'title') {
@@ -504,14 +592,8 @@ export function buildSceneElements(
             </div>
           );
         } else {
-          const rawContent = (
-            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
-              {asReactNode(data)}
-            </div>
-          );
-          regionContent = wrapBodyContent
-            ? wrapBodyContent(slideSpec.key, slideSpec.totalBullets, rawContent)
-            : rawContent;
+          // body region — classifiable for smart routing
+          classifiableContent = asReactNode(data);
         }
       } else if (slideSpec.layout === 'two-column') {
         if (region.id === 'title') {
@@ -521,13 +603,9 @@ export function buildSceneElements(
             </div>
           );
         } else {
+          // left/right regions — classifiable for smart routing
           const twoColContent = isTwoColumnContent(data) ? data : null;
-          const colContent = region.id === 'left' ? twoColContent?.left : twoColContent?.right;
-          regionContent = (
-            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
-              {colContent}
-            </div>
-          );
+          classifiableContent = region.id === 'left' ? twoColContent?.left : twoColContent?.right;
         }
       } else if (slideSpec.layout === 'image') {
         if (region.id === 'image') {
@@ -545,24 +623,15 @@ export function buildSceneElements(
             </div>
           );
         } else {
-          // body region
-          const rawContent = (
-            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
-              {asReactNode(data)}
-            </div>
-          );
-          regionContent = wrapBodyContent
-            ? wrapBodyContent(slideSpec.key, slideSpec.totalBullets, rawContent)
-            : rawContent;
+          // body region — classifiable for smart routing
+          classifiableContent = asReactNode(data);
         }
       } else if (slideSpec.layout === 'full-bleed') {
-        regionContent = (
-          <div style={{ padding: 'var(--slide-content-padding)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            {asReactNode(data)}
-          </div>
-        );
+        // overlay region — classifiable for smart routing
+        classifiableContent = asReactNode(data);
       } else if (slideSpec.layout === 'blank') {
-        regionContent = asReactNode(data);
+        // body region — classifiable for smart routing
+        classifiableContent = asReactNode(data);
       } else if (slideSpec.layout === 'big-number') {
         if (region.id === 'title') {
           regionContent = (
@@ -724,7 +793,77 @@ export function buildSceneElements(
         }
       }
 
-      return React.createElement(
+      // ─── Smart Content Routing ───────────────────────────────────────────────
+      // If this region has classifiable content, route 3D vs HTML elements.
+      // Non-classifiable regions (title, structured data) always emit TextBox.
+      if (classifiableContent !== null) {
+        const classified = classifyRegionContent(classifiableContent);
+
+        if (classified.contentType === '3d') {
+          hasRouted3D = true;
+          return [React.createElement(
+            View,
+            {
+              key: `${slideSpec.key}-${region.id}-view`,
+              id: `slide-view-${slideSpec.key}-${region.id}`,
+              x: region.x, y: region.y, w: region.w, h: region.h,
+            },
+            ...classified.dslChildren,
+          )];
+        } else if (classified.contentType === 'mixed') {
+          hasRouted3D = true;
+          return [
+            React.createElement(
+              View,
+              {
+                key: `${slideSpec.key}-${region.id}-view`,
+                id: `slide-view-${slideSpec.key}-${region.id}`,
+                x: region.x, y: region.y, w: region.w, h: region.h,
+              },
+              ...classified.dslChildren,
+            ),
+            React.createElement(
+              TextBox,
+              {
+                key: `${slideSpec.key}-${region.id}-text`,
+                id: `${slideSpec.key}-${region.id}`,
+                x: region.x, y: region.y, w: region.w, h: region.h,
+                layer: region.layer,
+              },
+              ...classified.htmlChildren,
+            ),
+          ];
+        }
+
+        // contentType === 'html' — fall through to wrap in body styling + TextBox below
+        const isBodyRegion = slideSpec.layout === 'content' || slideSpec.layout === 'image';
+        if (isBodyRegion && region.id !== 'title') {
+          const rawContent = (
+            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
+              {classifiableContent}
+            </div>
+          );
+          regionContent = wrapBodyContent
+            ? wrapBodyContent(slideSpec.key, slideSpec.totalBullets, rawContent)
+            : rawContent;
+        } else if (slideSpec.layout === 'two-column') {
+          regionContent = (
+            <div style={{ height: '100%', padding: '0 var(--slide-content-padding) var(--slide-content-padding)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--slide-content-gap)' }}>
+              {classifiableContent}
+            </div>
+          );
+        } else if (slideSpec.layout === 'full-bleed') {
+          regionContent = (
+            <div style={{ padding: 'var(--slide-content-padding)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {classifiableContent}
+            </div>
+          );
+        } else if (slideSpec.layout === 'blank') {
+          regionContent = classifiableContent;
+        }
+      }
+
+      return [React.createElement(
         TextBox,
         {
           key: `${slideSpec.key}-${region.id}`,
@@ -736,8 +875,24 @@ export function buildSceneElements(
           layer: region.layer,
         },
         regionContent,
-      );
+      )];
     });
+
+    // Determine if the author's sceneDsl already provides a Camera
+    const sceneDslHasCamera = slideSpec.sceneDsl
+      ? hasElementOfType(slideSpec.sceneDsl, Camera)
+      : false;
+
+    // Inject a default camera for slides with routed 3D content (unless author provides one)
+    const defaultCameraElement = (hasRouted3D && !sceneDslHasCamera)
+      ? React.createElement(Camera, {
+          key: 'slide-default-cam',
+          mode: 'world' as const,
+          position: [0, 1.5, 5] as [number, number, number],
+          target: [0, 0, 0] as [number, number, number],
+          fov: '42deg',
+        })
+      : null;
 
     return React.createElement(
       Scene,
@@ -761,7 +916,8 @@ export function buildSceneElements(
         hasAnimatedList: slideSpec.hasAnimatedList,
         totalBullets: slideSpec.totalBullets,
       }),
-      ...textBoxElements,
+      ...(defaultCameraElement ? [defaultCameraElement] : []),
+      ...regionElements,
       // Inject author's 3D scene DSL (Diagram, Chart, Camera overrides, etc.)
       ...(slideSpec.sceneDsl
         ? [React.createElement(
@@ -771,8 +927,8 @@ export function buildSceneElements(
               id: `slide-3d-${slideSpec.key}`,
               x: 0,
               y: 0,
-              w: 1,
-              h: 1,
+              w: '100%',
+              h: '100%',
             },
             slideSpec.sceneDsl,
           )]

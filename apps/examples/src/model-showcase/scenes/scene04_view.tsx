@@ -13,7 +13,7 @@ export function Scene04View(): JSX.Element {
   return (
     <Scene id="model-view">
       <ProgressManager scrollUnits={1200} />
-      <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={45} />
+      <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={"45deg"} />
       <Lighting intensityScale={1.1}>
         <Ambient intensity={0.7} color="#d0e4ff" />
         <Directional intensity={1.0} color="#ffffff" position={[3, 8, 6]} />
@@ -24,7 +24,7 @@ export function Scene04View(): JSX.Element {
         View occupies right 60% of viewport, full height with a small top inset.
         padding={[0.05, 0.04]} = 5% top/bottom, 4% left/right.
       */}
-      <View id="right-panel" x={0.38} y={0} w={0.62} h={1} padding={[0.05, 0.04]}>
+      <View id="right-panel" x={"38%"} y={0} w={"62%"} h={"100%"} padding={[0.05, 0.04]}>
         <Model
           type="Robot"
           id="robot"

@@ -3,7 +3,7 @@ title: Slides Package Overview
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-21
 ---
 
 ## What @brewsite/slides Is
@@ -27,6 +27,12 @@ function Deck() {
 ```
 
 `SlidePlayer` does not create its own engine. It compiles `<Slide>` children into `<Scene>` elements that the parent `SceneEngine` drives. Visual tokens (colors, fonts, spacing) come from `SceneTheme` on the engine. Behavioral tokens (timing, density) come from `SlideTheme` via `--slide-*` CSS custom properties injected on the `SlidePlayer` container.
+
+Key capabilities:
+
+- **Smart Layout Routing** — Pass 3D DSL elements (`BarChart`, `Diagram`, etc.) directly as layout slot children. The compiler auto-routes them to `<View>` regions in the WebGL canvas, with default camera and lighting injected automatically. No manual `sceneDsl` or NVS coordinate math needed.
+- **Scene-Level Lazy Loading** — Configure `loadPolicy` on the parent `<SceneEngine>` to load widget assets per-scene instead of all-at-once. Eager scenes load immediately; additional scenes preload ahead of navigation.
+- **AR/Display Sizing** — `scaleMode` and `referenceWidth` props on `SlidePlayer` control how the deck fits within the display and how content scales across screen sizes.
 
 ## Installation and Plugin Registration
 

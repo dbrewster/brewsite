@@ -417,47 +417,47 @@ const collectAllowedGroupIdsForEdge = (
 function buildSceneCfOverview(): ReactElement {
   return (
     <Scene id="bfc-cf-overview">
-      <Diagram id="cf-overview" x={0} y={0} w={1} h={0.60} tilt={-0.1} scale={1}>
-        <FlowLayout direction="top-down" gap={0.05} />
+      <Diagram id="cf-overview" x={0} y={0} w={"100%"} h={"60%"} tilt={"-0.1rad"} scale={1}>
+        <FlowLayout direction="top-down" gap={"5%"} />
 
         <DiagramNode
           id="cf-db"
           label=".swarm/memory.db"
           sublabel="SQLite · single file · 12 tables"
-          size={[0.30, 0.10]}
+          size={["30%", "10%"]}
           color="#1a2030"
           glow={{ intensity: 0.12 }}
         />
 
         <DiagramGroup id="cf-categories" variant="container">
-          <GridLayout columns={2} spacing={[0.08, 0.05]} />
+          <GridLayout columns={2} spacing={["8%", "5%"]} />
 
           <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
-            <FlowLayout direction="top-down" gap={0.025} />
-            <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[0.18, 0.06]} color="#101828" />
+            <FlowLayout direction="top-down" gap={"2.5%"} />
+            <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={["18%", "6%"]} color="#101828" />
           </DiagramGroup>
 
           <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
-            <FlowLayout direction="top-down" gap={0.025} />
-            <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[0.18, 0.06]} color="#101828" />
+            <FlowLayout direction="top-down" gap={"2.5%"} />
+            <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-events" label="events" sublabel="audit log" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={["18%", "6%"]} color="#101828" />
           </DiagramGroup>
 
           <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
-            <FlowLayout direction="top-down" gap={0.025} />
-            <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[0.18, 0.06]} color="#101828" />
+            <FlowLayout direction="top-down" gap={"2.5%"} />
+            <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={["18%", "6%"]} color="#101828" />
           </DiagramGroup>
 
           <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
-            <FlowLayout direction="top-down" gap={0.025} />
-            <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[0.18, 0.06]} color="#101828" />
-            <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · >=2 acceptors" size={[0.18, 0.06]} color="#101828" />
+            <FlowLayout direction="top-down" gap={"2.5%"} />
+            <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={["18%", "6%"]} color="#101828" />
+            <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · >=2 acceptors" size={["18%", "6%"]} color="#101828" />
           </DiagramGroup>
         </DiagramGroup>
 
@@ -836,25 +836,25 @@ describe('sceneCfOverview routing', () => {
 function buildSceneDim7Safety(): ReactElement {
   return (
     <Scene id="bfc-dim7-safety">
-      <Diagram id="safety-diagram" x={0.2} y={0} w={0.6} h={0.56} tilt={-0.1} scale={1}>
-        <FlowLayout direction="left-right" gap={0.05} />
+      <Diagram id="safety-diagram" x={"20%"} y={0} w={"60%"} h={"56%"} tilt={"-0.1rad"} scale={1}>
+        <FlowLayout direction="left-right" gap={"5%"} />
 
         {/* Left — claude-flow TTL credentials */}
         <DiagramGroup id="g2" variant="container">
-          <FlowLayout direction="top-down" gap={0.035} />
-          <DiagramNode id="safe-cf-creds" label="credentials namespace" sublabel="1-hour TTL" size={[0.18, 0.06]} color="#1a1020" />
-          <DiagramNode id="safe-cf-gap" label="No classification pipeline" sublabel="no redaction" size={[0.18, 0.06]} color="#201010" />
+          <FlowLayout direction="top-down" gap={"3.5%"} />
+          <DiagramNode id="safe-cf-creds" label="credentials namespace" sublabel="1-hour TTL" size={["18%", "6%"]} color="#1a1020" />
+          <DiagramNode id="safe-cf-gap" label="No classification pipeline" sublabel="no redaction" size={["18%", "6%"]} color="#201010" />
         </DiagramGroup>
 
         {/* Right — BrewFlow Sensitive Data Guard */}
         <DiagramGroup id="g1" variant="container">
-          <HierarchicalLayout spacing={[0.02, 0.06]} />
-          <DiagramNode id="safe-bf-write" label="Every write boundary" sublabel="ingestion · consolidation" size={[0.18, 0.06]} color="#141830" />
-          <DiagramNode id="safe-bf-d1" label="allow_store" sublabel="safe as-is" size={[0.12, 0.06]} color="#0f2015" />
-          <DiagramNode id="safe-bf-d2" label="store_redacted" sublabel="placeholders replace content" size={[0.12, 0.06]} color="#1a1810" />
-          <DiagramNode id="safe-bf-d3" label="store_sealed" sublabel="audited vault" size={[0.12, 0.06]} color="#1a1015" />
-          <DiagramNode id="safe-bf-d4" label="no_store" sublabel="event logged" size={[0.12, 0.06]} color="#1a0f0f" />
-          <DiagramNode id="safe-bf-read" label="CensorCortex" sublabel="minimum-necessary · lane-scoped" size={[0.12, 0.06]} color="#1a1025" />
+          <HierarchicalLayout spacing={["2%", "6%"]} />
+          <DiagramNode id="safe-bf-write" label="Every write boundary" sublabel="ingestion · consolidation" size={["18%", "6%"]} color="#141830" />
+          <DiagramNode id="safe-bf-d1" label="allow_store" sublabel="safe as-is" size={["12%", "6%"]} color="#0f2015" />
+          <DiagramNode id="safe-bf-d2" label="store_redacted" sublabel="placeholders replace content" size={["12%", "6%"]} color="#1a1810" />
+          <DiagramNode id="safe-bf-d3" label="store_sealed" sublabel="audited vault" size={["12%", "6%"]} color="#1a1015" />
+          <DiagramNode id="safe-bf-d4" label="no_store" sublabel="event logged" size={["12%", "6%"]} color="#1a0f0f" />
+          <DiagramNode id="safe-bf-read" label="CensorCortex" sublabel="minimum-necessary · lane-scoped" size={["12%", "6%"]} color="#1a1025" />
         </DiagramGroup>
 
         <DiagramEdge from="safe-bf-write" to="safe-bf-d1" color="#6050a0" flow="forward" />

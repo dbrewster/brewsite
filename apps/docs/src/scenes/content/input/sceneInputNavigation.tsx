@@ -15,7 +15,7 @@ export function SceneInputNavigationPanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-input-navigation-base">
-        <Camera mode="world" position={[0, 2, 10]} target={[0, 1, 0]} fov={44} />
+        <Camera mode="world" position={[0, 2, 10]} target={[0, 1, 0]} fov={"44deg"} />
         <Background color="#0d1210" />
         <Lighting>
           <Ambient color="#22ff88" intensity={0.3} />
@@ -26,7 +26,7 @@ export function SceneInputNavigationPanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-input-navigation">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} fov={44} />
+        <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} fov={"44deg"} />
         <Background color="#0d1210" />
         <Lighting>
           <Ambient color="#22ff88" intensity={0.3} />

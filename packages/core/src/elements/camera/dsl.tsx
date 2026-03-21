@@ -7,6 +7,7 @@ import type {
   TrackpadCameraConfig,
   CameraTransitionInterpolation,
 } from './types';
+import type { SceneAngle, SceneLength } from '../../units/types';
 
 // ─── Flat authoring props ─────────────────────────────────────────────────
 
@@ -19,6 +20,8 @@ export type WorldCameraProps = {
   position: Vec3;
   target: Vec3;
   up?: Vec3;
+  /** NVS-space look-at override [x, y]. Accepts SceneLength values. */
+  nvsTarget?: readonly [SceneLength, SceneLength];
 };
 
 /**
@@ -28,13 +31,15 @@ export type WorldCameraProps = {
 export type OrbitCameraProps = {
   mode: 'orbit';
   target: Vec3;
-  /** Horizontal angle in radians. 0 = +Z facing. */
-  azimuth: number;
-  /** Vertical angle from equator in radians. 0 = level, +PI/2 = top-down. */
-  polar: number;
+  /** Horizontal angle. Accepts SceneAngle (e.g. `'45deg'`, `'0.78rad'`). 0 = +Z facing. */
+  azimuth: SceneAngle;
+  /** Vertical angle from equator. Accepts SceneAngle. 0 = level, `'90deg'` = top-down. */
+  polar: SceneAngle;
   /** Distance from target in world units. */
   distance: number;
   up?: Vec3;
+  /** NVS-space orbit center override [x, y]. Accepts SceneLength values. */
+  nvsTarget?: readonly [SceneLength, SceneLength];
 };
 
 /**
@@ -103,9 +108,18 @@ export type CameraDescriptorProps =
  * When absent from a scene: the camera holds its last rendered position from the
  * previous scene. It does not reset to a default position.
  */
+/** DSL-surface override of TrackpadCameraConfig with SceneAngle polar limits. */
+export type DslTrackpadCameraConfig = Omit<TrackpadCameraConfig, 'minPolarAngle' | 'maxPolarAngle'> & {
+  /** Minimum polar angle. Accepts SceneAngle. Default: 0. */
+  minPolarAngle?: SceneAngle;
+  /** Maximum polar angle. Accepts SceneAngle. Default: `'180deg'`. */
+  maxPolarAngle?: SceneAngle;
+};
+
 export type CameraProps = CameraDescriptorProps & {
   // Lens (flat, maps to CameraLens)
-  fov?: CameraLens['fov'];
+  /** Vertical field of view. Accepts SceneAngle (e.g. `'45deg'`). */
+  fov?: SceneAngle;
   focalLength?: CameraLens['focalLength'];
   filmGauge?: CameraLens['filmGauge'];
   near?: CameraLens['near'];
@@ -113,7 +127,7 @@ export type CameraProps = CameraDescriptorProps & {
   // Post (flat, maps to CameraPost) — DoF is Phase 2
   exposure?: CameraPost['exposure'];
   // Interaction
-  interaction?: TrackpadCameraConfig;
+  interaction?: DslTrackpadCameraConfig;
   // Transition
   transitionIn?: CameraTransitionInterpolation;
 };

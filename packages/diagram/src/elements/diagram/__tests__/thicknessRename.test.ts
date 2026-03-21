@@ -5,11 +5,12 @@
 import { it, expect } from 'vitest';
 import { compileDiagram } from '../compile';
 import { darkGlassTheme } from '../themes/darkGlass';
+import { resolveToNVS } from '@brewsite/core';
 
 it('DiagramNodeState has thickness field (not depth)', () => {
   const state = compileDiagram({
     id: 'test',
-    nodes: [{ id: 'a', label: 'A', thickness: 0.120 }],
+    nodes: [{ id: 'a', label: 'A', thickness: '12%' }],
     edges: [],
     groups: [],
   });
@@ -30,5 +31,5 @@ it('DiagramNodeState.thickness defaults from theme.node.defaultThickness', () =>
   const node = state.nodes.find((n) => n.id === 'a')!;
   // Theme defaultThickness is now in NVS. scaleFactor = 1.0 → compiled = theme value.
   expect(node.thickness).toBeGreaterThan(0);
-  expect(node.thickness).toBeCloseTo(darkGlassTheme.node.defaultThickness, 3);
+  expect(node.thickness).toBeCloseTo(resolveToNVS(darkGlassTheme.node.defaultThickness), 3);
 });

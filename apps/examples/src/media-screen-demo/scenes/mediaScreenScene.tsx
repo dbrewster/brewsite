@@ -17,7 +17,7 @@ const CAROUSEL_ID = 'ms-carousel';
 
 export const MediaScreenScene = (): JSX.Element => (
   <Scene id="ms-demo" primaryCarouselId={CAROUSEL_ID}>
-    <Camera mode="world" position={[0, 0.3, 5]} target={[0, 0, 0]} fov={50} />
+    <Camera mode="world" position={[0, 0.3, 5]} target={[0, 0, 0]} fov={"50deg"} />
     <Lighting intensityScale={1}>
       <Ambient intensity={0.4} color="#1a1a40" />
       <Directional intensity={1.2} color="#8090ff" position={[0, 8, 10]} />
@@ -34,10 +34,10 @@ export const MediaScreenScene = (): JSX.Element => (
           autoPlay
           loop
           muted
-          x={0.5}
-          y={0.5}
+          x={"50%"}
+          y={"50%"}
           z={0}
-          width={0.24}
+          width={"0.24u"}
           bezel="dark"
           bezelThickness={0.03}
           gloss={0.4}
@@ -53,10 +53,10 @@ export const MediaScreenScene = (): JSX.Element => (
         <MediaScreen
           id="canvas-demo"
           streamId="canvas-demo"
-          x={0.5}
-          y={0.5}
+          x={"50%"}
+          y={"50%"}
           z={0}
-          width={0.24}
+          width={"0.24u"}
           bezel="dark"
           bezelThickness={0.03}
           gloss={0.4}
@@ -72,10 +72,10 @@ export const MediaScreenScene = (): JSX.Element => (
         <MediaScreen
           id="display-demo"
           streamId="display-demo"
-          x={0.5}
-          y={0.5}
+          x={"50%"}
+          y={"50%"}
           z={0}
-          width={0.24}
+          width={"0.24u"}
           bezel="dark"
           bezelThickness={0.03}
           gloss={0.4}
@@ -88,7 +88,7 @@ export const MediaScreenScene = (): JSX.Element => (
     </ViewLayout>
 
     {/* ── Key binding hint ────────────────────────────────────────────── */}
-    <TextBox key="hint-keys" id="hint-keys" x={0.3} y={0.06} w={0.4} h={0.08}>
+    <TextBox key="hint-keys" id="hint-keys" x={"30%"} y={"6%"} w={"40%"} h={"8%"}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: '100%', gap: 12,
@@ -122,7 +122,7 @@ export const MediaScreenScene = (): JSX.Element => (
     </TextBox>
 
     {/* ── Labels under each screen ───────────────────────────────────── */}
-    <TextBox key="label-video" id="label-video" x={0.1} y={0.82} w={0.2} h={0.08}>
+    <TextBox key="label-video" id="label-video" x={"10%"} y={"82%"} w={"20%"} h={"8%"}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: '100%', textAlign: 'center',
@@ -138,7 +138,7 @@ export const MediaScreenScene = (): JSX.Element => (
       </div>
     </TextBox>
 
-    <TextBox key="label-canvas" id="label-canvas" x={0.4} y={0.82} w={0.2} h={0.08}>
+    <TextBox key="label-canvas" id="label-canvas" x={"40%"} y={"82%"} w={"20%"} h={"8%"}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: '100%', textAlign: 'center',
@@ -154,7 +154,7 @@ export const MediaScreenScene = (): JSX.Element => (
       </div>
     </TextBox>
 
-    <TextBox key="label-display" id="label-display" x={0.7} y={0.82} w={0.2} h={0.08}>
+    <TextBox key="label-display" id="label-display" x={"70%"} y={"82%"} w={"20%"} h={"8%"}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: '100%', textAlign: 'center',

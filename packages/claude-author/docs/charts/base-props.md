@@ -3,7 +3,7 @@ title: "@brewsite/charts — Shared Props and Child Components"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## BaseChartDSL Shared Props
@@ -13,12 +13,12 @@ All per-type chart components (`BarChart`, `LineChart`, `AreaChart`, `PieChart`,
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `id` | `string` | required | Unique widget ID. Must be stable across scenes for morphing and transitions. |
-| `x` | `number` | `0` | NVS left edge [0..1]. `x=0` is left viewport edge. |
-| `y` | `number` | `0` | NVS top edge [0..1]. `y=0` is top viewport edge. |
-| `w` | `number` | `1` | NVS width [0..1]. |
-| `h` | `number` | `1` | NVS height [0..1]. |
+| `x` | `SceneLength` | `"0%"` | NVS left edge. `x={"0%"}` is left viewport edge. |
+| `y` | `SceneLength` | `"0%"` | NVS top edge. `y={"0%"}` is top viewport edge. |
+| `w` | `SceneLength` | `"100%"` | NVS width. |
+| `h` | `SceneLength` | `"100%"` | NVS height. |
 | `z` | `number` | `0` | World-space Z depth. |
-| `rotation` | `readonly [number, number, number]` | `[0,0,0]` | Euler rotation in radians. |
+| `rotation` | `readonly [SceneAngle, SceneAngle, SceneAngle]` | `[0,0,0]` | Euler rotation. Accepts `"45deg"`, `"0.78rad"`, or `0`. |
 | `depth` | `number` | `0.4` | 3D extrusion depth of chart geometry in world units. Width and height are derived from `w`/`h`. |
 | `data` | `DataInput` | — | Inline data rows or columnar object. Mutually exclusive with `dataUrl`. |
 | `dataUrl` | `string` | — | URL for async JSON or CSV fetch. Mutually exclusive with `data`. |
@@ -29,7 +29,7 @@ All per-type chart components (`BarChart`, `LineChart`, `AreaChart`, `PieChart`,
 | `animationDuration` | `number` | `0.4` | Entry animation duration as fraction of blockProgress [0..1]. Clamped to [0.01..1.0]. |
 | `children` | `ReactNode` | — | `<ChartData>`, `<ChartAxis>`, `<ChartSeries>`, `<ChartLegend>`, `<ChartDataLabels>`, `<ReferenceLine>`, `<ChartTooltip>`. |
 
-NVS coordinates: `x=0` is left, `x=1` is right, `y=0` is top, `y=1` is bottom. The chart center is `(x + w/2, y + h/2)`.
+NVS coordinates: `x={"0%"}` is left, `x={"100%"}` is right, `y={"0%"}` is top, `y={"100%"}` is bottom. The chart center is `(x + w/2, y + h/2)`.
 
 ---
 
@@ -317,7 +317,7 @@ When the chart type changes between scenes (e.g. bar to line), the runtime holds
 <BarChart
   id="revenue"
   data={salesData}
-  x={0.30} y={0.32} w={0.40} h={0.30}
+  x={"30%"} y={"32%"} w={"40%"} h={"30%"}
   animateEntry
   animationDuration={0.4}
 >

@@ -97,7 +97,7 @@ describe('applyLayoutDefaultsWithTheme — flow branch', () => {
   it('kind=flow: overrides gap when specified', () => {
     const defaults = makeFlowDefaults();
     const result = applyLayoutDefaultsWithTheme(
-      { kind: 'flow', gap: 5 },
+      { kind: 'flow', gap: '500%' },
       defaults,
     ) as ResolvedFlowLayout;
     expect(result.gap).toBe(5);
@@ -106,7 +106,7 @@ describe('applyLayoutDefaultsWithTheme — flow branch', () => {
   it('kind=flow: normalizes groupPadding shorthand (number) to 4-tuple', () => {
     const defaults = makeFlowDefaults();
     const result = applyLayoutDefaultsWithTheme(
-      { kind: 'flow', groupPadding: 2 },
+      { kind: 'flow', groupPadding: '200%' },
       defaults,
     ) as ResolvedFlowLayout;
     expect(result.groupPadding).toEqual([2, 2, 2, 2]);
@@ -127,13 +127,13 @@ describe('applyLayoutDefaultsWithTheme — flow branch', () => {
 describe('mergeResolvedLayouts — flow branch', () => {
   it('child gap wins over parent gap', () => {
     const parent = flow({ gap: 3, direction: 'top-down' });
-    const result = mergeResolvedLayouts(parent, { kind: 'flow', gap: 7 } as ResolvedFlowLayout) as ResolvedFlowLayout;
+    const result = mergeResolvedLayouts(parent, { kind: 'flow', gap: '700%' } as unknown as ResolvedFlowLayout) as ResolvedFlowLayout;
     expect(result.gap).toBe(7);
   });
 
   it('parent direction preserved when child omits it', () => {
     const parent = flow({ direction: 'left-right', gap: 2 });
-    const result = mergeResolvedLayouts(parent, { kind: 'flow', gap: 4 } as ResolvedFlowLayout) as ResolvedFlowLayout;
+    const result = mergeResolvedLayouts(parent, { kind: 'flow', gap: '400%' } as unknown as ResolvedFlowLayout) as ResolvedFlowLayout;
     expect(result.direction).toBe('left-right');
   });
 
@@ -141,7 +141,7 @@ describe('mergeResolvedLayouts — flow branch', () => {
     const parent = flow({ direction: 'top-down' });
     const result = mergeResolvedLayouts(
       parent,
-      { kind: 'flow', direction: 'left-right' } as ResolvedFlowLayout,
+      { kind: 'flow', direction: 'left-right' } as unknown as ResolvedFlowLayout,
     ) as ResolvedFlowLayout;
     expect(result.direction).toBe('left-right');
   });
@@ -150,7 +150,7 @@ describe('mergeResolvedLayouts — flow branch', () => {
     const parent = flow({ groupPadding: [1.5, 1.5, 1.5, 1.5] });
     const result = mergeResolvedLayouts(
       parent,
-      { kind: 'flow', groupPadding: 3 } as unknown as ResolvedFlowLayout,
+      { kind: 'flow', groupPadding: '300%' } as unknown as ResolvedFlowLayout,
     ) as ResolvedFlowLayout;
     expect(result.groupPadding).toEqual([3, 3, 3, 3]);
   });
@@ -159,7 +159,7 @@ describe('mergeResolvedLayouts — flow branch', () => {
     const parent = flow({ titleGap: 1 });
     const result = mergeResolvedLayouts(
       parent,
-      { kind: 'flow', titleGap: 2 } as ResolvedFlowLayout,
+      { kind: 'flow', titleGap: '200%' } as unknown as ResolvedFlowLayout,
     ) as ResolvedFlowLayout;
     expect(result.titleGap).toBe(2);
   });
@@ -202,7 +202,7 @@ describe('resolveEffectiveLayout — flow interactions', () => {
   it('flow parent + flow child: merges; child gap wins, parent direction preserved', () => {
     const parent = flow({ gap: 3, direction: 'left-right' });
     const result = resolveEffectiveLayout(
-      { kind: 'flow', gap: 6 } as ResolvedFlowLayout,
+      { kind: 'flow', gap: '600%' } as unknown as ResolvedFlowLayout,
       parent,
     ) as ResolvedFlowLayout;
     expect(result.gap).toBe(6);
@@ -224,19 +224,19 @@ describe('resolveThemeLayoutDefaults — flow branch', () => {
   });
 
   it('flow: { gap: 3 } → flow defaults have gap=3', () => {
-    const defaults = resolveThemeLayoutDefaults({ flow: { gap: 3 } } as Parameters<typeof resolveThemeLayoutDefaults>[0]);
+    const defaults = resolveThemeLayoutDefaults({ flow: { gap: '300%' } } as Parameters<typeof resolveThemeLayoutDefaults>[0]);
     const flowDef = (defaults as unknown as { flow: ResolvedFlowLayout }).flow;
     expect(flowDef.gap).toBe(3);
   });
 
   it('flow: { direction: left-right } → flow defaults have that direction', () => {
-    const defaults = resolveThemeLayoutDefaults({ flow: { direction: 'left-right' } } as Parameters<typeof resolveThemeLayoutDefaults>[0]);
+    const defaults = resolveThemeLayoutDefaults({ flow: { direction: 'left-right' } } as unknown as Parameters<typeof resolveThemeLayoutDefaults>[0]);
     const flowDef = (defaults as unknown as { flow: ResolvedFlowLayout }).flow;
     expect(flowDef.direction).toBe('left-right');
   });
 
   it('flow: { groupPadding: 2 } → normalizes groupPadding to [2, 2, 2, 2]', () => {
-    const defaults = resolveThemeLayoutDefaults({ flow: { groupPadding: 2 } } as Parameters<typeof resolveThemeLayoutDefaults>[0]);
+    const defaults = resolveThemeLayoutDefaults({ flow: { groupPadding: '200%' } } as Parameters<typeof resolveThemeLayoutDefaults>[0]);
     const flowDef = (defaults as unknown as { flow: ResolvedFlowLayout }).flow;
     expect(flowDef.groupPadding).toEqual([2, 2, 2, 2]);
   });
@@ -258,7 +258,7 @@ describe('resolveThemeLayoutDefaults — flow branch', () => {
 
 describe('dispatch guard — resolveLayout kind=flow', () => {
   it('dispatches to flow layout behavior (not grid fallback)', () => {
-    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
+    const nodes = [makeNode('a', { size: ['400%', '200%'] }), makeNode('b', { size: ['400%', '200%'] })];
     // Flow top-down with default gap=0.06: a at y=0, b at y=-(h/2+gap+h/2)=-(1+0.06+1)=-2.06
     // Grid would assign both to y=0 but different x. If flow is dispatched, a is at [0,0,0].
     const result = resolveLayout(nodes, [], DEFAULT_RESOLVED_FLOW, undefined, ['a', 'b']);
@@ -276,7 +276,7 @@ describe('resolveFlowLayout — edge cases', () => {
   });
 
   it('phantom ids in childrenOrder are silently dropped', () => {
-    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
+    const nodes = [makeNode('a', { size: ['400%', '200%'] }), makeNode('b', { size: ['400%', '200%'] })];
     const result = resolveFlowLayout(
       nodes,
       flow({ direction: 'top-down', gap: 1 }),

@@ -15,6 +15,16 @@ import {CUSTOM_NODE_HANDLER} from '../../widget/index';
 import type {NodeHandler} from '../../compiler/index';
 import type {WidgetRegistry} from '../../widget/WidgetRegistry';
 import type {MaterialApplication} from '../../widget/materialTypes';
+import { resolveAngle } from '../../units/resolve';
+import type { SceneAngle } from '../../units/types';
+
+/** Resolve a 3-tuple of SceneAngle values to radians. Returns undefined if input is undefined. */
+function resolveAngleTuple(
+  tuple: [SceneAngle, SceneAngle, SceneAngle] | undefined,
+): [number, number, number] | undefined {
+  if (!tuple) return undefined;
+  return [resolveAngle(tuple[0]), resolveAngle(tuple[1]), resolveAngle(tuple[2])];
+}
 
 /**
  * Floor element.
@@ -184,15 +194,23 @@ export class FloorWidget
           childEl.props as FloorPhysicalProps,
           api.context,
         ) as FloorPhysicalProps;
+        // Resolve SceneAngle → number for compiled state
+        const resolvedTextureRotation = resolved.textureRotation !== undefined
+          ? resolveAngle(resolved.textureRotation)
+          : undefined;
+        const physicalProps = {
+          ...resolved,
+          ...(resolvedTextureRotation !== undefined ? { textureRotation: resolvedTextureRotation } : {}),
+        };
         if (resolved.pattern === 'grid') {
           surface = {
             ...DEFAULT_GRID_SURFACE,
             ...gridThemeOverrides,
             type: 'physical',
-            ...resolved,
+            ...physicalProps,
           } as FloorSurfacePhysical;
         } else {
-          surface = {type: 'physical', ...resolved} as FloorSurfacePhysical;
+          surface = {type: 'physical', ...physicalProps} as FloorSurfacePhysical;
         }
       } else if (childEl.type === FloorMirror) {
         const resolved = helpers.resolveObjectValues(childEl.props as FloorMirrorProps, api.context);
@@ -217,9 +235,9 @@ export class FloorWidget
       debug: helpers.resolveValue(props.debug, api.context) ?? base.debug,
       placement: helpers.resolveValue(props.placement, api.context) ?? base.placement,
       position: helpers.resolveValue(props.position, api.context) ?? base.position,
-      rotation: helpers.resolveValue(props.rotation, api.context) ?? base.rotation,
+      rotation: resolveAngleTuple(helpers.resolveValue(props.rotation, api.context)) ?? base.rotation,
       rotationRelative:
-        helpers.resolveValue(props.rotationRelative, api.context) ?? base.rotationRelative,
+        resolveAngleTuple(helpers.resolveValue(props.rotationRelative, api.context)) ?? base.rotationRelative,
       scale: helpers.resolveValue(props.scale, api.context) ?? base.scale,
       negativeZExtent:
         helpers.resolveValue(props.negativeZExtent, api.context) ??

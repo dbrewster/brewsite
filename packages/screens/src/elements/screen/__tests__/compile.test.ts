@@ -30,15 +30,15 @@ describe('compileScreen', () => {
   });
 
   it('respects explicit NVS x, y, z', () => {
-    const state = compileScreen({ id: 'screen', src: 'https://example.com', x: 0.3, y: 0.7, z: -1 });
-    expect(state.nvsX).toBe(0.3);
-    expect(state.nvsY).toBe(0.7);
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', x: '30%', y: '70%', z: -1 });
+    expect(state.nvsX).toBeCloseTo(0.3);
+    expect(state.nvsY).toBeCloseTo(0.7);
     expect(state.z).toBe(-1);
   });
 
   it('respects explicit NVS height', () => {
-    const state = compileScreen({ id: 'screen', src: 'https://example.com', height: 0.35 });
-    expect(state.nvsHeight).toBe(0.35);
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', height: '35%' });
+    expect(state.nvsHeight).toBeCloseTo(0.35);
   });
 
   it('preserves explicit src value', () => {
@@ -56,10 +56,15 @@ describe('compileScreen', () => {
     expect(state.glow).toBe(true);
   });
 
-  it('compiles large rotation values without warning', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const state = compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0, 1.0, 0] });
-    expect(warnSpy).not.toHaveBeenCalled();
+  it('compiles rotation with angle units', () => {
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0, '45deg', 0] });
+    expect(state.rotation[0]).toBe(0);
+    expect(state.rotation[1]).toBeCloseTo(Math.PI / 4);
+    expect(state.rotation[2]).toBe(0);
+  });
+
+  it('compiles rotation with radian units', () => {
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0, '1rad', 0] });
     expect(state.rotation[1]).toBe(1.0);
   });
 
@@ -71,5 +76,27 @@ describe('compileScreen', () => {
   it('ScreenState has no selfIllumination field', () => {
     const state = compileScreen({ id: 'screen', src: 'https://example.com' });
     expect((state as { selfIllumination?: number }).selfIllumination).toBeUndefined();
+  });
+
+  it('defaults uniformSizing to false', () => {
+    const state = compileScreen({ id: 'screen', src: 'https://example.com' });
+    expect(state.uniformSizing).toBe(false);
+  });
+
+  it('sets uniformSizing true when width uses u unit', () => {
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', width: '62.5u' });
+    expect(state.uniformSizing).toBe(true);
+    expect(state.nvsWidth).toBeCloseTo(0.625);
+  });
+
+  it('sets uniformSizing false when width uses % unit', () => {
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', width: '62.5%' });
+    expect(state.uniformSizing).toBe(false);
+    expect(state.nvsWidth).toBeCloseTo(0.625);
+  });
+
+  it('resolves x=0 to nvsX=0', () => {
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', x: 0 });
+    expect(state.nvsX).toBe(0);
   });
 });

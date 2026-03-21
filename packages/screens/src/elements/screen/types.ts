@@ -5,6 +5,7 @@
 // For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
 
 import type { BezelVariant } from '../_shared/bezelGeometry';
+import type { SceneLength, SceneAngle } from '@brewsite/core';
 
 /** Bezel frame style for the Screen element. */
 export type ScreenBezelVariant = BezelVariant;
@@ -107,30 +108,37 @@ export interface ScreenState {
    * Default: true
    */
   readonly enabled: boolean;
+
+  /**
+   * When true, all size-like fields (nvsWidth, nvsHeight) use vmin (uniform) scaling
+   * at render time instead of per-axis scaling. Set by compile when DSL uses `u` units.
+   * Default: false (preserves existing per-axis behavior).
+   */
+  readonly uniformSizing: boolean;
 }
 
 /** Raw DSL props from <Screen> before compile.ts applies defaults. */
 export interface ScreenDSL {
   readonly id: string;
   readonly src: string;
-  /** NVS center X [0..1]. Default: 0.5 */
-  readonly x?: number;
-  /** NVS center Y [0..1]. Default: 0.5 */
-  readonly y?: number;
+  /** NVS center X with explicit unit. Default: '50%' */
+  readonly x?: SceneLength;
+  /** NVS center Y with explicit unit. Default: '50%' */
+  readonly y?: SceneLength;
   /** World-space depth (Z). Default: 0 */
   readonly z?: number;
-  /** NVS width fraction [0..1]. Default: 0.625 */
-  readonly width?: number;
-  /** NVS height fraction [0..1]. Derived from 16:9 if omitted. */
-  readonly height?: number;
+  /** NVS width with explicit unit. Default: '62.5%' */
+  readonly width?: SceneLength;
+  /** NVS height with explicit unit. Derived from 16:9 if omitted. */
+  readonly height?: SceneLength;
   /**
-   * World-space rotation in radians [x, y, z] (Euler XYZ order).
+   * Rotation with explicit angle units [x, y, z] (Euler XYZ order).
    * Full 3D rotation supported via CSS3DRenderer — suitable for carousel layouts
    * and angled perspective views. For a static image, use <ImagePanel>.
    * For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
    * Default: [0, 0, 0]
    */
-  readonly rotation?: readonly [number, number, number];
+  readonly rotation?: readonly [SceneAngle, SceneAngle, SceneAngle];
   readonly scale?: number;
   readonly bezel?: ScreenBezelVariant;
   readonly bezelThickness?: number;

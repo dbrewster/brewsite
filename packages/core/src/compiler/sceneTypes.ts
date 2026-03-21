@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { VariableStoreReader, JsonPrimitive } from '../widget/VariableStore';
 import type { ThemeFamily, SceneTheme } from '../theme/types';
+import type { WidgetRegistry } from '../widget/WidgetRegistry';
 
 export type SceneSnapshotContext = {
   /** 0-based index of this scene in the scene array. */
@@ -34,6 +35,14 @@ export type SceneSnapshotContext = {
    * Optional — existing scenes without a SceneTheme behave identically to before.
    */
   sceneTheme?: SceneTheme;
+  /**
+   * The WidgetRegistry for this compilation pass. Handlers that lazily create
+   * widgets (e.g., Diagram, Chart) MUST use this instead of closure-captured
+   * registry references to support multi-engine pages where each engine has
+   * its own registry instance.
+   * Optional for backward compatibility with tests and direct callers.
+   */
+  widgetRegistry?: WidgetRegistry;
 };
 
 /**

@@ -5,6 +5,7 @@
 import type * as React from 'react';
 import type { FloorNegativeZEdge, FloorPlacement, FloorVariant } from './types';
 import type { SceneTheme } from '../../theme/types';
+import type { SceneAngle } from '../../units/types';
 
 export type FloorProps = {
   enabled?: boolean;
@@ -38,14 +39,15 @@ export type FloorProps = {
    */
   position?: [number, number, number];
   /**
-   * Absolute world rotation in radians.
+   * Absolute world rotation. Accepts SceneAngle values (e.g. `'90deg'`, `'1.57rad'`).
    */
-  rotation?: [number, number, number];
+  rotation?: [SceneAngle, SceneAngle, SceneAngle];
   /**
-   * Rotation offset in radians relative to floor baseline [-Math.PI / 2, 0, 0].
-   * Use this for subtle floor tilt without manually subtracting PI/2 on X.
+   * Rotation offset relative to floor baseline [-90deg, 0, 0].
+   * Use this for subtle floor tilt without manually subtracting 90deg on X.
+   * Accepts SceneAngle values.
    */
-  rotationRelative?: [number, number, number];
+  rotationRelative?: [SceneAngle, SceneAngle, SceneAngle];
   scale?: number;
   /**
    * Optional world-space reach in the negative Z direction from the floor origin.
@@ -120,7 +122,7 @@ export type FloorPhysicalProps = {
   envMapIntensity?: number;
   textureRepeat?: [number, number];
   textureOffset?: [number, number];
-  textureRotation?: number;
+  textureRotation?: SceneAngle;
   normalMapUrl?: string;
   normalScale?: [number, number];
   roughnessMapUrl?: string;

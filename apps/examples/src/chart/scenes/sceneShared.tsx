@@ -25,20 +25,20 @@ export function useDemoChartTheme(): ChartTheme {
 
 export const CHART_CAM_POS: [number, number, number] = [0, 1.5, 6.6];
 export const CHART_CAM_TGT: [number, number, number] = [0, 0.08, 0];
-export const CHART_CAM_FOV = 42;
+export const CHART_CAM_FOV = "42deg" as const;
 
 export const PIE_CAM_POS: [number, number, number] = [0, 2.12, 7.3];
 export const PIE_CAM_TGT: [number, number, number] = [0, 0.08, 0];
-export const PIE_CAM_FOV = 42;
+export const PIE_CAM_FOV = "42deg" as const;
 
-export const TITLE_LAYOUT = { x: 0.05, y: 0.03, w: 0.52, h: 0.11 } as const;
+export const TITLE_LAYOUT = { x: "5%", y: "3%", w: "52%", h: "11%" } as const;
 // CHART_LAYOUT: center (0.50, 0.42) — geometry 0.62 × 0.52 (fills most of the canvas)
-export const CHART_LAYOUT = { x: 0.19, y: 0.16, w: 0.62, h: 0.52 } as const;
+export const CHART_LAYOUT = { x: "19%", y: "16%", w: "62%", h: "52%" } as const;
 // PIE_LAYOUT: center (0.50, 0.41) — tall square area for pie/donut geometry
-export const PIE_LAYOUT   = { x: 0.21, y: 0.10, w: 0.58, h: 0.62 } as const;
+export const PIE_LAYOUT   = { x: "21%", y: "10%", w: "58%", h: "62%" } as const;
 // DASH_LAYOUT: two side-by-side charts filling most of the canvas
-export const DASH_LAYOUT_LEFT  = { x: 0.04, y: 0.28, w: 0.45, h: 0.43 } as const;
-export const DASH_LAYOUT_RIGHT = { x: 0.53, y: 0.28, w: 0.45, h: 0.43 } as const;
+export const DASH_LAYOUT_LEFT  = { x: "4%", y: "28%", w: "45%", h: "43%" } as const;
+export const DASH_LAYOUT_RIGHT = { x: "53%", y: "28%", w: "45%", h: "43%" } as const;
 
 export const SceneLighting = (): JSX.Element => (
   <Lighting intensityScale={1.35}>

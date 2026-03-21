@@ -3,7 +3,7 @@ title: Creating Custom Components
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-16
+updated: 2026-03-21
 ---
 
 ## The Element Module Pattern — Six Files, Hard Boundaries
@@ -418,7 +418,7 @@ Root-level (ambient) elements: `Camera`, `Lighting`, `Background`, `Floor`, `Inp
 
 Spatial elements: `Chart`, `Diagram`, `Model`, `ImagePanel`, `Screen`. These must live inside Views when multiple spatial elements exist in a scene. Register with `{ category: 'spatial' }` (the default).
 
-The auto-wrap rule: when a scene has exactly one spatial element and no explicit `<View>` wrappers, the compiler auto-wraps it in an implicit full-screen View with ID `__scene_root__`. This is transparent to the element — it receives composed bounds as if a `<View id="__scene_root__" x={0} y={0} w={1} h={1}>` were authored.
+The auto-wrap rule: when a scene has exactly one spatial element and no explicit `<View>` wrappers, the compiler auto-wraps it in an implicit full-screen View with ID `__scene_root__`. This is transparent to the element — it receives composed bounds as if a `<View id="__scene_root__" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>` were authored.
 
 When a scene has multiple spatial elements without Views, the compiler emits an error and skips them. When spatial elements coexist with explicit Views, the compiler emits an error.
 

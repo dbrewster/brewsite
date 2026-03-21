@@ -62,8 +62,8 @@ const dataEpsilon = [
 function LinearCarouselViews(): JSX.Element {
   return (
     <>
-      <View id="lc1" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-1" data={dataAlpha} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc1" w={"40%"} h={"50%"}>
+        <BarChart id="lin-chart-1" data={dataAlpha} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Alpha" />
@@ -71,8 +71,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc2" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-2" data={dataBeta} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc2" w={"40%"} h={"50%"}>
+        <BarChart id="lin-chart-2" data={dataBeta} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Beta" />
@@ -80,8 +80,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc3" w={0.4} h={0.5}>
-        <LineChart id="lin-chart-3" data={dataGamma} x={0} y={0} w={1} h={1}
+      <View id="lc3" w={"40%"} h={"50%"}>
+        <LineChart id="lin-chart-3" data={dataGamma} x={0} y={0} w={"100%"} h={"100%"}
                    lineShape="circle" lineSmoothness={0.5} showPoints={true} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
@@ -90,8 +90,8 @@ function LinearCarouselViews(): JSX.Element {
         </LineChart>
       </View>
 
-      <View id="lc4" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-4" data={dataDelta} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc4" w={"40%"} h={"50%"}>
+        <BarChart id="lin-chart-4" data={dataDelta} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Delta" />
@@ -99,8 +99,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc5" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-5" data={dataEpsilon} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc5" w={"40%"} h={"50%"}>
+        <BarChart id="lin-chart-5" data={dataEpsilon} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Epsilon" />
@@ -116,7 +116,7 @@ export const LinearCarouselScene1 = (): JSX.Element => {
   return (
     <Scene id="linear-carousel-1" primaryCarouselId="lin-carousel-1-layout">
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
@@ -133,7 +133,7 @@ export const LinearCarouselScene2 = (): JSX.Element => {
   return (
     <Scene id="linear-carousel-2" primaryCarouselId="lin-carousel-2-layout">
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
@@ -150,7 +150,7 @@ export const LinearCarouselScene3 = (): JSX.Element => {
   return (
     <Scene id="linear-carousel-3" primaryCarouselId="lin-carousel-3-layout">
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
 import type { SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn } from './types';
+import type { SceneAngle } from '../../units/types';
 
 type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 
@@ -18,11 +19,12 @@ type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 export type SpotlightProps = {
   // ── Per-light-only ───────────────────────────────────────────────────────────
   /**
-   * Explicit angular phase offset for circular orbit, in radians.
+   * Explicit angular phase offset for circular orbit.
+   * Accepts SceneAngle values (e.g. `'45deg'`, `'0.78rad'`).
    * When omitted, defaults to auto-distributed phase: (2π × lightIndex / totalLights).
    * NOT in theme.
    */
-  phase?: number;
+  phase?: SceneAngle;
   /**
    * Custom orbit function. When provided, overrides the default circular orbit
    * computation for this light. Evaluated at tick time — not baked into SceneTrack.
@@ -42,7 +44,7 @@ export type SpotlightProps = {
   radius?: Resolvable<number>;
   height?: Resolvable<number>;
   targetY?: Resolvable<number>;
-  angle?: Resolvable<number>;
+  angle?: Resolvable<SceneAngle>;
   penumbra?: Resolvable<number>;
   decay?: Resolvable<number>;
   distance?: Resolvable<number>;
@@ -87,7 +89,7 @@ export type SpotlightRigProps = {
   radius?: Resolvable<number>;
   height?: Resolvable<number>;
   targetY?: Resolvable<number>;
-  angle?: Resolvable<number>;
+  angle?: Resolvable<SceneAngle>;
   penumbra?: Resolvable<number>;
   decay?: Resolvable<number>;
   distance?: Resolvable<number>;

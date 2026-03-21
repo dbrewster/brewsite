@@ -59,7 +59,7 @@ export default function ModelAnimationDemo(): JSX.Element {
       </Scene>
 
       <Scene key="active" id="active" >
-        <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.4} polar={1.2} distance={4} />
+        <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={"0.4rad"} polar={"1.2rad"} distance={4} />
         <Lighting>
           <Ambient color="#ffffff" intensity={0.4} />
           <Directional color="#aaccff" intensity={0.8} position={[5, 10, 5]} />

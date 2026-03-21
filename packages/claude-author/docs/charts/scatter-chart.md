@@ -3,7 +3,7 @@ title: "@brewsite/charts — Scatter Plot Chart"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## When to Use ScatterPlotChart
@@ -93,7 +93,7 @@ export function SceneCompanyMatrix() {
       <ScatterPlotChart
         id="company-matrix"
         data={companyData}
-        x={0.10} y={0.20} w={0.80} h={0.55}
+        x={"10%"} y={"20%"} w={"80%"} h={"55%"}
         depth={0.2}
         pointShape="sphere"
         sizeField="employees"

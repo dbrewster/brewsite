@@ -342,12 +342,16 @@ export class DiagramRenderer {
 
       // GroupRenderer uses bounds.x as left edge, bounds.y as bottom edge (Y-up).
       // Compute left and bottom edges from center and half-extents.
+      const groupThicknessScale = groupState.uniformSizing
+        ? (Math.round(Math.min(uniformWorldW, uniformWorldH) * 10) / 10 || 0.1)
+        : thicknessScale;
+
       const convertedGroup: DiagramGroupState = {
         ...groupState,
         // Convert borderWidth and borderHeight from NVS fraction to world units via
         // quantized scale to avoid per-frame geometry rebuilds during transitions.
-        borderWidth: groupState.borderWidth * thicknessScale,
-        borderHeight: groupState.borderHeight * thicknessScale,
+        borderWidth: groupState.borderWidth * groupThicknessScale,
+        borderHeight: groupState.borderHeight * groupThicknessScale,
         bounds: {
           x: localGCX - worldGW / 2,  // left edge (GroupRenderer: centerX = bounds.x + bounds.w/2)
           y: localGCY - worldGH / 2,  // bottom edge Y-up (GroupRenderer: centerY = bounds.y + bounds.h/2)
@@ -438,9 +442,12 @@ export class DiagramRenderer {
             };
           }),
         };
+        const edgeThicknessScale = edgeState.uniformSizing
+          ? (Math.round(Math.min(uniformWorldW, uniformWorldH) * 10) / 10 || 0.1)
+          : thicknessScale;
         convertedEdge = {
           ...edgeState,
-          thickness: edgeState.thickness * thicknessScale,
+          thickness: edgeState.thickness * edgeThicknessScale,
           path: convertedPath,
           controlPoints: edgeState.controlPoints.map((cp) => {
             const localCpX = (cp[0] - 0.5) * uniformWorldW;
@@ -476,8 +483,17 @@ export class DiagramRenderer {
       const localZ = nodeState.position[2] + NODE_RENDER_Z_OFFSET;
 
       // Node size: NVS fractions → world units.
-      const worldW = nodeState.size[0] * uniformWorldW;
-      const worldH = nodeState.size[1] * uniformWorldH;
+      // When uniformSizing is true, use vmin-based scaling for aspect-ratio-preserving sizes.
+      let worldW: number;
+      let worldH: number;
+      if (nodeState.uniformSizing) {
+        const uniform = Math.min(uniformWorldW, uniformWorldH);
+        worldW = nodeState.size[0] * uniform;
+        worldH = nodeState.size[1] * uniform;
+      } else {
+        worldW = nodeState.size[0] * uniformWorldW;
+        worldH = nodeState.size[1] * uniformWorldH;
+      }
 
       if (process.env.NODE_ENV !== 'production') {
         if (!Number.isFinite(localX) || !Number.isFinite(localY)) {
@@ -489,19 +505,27 @@ export class DiagramRenderer {
         }
       }
 
+      // When uniformSizing, all size-like fields use vmin-based thicknessScale.
+      const nodeThicknessScale = nodeState.uniformSizing
+        ? (Math.round(Math.min(uniformWorldW, uniformWorldH) * 10) / 10 || 0.1)
+        : thicknessScale;
+      const nodeBorderScale = nodeState.uniformSizing
+        ? Math.min(uniformWorldW, uniformWorldH)
+        : uniformWorldW;
+
       const convertedNode: DiagramNodeState = {
         ...nodeState,
         position: [localX, localY, localZ],
         size: [worldW, worldH],
         // Convert node Z-depth from NVS fraction to world units via quantized
         // scale to avoid per-frame geometry rebuilds during transitions.
-        thickness: nodeState.thickness * thicknessScale,
-        iconDepth: nodeState.iconDepth * thicknessScale,
-        cornerRadius: nodeState.cornerRadius * thicknessScale,
+        thickness: nodeState.thickness * nodeThicknessScale,
+        iconDepth: nodeState.iconDepth * nodeThicknessScale,
+        cornerRadius: nodeState.cornerRadius * nodeThicknessScale,
         // borderWidth is an XY dimension (ring width), scales like size.
         // borderHeight is a Z dimension (frame depth), scales like thickness.
-        borderWidth: nodeState.borderWidth * uniformWorldW,
-        borderHeight: nodeState.borderHeight * thicknessScale,
+        borderWidth: nodeState.borderWidth * nodeBorderScale,
+        borderHeight: nodeState.borderHeight * nodeThicknessScale,
       };
       this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);
     }

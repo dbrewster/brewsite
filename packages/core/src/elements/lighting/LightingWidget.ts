@@ -56,6 +56,7 @@ import { isValidElement } from 'react';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';
 import type { NodeHandler, CompileApi, CompileHelpers } from '../../compiler/sceneDslTypes';
+import { resolveAngle } from '../../units/resolve';
 
 /** Mutable accumulator built up by child handlers during DSL compilation. */
 type LightingChildAcc = {
@@ -100,7 +101,7 @@ function resolveLightStrandShape(
         waveFrequency: number;
         depthAmplitude: number;
         depthFrequency: number;
-        depthPhase: number;
+        depthPhase: import('../../units/types').SceneAngle;
       };
       return {
         kind: 'wave',
@@ -113,7 +114,7 @@ function resolveLightStrandShape(
           waveFrequency: wave.waveFrequency,
           depthAmplitude: wave.depthAmplitude,
           depthFrequency: wave.depthFrequency,
-          depthPhase: wave.depthPhase,
+          depthPhase: resolveAngle(wave.depthPhase),
         },
       };
     } else if (strandChildEl.type === Circle) {
@@ -182,10 +183,11 @@ const CHILD_HANDLERS = new Map<unknown, ChildHandlerFn>([
   [Spot, (childEl, api, helpers, acc) => {
     const resolved = helpers.resolveObjectValues(
       childEl.props as SpotProps, api.context,
-    ) as NonNullable<SceneLighting['spots']>[number] & { id?: string };
+    ) as NonNullable<SceneLighting['spots']>[number] & { id?: string; angle: unknown };
     acc.spots.push({
       ...resolved,
       id: resolved.id ?? `spot-${acc.spotIndex}`,
+      angle: resolveAngle(resolved.angle as import('../../units/types').SceneAngle),
     });
     acc.spotIndex += 1;
   }],

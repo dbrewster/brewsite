@@ -3,7 +3,7 @@ title: "@brewsite/charts — Bar Chart"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## When to Use BarChart
@@ -62,7 +62,7 @@ const channelData = [
 <BarChart
   id="revenue"
   data={salesData}
-  x={0.30} y={0.32} w={0.40} h={0.30}
+  x={"30%"} y={"32%"} w={"40%"} h={"30%"}
   animateEntry
   animationDuration={0.4}
 >
@@ -110,7 +110,7 @@ import { yearAData, yearBData } from './data';
 
 const CAM_POS: [number, number, number] = [0, 1.5, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0.08, 0];
-const CHART = { x: 0.30, y: 0.32, w: 0.40, h: 0.30 };
+const CHART = { x: '30%', y: '32%', w: '40%', h: '30%' };
 
 export function SceneYearA() {
   return (

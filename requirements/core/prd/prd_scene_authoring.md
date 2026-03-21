@@ -3,8 +3,11 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: View/ViewLayout/TextBox x/y/w/h now require SceneLength unit strings (e.g. '50%'). ViewLayout gap requires SceneLength. Camera azimuth/polar/fov require SceneAngle. All code examples updated with unit strings. View.padding remains RegionPadding (number) — not yet migrated. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Carousel selection region: ViewLayout gains `focusedIndex` (replaces deprecated `activeIndex`) and `onSelect` callback prop. Added `CarouselSelectEvent`, `CarouselSelectHandler`, `CarouselSelectSource` types to DSL elements list. Updated ViewLayoutProps type. Added carousel selection example to Section 8.12. Documented `activeIndex` deprecation with migration guide."
@@ -162,7 +165,7 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 14a. Widgets with the `CUSTOM_NODE_HANDLER` symbol set (via the `IHasCustomDslHandler` interface) receive full control over DSL compilation, bypassing the default shallow-merge behavior.
 15. The compiler must enforce the following scene child constraint on direct children of `<Scene>` that are not `<View>` or `<ViewLayout>`:
     - **Zero spatial children** (ambient-only or empty `<Scene>`): compiles normally; no implicit View is created.
-    - **Exactly one spatial child**: the compiler silently auto-wraps it in an implicit full-screen `<View id="__scene_root__" x={0} y={0} w={1} h={1}>`. The author does not declare this View. Its `ViewState` appears in `SceneFrame.widgets` under `__scene_root__`.
+    - **Exactly one spatial child**: the compiler silently auto-wraps it in an implicit full-screen `<View id="__scene_root__" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>`. The author does not declare this View. Its `ViewState` appears in `SceneFrame.widgets` under `__scene_root__`.
     - **Two or more spatial children without Views**: the compiler emits `console.error` and skips all spatial children. Ambient children compile normally.
     - **Mixed spatial children and `<View>`/`<ViewLayout>` children**: the compiler emits `console.error` and skips the bare spatial children. This mix is always an authoring error.
     - **Only `<View>`/`<ViewLayout>` children**: compiles normally via the View/ViewLayout system (see §8.12).
@@ -446,7 +449,7 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 - Transitions: interpolates intensity between scenes.
 
 **`<TextBox>`** — DOM overlay content panel positioned in Normalized Viewport Space (NVS).
-- Required props: `id` (string), `x` (number, 0–1 left edge), `y` (number, 0–1 top edge), `w` (number, 0–1 width), `h` (number, 0–1 height), `children` (React.ReactNode — the HTML overlay content).
+- Required props: `id` (string), `x` (SceneLength, left edge), `y` (SceneLength, top edge), `w` (SceneLength, width), `h` (SceneLength, height), `children` (React.ReactNode — the HTML overlay content).
 - Optional props: `opacity` (number, 0–1, default 1), `enabled` (boolean, default true).
 - Compiled into `TextBoxState` and written to the `VariableStore` each tick under the key `"textbox:{id}"`. Rendered by `EngineOverlayHost` as an absolutely positioned div whose dimensions are derived from NVS coordinates resolved against the `EngineARContainer`.
 - `opacity` interpolates between scenes. `x`, `y`, `w`, `h` do not interpolate — they are resolved per-scene.
@@ -457,7 +460,7 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 // Authoring example:
 <Scene key="features">
   <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
-  <TextBox id="callout" x={0.55} y={0.1} w={0.38} h={0.35}>
+  <TextBox id="callout" x={"55%"} y={"10%"} w={"38%"} h={"35%"}>
     <h2 className="callout-heading">Key Feature</h2>
     <p className="callout-body">Description text here.</p>
   </TextBox>
@@ -466,7 +469,7 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 
 **`<View>`** — A spatial composition container. Establishes an NVS sub-region and scopes all child element coordinates into that region.
 - Required props: `id` (string — stable view identity).
-- Optional props: `x`, `y` (NVS position [0..1]), `w`, `h` (NVS size [0..1]), `padding` (NVS padding inset — uniform number, [vertical, horizontal] pair, or [top, right, bottom, left] tuple).
+- Optional props: `x`, `y` (SceneLength position), `w`, `h` (SceneLength size), `padding` (RegionPadding — uniform number, [vertical, horizontal] pair, or [top, right, bottom, left] tuple; not yet migrated to SceneLength).
 - `children`: exactly one renderable DSL element (e.g., `<Chart>`, `<DiagramCanvas>`, future renderable types).
 - **Standalone mode** (no parent `<ViewLayout>`): `x`, `y`, `w`, `h` define the view's position within the viewport (or parent view's content bounds if nested). The child element's local [0..1] coordinates are mapped into the view's content area.
 - **Managed mode** (inside `<ViewLayout>`): `x` and `y` are ignored (a console warning is emitted). Bounds are computed by the parent layout algorithm. `w` and `h` serve as optional size hints that the layout algorithm may use when distributing space.
@@ -476,18 +479,18 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 ```typescript
 type ViewProps = {
   id: string;
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-  padding?: RegionPadding;
+  x?: SceneLength;
+  y?: SceneLength;
+  w?: SceneLength;
+  h?: SceneLength;
+  padding?: RegionPadding;  // still number — not yet migrated to SceneLength
   children?: React.ReactNode;
 };
 ```
 
 **`<ViewLayout>`** — A multi-view arrangement manager. Positions multiple `<View>` children according to a layout policy.
 - Required props: `kind` (`'stack'` | `'carousel'`).
-- Optional props: `id` (string — if absent, auto-generated from `kind` + scene index), `x`, `y`, `w`, `h` (container bounds in NVS, default: full viewport), `gap` (NVS gap between views).
+- Optional props: `id` (string — if absent, auto-generated from `kind` + scene index), `x`, `y`, `w`, `h` (SceneLength container bounds, default: full viewport), `gap` (SceneLength gap between views).
 - Stack-specific: `direction` (`'horizontal'` | `'vertical'`, default: `'horizontal'`).
 - Carousel-specific: `focusedIndex` (0-indexed focused/front view, default: 0), `inactiveScale` (scale factor for non-focused views, default: 0.75), `zStep` (NVS z-depth per position from focused, default: 0.1), `onSelect` (callback fired when a carousel item is selected via pointer click, keyboard Enter/Space, or programmatic trigger — receives a `CarouselSelectEvent`).
 - **Deprecated:** `activeIndex` is deprecated in favor of `focusedIndex`. It continues to work with a runtime console deprecation warning and will be removed in the next major version.
@@ -501,8 +504,8 @@ type ViewProps = {
 type ViewLayoutProps = {
   id?: string;
   kind: 'stack' | 'carousel';
-  x?: number; y?: number; w?: number; h?: number;
-  gap?: number;
+  x?: SceneLength; y?: SceneLength; w?: SceneLength; h?: SceneLength;
+  gap?: SceneLength;
   // stack-only:
   direction?: 'horizontal' | 'vertical';
   // carousel-only:
@@ -971,12 +974,12 @@ DOM overlay content is authored via the `<TextBox>` DSL element, positioned in N
   <Model id="bot" type="mesh" position={[0, 0, 0]} />
   {/*
     DOM overlay content via <TextBox>:
-    x, y, w, h are NVS ratios (0–1) relative to the EngineARContainer.
+    x, y, w, h are SceneLength values (e.g. "10%") relative to the EngineARContainer.
   */}
-  <TextBox id="callout-battery" x={0.1} y={0.2} w={0.35} h={0.12}>
+  <TextBox id="callout-battery" x={"10%"} y={"20%"} w={"35%"} h={"12%"}>
     <div className="feature-callout">Battery Life</div>
   </TextBox>
-  <TextBox id="callout-memory" x={0.1} y={0.4} w={0.35} h={0.12}>
+  <TextBox id="callout-memory" x={"10%"} y={"40%"} w={"35%"} h={"12%"}>
     <div className="feature-callout">Memory</div>
   </TextBox>
 </Scene>
@@ -1108,13 +1111,13 @@ import { View } from '@brewsite/core';
 // Chart occupies the right 45% of the viewport, top 60%.
 <Scene key="overview">
   <Camera descriptor={{ mode: 'world', position: [0, 0.5, 8], target: [0, 0, 0] }} />
-  <View id="chart-panel" x={0.53} y={0.05} w={0.44} h={0.60} padding={0.02}>
+  <View id="chart-panel" x={"53%"} y={"5%"} w={"44%"} h={"60%"} padding={0.02}>
     <Chart id="revenue-chart" type="bar" data={salesData} />
   </View>
 </Scene>
 ```
 
-Inside the `<View>`, the `<Chart>` element receives a `composeBounds` function that maps its local [0..1] NVS coordinates into the view's content bounds (bounds after padding). The chart renders within `x=0.53..0.97, y=0.05..0.65` of the viewport — but the chart author writes nothing about those outer coordinates.
+Inside the `<View>`, the `<Chart>` element receives a `composeBounds` function that maps its local coordinates into the view's content bounds (bounds after padding). The chart renders within the resolved viewport region — but the chart author writes nothing about those outer coordinates.
 
 **Stack layout — horizontal** — two charts side by side:
 
@@ -1123,7 +1126,7 @@ import { View, ViewLayout } from '@brewsite/core';
 // <Chart> requires @brewsite/charts
 
 <Scene key="comparison">
-  <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.1} w={0.9} h={0.7} gap={0.03}>
+  <ViewLayout kind="stack" direction="horizontal" x={"5%"} y={"10%"} w={"90%"} h={"70%"} gap={"3%"}>
     <View id="view-left">
       <Chart id="chart-left" type="bar" data={q1Data} />
     </View>
@@ -1211,8 +1214,8 @@ The `onSelect` callback receives a `CarouselSelectEvent` with `index`, `viewId`,
 ```tsx
 // Outer view occupies the left half; inner view is the bottom quarter of the outer.
 <Scene key="nested">
-  <View id="left-panel" x={0.02} y={0.05} w={0.46} h={0.9} padding={0.01}>
-    <View id="chart-area" x={0} y={0.5} w={1} h={0.5}>
+  <View id="left-panel" x={"2%"} y={"5%"} w={"46%"} h={"90%"} padding={0.01}>
+    <View id="chart-area" x={"0%"} y={"50%"} w={"100%"} h={"50%"}>
       <Chart id="trend" type="area" data={trendData} />
     </View>
   </View>
@@ -1259,7 +1262,7 @@ Built-in ambient elements (all from `@brewsite/core`):
 | Direct children of `<Scene>` | Behavior |
 |---|---|
 | Zero spatial children (ambient + TextBox only) | Compiles normally. No implicit View created. |
-| Exactly one spatial child, no `<View>` | Compiler auto-wraps it in `<View id="__scene_root__" x={0} y={0} w={1} h={1}>`. Silent. |
+| Exactly one spatial child, no `<View>` | Compiler auto-wraps it in `<View id="__scene_root__" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>`. Silent. |
 | Two or more spatial children, no `<View>` | `console.error`. Spatial children skipped. Ambient children compile normally. |
 | Spatial children mixed with `<View>`/`<ViewLayout>` | `console.error`. Bare spatial children skipped. Views compile normally. |
 | Only `<View>` and/or `<ViewLayout>` children | Compiles normally via View/ViewLayout system. |
@@ -1298,7 +1301,7 @@ Two spatial elements require explicit `<View>` wrappers. Use `<ViewLayout kind="
 <Scene key="comparison">
   <Camera descriptor={{ mode: 'nvsViewport', worldScale: 12, zRange: [0.1, 100] }} />
   <Lighting ambient={{ color: '#ffffff', intensity: 0.9 }} />
-  <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.1} w={0.9} h={0.75} gap={0.03}>
+  <ViewLayout kind="stack" direction="horizontal" x={"5%"} y={"10%"} w={"90%"} h={"75%"} gap={"3%"}>
     <View id="chart-left">
       <Chart id="revenue" type="bar" data={revenueData} />
     </View>
@@ -1321,7 +1324,7 @@ Two spatial elements require explicit `<View>` wrappers. Use `<ViewLayout kind="
   {/* Spatial — auto-wrapped to full-screen */}
   <DiagramCanvas id="flow" nodes={nodes} edges={edges} />
   {/* Ambient — not subject to the spatial constraint */}
-  <TextBox id="caption" x={0.05} y={0.82} w={0.5} h={0.12}>
+  <TextBox id="caption" x={"5%"} y={"82%"} w={"50%"} h={"12%"}>
     <p>Your infrastructure, visualized.</p>
   </TextBox>
 </Scene>
@@ -1657,6 +1660,13 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 2. **`SceneDefinition` and `SceneGroup` removed from public exports** — Code importing these types directly must update. Neither type is needed in the new authoring model.
 3. **`getFrame(context)` function pattern removed from public authoring surface** — Authors needing `assetsReady`, `viewport`, `variables`, `numScenes` must use `useSceneRuntime(id)` in the parent component. The `id` prop on `ScenePlayer` becomes required to use this hook.
 4. **`SceneDefinition.index` removed** — Was always redundant. Any code constructing `SceneDefinition` objects manually must remove the `index` field.
+
+### Breaking changes introduced by Scene Unit System (2026-03-21)
+
+1. **`View`, `ViewLayout`, `TextBox` spatial props changed from `number` to `SceneLength`** — `x`, `y`, `w`, `h` on `<View>`, `<ViewLayout>`, and `<TextBox>` now require explicit unit strings (`"${number}u"` | `"${number}%"` | `"${number}vw"` | `"${number}vh"` | `0`). Bare numbers no longer compile. Migrate: `x={0.55}` → `x={"55%"}`, `w={1}` → `w={"100%"}`. `View.padding` remains `RegionPadding` (number) and is not yet affected.
+2. **`ViewLayout.gap` changed from `number` to `SceneLength`** — Same migration pattern: `gap={0.03}` → `gap={"3%"}`.
+3. **Camera `azimuth`, `polar`, `fov` changed from `number` to `SceneAngle`** — `SceneAngle` = `"${number}deg"` | `"${number}rad"` | `0`. Migrate: `fov={45}` → `fov={"45deg"}`, `azimuth={0.3}` → `azimuth={"0.3rad"}`.
+4. **All diagram, chart, screen, model DSL spatial props changed to `SceneLength`/`SceneAngle`** — Affects `@brewsite/diagram`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/model`. See migration guide: `packages/claude-author/docs/migration/unit-system.md`.
 
 ### Future breaking changes
 

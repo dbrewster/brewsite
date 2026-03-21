@@ -41,7 +41,7 @@ export default function EnvironmentDemo(): JSX.Element {
   return (
     <DemoScene sceneCount={2}>
       <Scene key="no-env" id="no-env">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.3} polar={1.1} distance={7} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.3rad"} polar={"1.1rad"} distance={7} />
         <Lighting>
           <Ambient color="#ffffff" intensity={0.8} />
           <Directional color="#ffffff" intensity={1.0} position={[5, 10, 5]} />
@@ -52,7 +52,7 @@ export default function EnvironmentDemo(): JSX.Element {
       </Scene>
 
       <Scene key="with-env" id="with-env">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.8} polar={1.0} distance={7} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.8rad"} polar={"1rad"} distance={7} />
         <Lighting>
           <Ambient color="#ffffff" intensity={0.5} />
           <Directional color="#aaccff" intensity={0.8} position={[5, 10, 5]} />

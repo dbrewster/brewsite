@@ -3,7 +3,7 @@ title: Common Deck Patterns
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-21
 ---
 
 ## Standard Corporate Deck
@@ -191,7 +191,7 @@ function ProductLaunchDeck() {
               <Directional intensity={0.7} position={[5, 5, 5]} />
             </Lighting>
             <Background color="#0c0c1a" />
-            <Model id="nova" src="/models/nova.glb" x={0.2} y={0.1} w={0.6} h={0.8} />
+            <Model id="nova" src="/models/nova.glb" x={"20%"} y={"10%"} w={"60%"} h={"80%"} />
           </>
         }>
           <FullBleedSlide overlayPosition="bottom-left">
@@ -238,12 +238,12 @@ function ArchitectureDeck() {
           <>
             <Camera mode="world" position={[0, 1.5, 5]} target={[0, 0.5, 0]} />
             <Lighting><Ambient intensity={0.8} /><Directional intensity={0.6} position={[5, 5, 5]} /></Lighting>
-            <Diagram id="overview" x={0.05} y={0.05} w={0.9} h={0.6}>
-              <FlowLayout direction="left-right" gap={0.1} />
-              <DiagramNode id="client" label="Client" size={[0.12, 0.06]} />
-              <DiagramNode id="gateway" label="API Gateway" size={[0.12, 0.06]} />
-              <DiagramNode id="services" label="Services" size={[0.12, 0.06]} />
-              <DiagramNode id="database" label="Database" size={[0.12, 0.06]} />
+            <Diagram id="overview" x={"5%"} y={"5%"} w={"90%"} h={"60%"}>
+              <FlowLayout direction="left-right" gap={"10u"} />
+              <DiagramNode id="client" label="Client" size={["12u", "6u"]} />
+              <DiagramNode id="gateway" label="API Gateway" size={["12u", "6u"]} />
+              <DiagramNode id="services" label="Services" size={["12u", "6u"]} />
+              <DiagramNode id="database" label="Database" size={["12u", "6u"]} />
               <DiagramEdge from="client" to="gateway" />
               <DiagramEdge from="gateway" to="services" />
               <DiagramEdge from="services" to="database" />

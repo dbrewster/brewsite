@@ -3,7 +3,7 @@ title: "@brewsite/model — Label System DSL Reference"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## Labels Overview
@@ -221,7 +221,7 @@ export function SceneWithLabels() {
         type="Robot"
         id="robot"
         scale={0.06}
-        x={0.1} y={0} w={0.8} h={1}
+        x={"10%"} y={"0%"} w={"80%"} h={"100%"}
         opacity={1}
       >
         <Playback>

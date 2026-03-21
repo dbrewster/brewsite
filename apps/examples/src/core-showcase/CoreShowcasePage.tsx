@@ -23,7 +23,6 @@ import { TopChrome, BottomChrome } from './overlays';
 import { useThemeCss } from '../hooks/useThemeCss';
 import {
   HeroScene,
-  OverviewScene,
   SceneDslScene,
   SceneTransitionScene,
   CompilerScene,
@@ -37,6 +36,7 @@ import {
   ThemingScene,
   SummaryScene,
 } from './scenes';
+import {OverviewScene} from "./overviewScene";
 
 export default function CoreShowcasePage(): JSX.Element {
   const { plugins } = useMemo(() => createCoreShowcasePlugins(), []);

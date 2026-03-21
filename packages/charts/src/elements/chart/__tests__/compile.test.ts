@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { makeSimpleContext } from '@brewsite/core';
-import type { SceneTheme, NVSRect } from '@brewsite/core';
+import type { SceneTheme, NVSRect, SceneLength, SceneAngle } from '@brewsite/core';
 import {
   compileChart,
   compileDataSource,
@@ -222,7 +222,7 @@ describe('compileHeatMapChartOptions', () => {
 
 describe('compileChart', () => {
   it('derives nvsX, nvsY from x,y,w,h props', () => {
-    const state = compileChart(baseDsl({ x: 0.2, y: 0.1, w: 0.5, h: 0.6 }), 'bar', barTypeOptions, null, [], [], null, null, []);
+    const state = compileChart(baseDsl({ x: '20%' as SceneLength, y: '10%' as SceneLength, w: '50%' as SceneLength, h: '60%' as SceneLength }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.nvsX).toBeCloseTo(0.2 + 0.5 / 2, 5);
     expect(state.nvsY).toBeCloseTo(0.1 + 0.6 / 2, 5);
   });
@@ -381,7 +381,7 @@ describe('compileChart', () => {
 
   it('maps x/y/w/h DSL props to nvsBounds', () => {
     const state = compileChart(
-      baseDsl({ x: 0.1, y: 0.2, w: 0.5, h: 0.6 }),
+      baseDsl({ x: '10%' as SceneLength, y: '20%' as SceneLength, w: '50%' as SceneLength, h: '60%' as SceneLength }),
       'bar',
       barTypeOptions,
       null, [], [], null, null, [],
@@ -395,17 +395,17 @@ describe('compileChart', () => {
   });
 
   it('defaults partial NVS props — only w provided, others default', () => {
-    const state = compileChart(baseDsl({ w: 0.5 }), 'bar', barTypeOptions, null, [], [], null, null, []);
+    const state = compileChart(baseDsl({ w: '50%' as SceneLength }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.nvsBounds).toEqual({ x: 0, y: 0, w: 0.5, h: 1 });
   });
 
   it('bounds.width defaults to dsl.w (NVS fraction)', () => {
-    const state = compileChart(baseDsl({ w: 0.6 }), 'bar', barTypeOptions, null, [], [], null, null, []);
+    const state = compileChart(baseDsl({ w: '60%' as SceneLength }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.bounds.width).toBe(0.6);
   });
 
   it('bounds.height defaults to dsl.h (NVS fraction)', () => {
-    const state = compileChart(baseDsl({ h: 0.7 }), 'bar', barTypeOptions, null, [], [], null, null, []);
+    const state = compileChart(baseDsl({ h: '70%' as SceneLength }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.bounds.height).toBe(0.7);
   });
 
@@ -416,7 +416,7 @@ describe('compileChart', () => {
   });
 
   it('bounds.width is derived from dsl.w', () => {
-    const state = compileChart(baseDsl({ w: 0.8 }), 'bar', barTypeOptions, null, [], [], null, null, []);
+    const state = compileChart(baseDsl({ w: '80%' as SceneLength }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.bounds.width).toBe(0.8);
   });
 
@@ -431,10 +431,10 @@ describe('compileChart', () => {
   });
 
   it('nvsX = x + w/2 (centering contract)', () => {
-    const cases: Array<{ x: number; y: number; w: number; h: number; expectedX: number; expectedY: number }> = [
-      { x: 0,   y: 0,   w: 1,   h: 1,   expectedX: 0.5,  expectedY: 0.5  },
-      { x: 0.1, y: 0.2, w: 0.6, h: 0.4, expectedX: 0.4,  expectedY: 0.4  },
-      { x: 0,   y: 0,   w: 0.5, h: 0.5, expectedX: 0.25, expectedY: 0.25 },
+    const cases: Array<{ x: SceneLength; y: SceneLength; w: SceneLength; h: SceneLength; expectedX: number; expectedY: number }> = [
+      { x: 0,       y: 0,       w: '100%',  h: '100%',  expectedX: 0.5,  expectedY: 0.5  },
+      { x: '10%',   y: '20%',   w: '60%',   h: '40%',   expectedX: 0.4,  expectedY: 0.4  },
+      { x: 0,       y: 0,       w: '50%',   h: '50%',   expectedX: 0.25, expectedY: 0.25 },
     ];
     for (const c of cases) {
       const state = compileChart(
@@ -629,7 +629,7 @@ describe('compileChart', () => {
   // composeBoundsFn — bounds composition
   it('composeBoundsFn: absent → behavior unchanged (identity)', () => {
     const state = compileChart(
-      baseDsl({ x: 0.2, y: 0.1, w: 0.5, h: 0.6 }),
+      baseDsl({ x: '20%' as SceneLength, y: '10%' as SceneLength, w: '50%' as SceneLength, h: '60%' as SceneLength }),
       'bar', barTypeOptions, null, [], [], null, null, [],
     );
     expect(state.nvsBounds).toEqual({ x: 0.2, y: 0.1, w: 0.5, h: 0.6 });
@@ -663,7 +663,7 @@ describe('compileChart', () => {
       h: r.h * 0.5,
     });
     const state = compileChart(
-      baseDsl({ x: 0, y: 0, w: 1, h: 1 }),
+      baseDsl({ x: 0, y: 0, w: '100%' as SceneLength, h: '100%' as SceneLength }),
       'bar', barTypeOptions, null, [], [], null, null, [], null, DEFAULT_CHART_STATE.theme, compose,
     );
     // Composed: { x: 0.5, y: 0, w: 0.5, h: 0.5 } → center at (0.75, 0.25)
@@ -679,7 +679,7 @@ describe('compileChart', () => {
     // Handlers will extract type from ChartDSL.type and pass as kind.
     // We test that compileChart produces correct state when called this way.
     const state = compileChart(
-      { id: 'legacy', x: 0, y: 0, w: 1, h: 1 },
+      { id: 'legacy', x: 0, y: 0, w: '100%' as SceneLength, h: '100%' as SceneLength },
       'pie',
       pieTypeOptions,
       { source: 'legacy-data' },

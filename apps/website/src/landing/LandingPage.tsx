@@ -27,7 +27,7 @@ function WebsiteLayout({
   const isLoading = engine.frameState.tickIndex < 0;
 
   return (
-    <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
+    <ScrollStage pixelsPerScene={1400} style={{height: '100vh'}}>
       {loadError && (
         <div role="alert" style={{ position: 'absolute', inset: 0, zIndex: 100, padding: 16 }}>
           Scene engine error: {loadError.message}
@@ -48,7 +48,7 @@ function WebsiteLayout({
           Loading BrewSite flow…
         </div>
       )}
-      <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
+      <EngineARContainer aspectRatio={9 / 16} scaleMode="fit-height">
         <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
         <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
         <EngineOverlayHost passthroughPointerEvents />

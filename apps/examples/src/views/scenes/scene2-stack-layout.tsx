@@ -43,15 +43,15 @@ export const StackLayoutScene = (): JSX.Element => {
   return (
   <Scene id="stack-layout">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
     <Lighting intensityScale={1.2}>
       <Ambient intensity={0.9} color="#d7e5ff" />
       <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
     </Lighting>
 
-    <ViewLayout kind="stack" direction="horizontal" gap={0.02} y={.2} h={.7}>
+    <ViewLayout kind="stack" direction="horizontal" gap={"2%"} y={"20%"} h={"70%"}>
       <View id="v1">
-        <BarChart id="stack-chart-1" data={dataA} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="stack-chart-1" data={dataA} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
           <ChartAxis axis="y" field="value" label="Sales" />
@@ -60,7 +60,7 @@ export const StackLayoutScene = (): JSX.Element => {
       </View>
 
       <View id="v2">
-        <BarChart id="stack-chart-2" data={dataB} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="stack-chart-2" data={dataB} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
           <ChartAxis axis="y" field="value" label="Traffic" />
@@ -69,7 +69,7 @@ export const StackLayoutScene = (): JSX.Element => {
       </View>
 
       <View id="v3">
-        <BarChart id="stack-chart-3" data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="stack-chart-3" data={dataC} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
           <ChartAxis axis="y" field="value" label="Signups" />

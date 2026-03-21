@@ -3,8 +3,11 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system note: NVSCoordService and all compiled state types remain number — the unit system only affects the DSL authoring surface. DSL spatial props use SceneLength/SceneAngle strings that are parsed and resolved to NVS numbers at compile time. Custom widgets consuming compiled state see no change. Widget authors who define custom DSL props for spatial values should use SceneLength/SceneAngle types and call parseLength()/resolveLength() from @brewsite/core/units."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Carousel selection region: deprecated `useCarouselState` in favor of `useCarouselSelection(layoutId)`. Added Section 10.6 `useCarouselSelection` hook documentation and Section 10.7 `clearCarouselSelection` imperative function. Updated Section 10.5 with @deprecated annotation and migration note."

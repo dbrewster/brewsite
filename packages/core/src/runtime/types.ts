@@ -144,6 +144,55 @@ export type RuntimeDriver = {
    */
   resolveWidgetState(widgetId: string, tick: SceneTrackTick | null): unknown;
 
+  /**
+   * Scene-to-widget membership mapping. Populated after setSceneTrack().
+   * Used by the player layer and useSceneLoadState() hook.
+   * Null when no SceneTrack has been set.
+   */
+  readonly sceneMembership: SceneMembership | null;
+
   /** Dispose all widget resources and release internal state. */
   dispose(): void;
 };
+
+// ─── Scene Load Policy ───────────────────────────────────────────────────────
+
+/**
+ * Controls when widget assets are loaded relative to scene navigation.
+ *
+ * When omitted from SceneEngine, all ILoadable widgets load upfront
+ * (backward-compatible default).
+ *
+ * When provided, assets are partitioned by scene membership:
+ * - `eager` scenes load immediately after setSceneTrack() (blocking assetsReady).
+ * - `preloadAhead` scenes load in the background on navigation.
+ *
+ * Phase 1: assets are loaded but never unloaded. Memory grows monotonically.
+ */
+export type SceneLoadPolicy = {
+  /**
+   * Scene indices to load eagerly after compilation.
+   * These block assetsReady — the engine won't tick until they're loaded.
+   * Default: [0] (first scene only).
+   */
+  eager?: number[];
+
+  /**
+   * How many scenes ahead of the current scene to preload.
+   * Preloading is non-blocking — it happens in the background.
+   * Default: 1.
+   */
+  preloadAhead?: number;
+};
+
+// ─── Scene Membership ────────────────────────────────────────────────────────
+
+/**
+ * Maps scene indices to the set of widget IDs that appear in each scene.
+ * Produced as a side-output of compileSceneTrack() and consumed by
+ * RuntimeDriverImpl for partitioned asset loading.
+ *
+ * Widget "appearance" means the widget has non-default state in that scene's
+ * compiled SceneFrame — i.e., the scene's DSL references that widget.
+ */
+export type SceneMembership = Map<number, Set<string>>;

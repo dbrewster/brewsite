@@ -67,7 +67,7 @@ export default function VariableStoreDemo(): JSX.Element {
       </Scene>
 
       <Scene key="detail" id="detail">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={1.2} polar={1.1} distance={6} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"1.2rad"} polar={"1.1rad"} distance={6} />
         <Lighting>
           <Ambient color="#4488ff" intensity={0.5} />
         </Lighting>

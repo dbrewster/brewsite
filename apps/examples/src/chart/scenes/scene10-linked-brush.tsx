@@ -27,13 +27,13 @@ export const Scene10 = (): JSX.Element => {
         Views (x=0 y=0 w=1 h=1) preserve the charts' own NVS coordinates unchanged. */}
 
     {/* Left: Bar chart — revenue by team, interactive */}
-    <View id="s10-bar" x={0} y={0} w={1} h={1}>
+    <View id="s10-bar" x={0} y={0} w={"100%"} h={"100%"}>
       <BarChart
         id="ops-bar"
         data={teamPerformance}
         interactive={true}
         x={DASH_LAYOUT_LEFT.x}
-        y={.4}
+        y={"40%"}
         w={DASH_LAYOUT_LEFT.w}
         h={DASH_LAYOUT_LEFT.h}
         depth={0.4}
@@ -47,7 +47,7 @@ export const Scene10 = (): JSX.Element => {
     </View>
 
     {/* Right: Scatter chart — team size vs revenue, same filter group */}
-    <View id="s10-scatter" x={0} y={0} w={1} h={1}>
+    <View id="s10-scatter" x={0} y={0} w={"100%"} h={"100%"}>
       <ScatterPlotChart
         id="ops-scatter"
         data={teamPerformance}
@@ -68,14 +68,14 @@ export const Scene10 = (): JSX.Element => {
       </ScatterPlotChart>
     </View>
 
-    <View id="s10-heat" x={0} y={0} w={1} h={1}>
+    <View id="s10-heat" x={0} y={0} w={"100%"} h={"100%"}>
       <HeatMapChart
         id="ops-heat"
         data={teamPerformance}
         timeField="teamSize"
         heightField="revenue"
         colorInterpolator="viridis"
-        x={.15}
+        x={"15%"}
         y={DASH_LAYOUT_RIGHT.y}
         w={DASH_LAYOUT_RIGHT.w}
         h={DASH_LAYOUT_RIGHT.h}

@@ -2,6 +2,19 @@
 
 import type { DiagramNodeDSL, DiagramEdgeDSL } from '../../types';
 import type { ResolvedHierarchicalLayout } from '../layoutResolver';
+import { resolveToNVS } from '@brewsite/core';
+import type { SceneLength, ScenePosition3, SceneSize2 } from '@brewsite/core';
+
+/** Resolve a SceneLength to a number, passing through values that are already numeric. */
+const toNum = (v: SceneLength | number): number => typeof v === 'number' ? v : resolveToNVS(v);
+
+function resolvePosition(pos: ScenePosition3 | readonly [number, number, number]): readonly [number, number, number] {
+  return [toNum(pos[0]), toNum(pos[1]), toNum(pos[2])];
+}
+
+function resolveSize(size: SceneSize2 | readonly [number, number]): readonly [number, number] {
+  return [toNum(size[0]), toNum(size[1])];
+}
 
 const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
 
@@ -30,7 +43,7 @@ export function resolveHierarchicalLayout(
 
   nodes.forEach((node) => {
     if (node.position) {
-      positions.set(node.id, node.position);
+      positions.set(node.id, resolvePosition(node.position));
     } else {
       missing.push(node);
     }
@@ -126,7 +139,7 @@ export function resolveHierarchicalLayout(
   const levelSecondaryDimByNode = new Map<string, number>();
   nodes.forEach((node) => {
     const l = level.get(node.id) ?? 0;
-    const [w, h] = node.size ?? defaultNodeSize;
+    const [w, h] = node.size ? resolveSize(node.size) : defaultNodeSize;
     const primaryHalf = isPrimary ? (w / 2 + margin[0]) : (h / 2 + margin[1]);
     const secondaryDim = isPrimary ? (h + 2 * margin[1]) : (w + 2 * margin[0]);
     levelMaxPrimaryHalf.set(l, Math.max(levelMaxPrimaryHalf.get(l) ?? 0, primaryHalf));
@@ -154,7 +167,7 @@ export function resolveHierarchicalLayout(
 
   const anchorNodes = explicitNodes.filter((n) => (level.get(n.id) ?? 0) === anchorLevel);
   const anchorPrimary = anchorNodes.length > 0
-    ? anchorNodes.reduce((sum, n) => sum + (n.position?.[isPrimary ? 0 : 1] ?? 0), 0) / anchorNodes.length
+    ? anchorNodes.reduce((sum, n) => sum + (n.position ? toNum(n.position[isPrimary ? 0 : 1]) : 0), 0) / anchorNodes.length
     : 0;
 
   const anchorIndex = allLevelKeys.indexOf(anchorLevel);
@@ -237,7 +250,7 @@ export function resolveHierarchicalLayout(
           secVal = prevSecVal + prevDim / 2 + secGap + currDim / 2;
         }
       }
-      const z = node.position?.[2] ?? 0;
+      const z = node.position ? toNum(node.position[2]) : 0;
       const [x, y] = isPrimary ? [primaryVal, secVal] : [secVal, primaryVal];
       positions.set(node.id, [x, y, z]);
     });

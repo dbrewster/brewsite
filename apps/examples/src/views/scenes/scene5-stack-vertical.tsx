@@ -47,15 +47,15 @@ export const StackVerticalScene = (): JSX.Element => {
   return (
     <Scene id="stack-vertical">
       <ProgressManager scrollUnits={1200} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
 
-      <ViewLayout kind="stack" direction="vertical" gap={0.02} x={0.1} w={0.8} y={0.05} h={0.9}>
+      <ViewLayout kind="stack" direction="vertical" gap={"2%"} x={"10%"} w={"80%"} y={"5%"} h={"90%"}>
         <View id="sv1">
-          <BarChart id="vstack-chart-1" data={dataRevenue} x={0} y={0} w={1} h={1} depth={0.3}>
+          <BarChart id="vstack-chart-1" data={dataRevenue} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
             <ChartData keyField="month" />
             <ChartAxis axis="x" field="month" label="Month" />
             <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
@@ -64,7 +64,7 @@ export const StackVerticalScene = (): JSX.Element => {
         </View>
 
         <View id="sv2">
-          <BarChart id="vstack-chart-2" data={dataUsers} x={0} y={0} w={1} h={1} depth={0.3}>
+          <BarChart id="vstack-chart-2" data={dataUsers} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
             <ChartData keyField="month" />
             <ChartAxis axis="x" field="month" label="Month" />
             <ChartAxis axis="y" field="users" label="Active Users" />
@@ -73,7 +73,7 @@ export const StackVerticalScene = (): JSX.Element => {
         </View>
 
         <View id="sv3">
-          <LineChart id="vstack-chart-3" data={dataConversion} x={0} y={0} w={1} h={1}
+          <LineChart id="vstack-chart-3" data={dataConversion} x={0} y={0} w={"100%"} h={"100%"}
                      lineShape="circle" lineSmoothness={0.4} showPoints={true} depth={0.3}>
             <ChartData keyField="month" />
             <ChartAxis axis="x" field="month" label="Month" />

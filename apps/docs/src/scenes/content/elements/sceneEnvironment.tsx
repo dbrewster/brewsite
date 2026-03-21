@@ -15,7 +15,7 @@ export function SceneEnvironmentPanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-environment-base">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.3} polar={1.1} distance={10} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.3rad"} polar={"1.1rad"} distance={10} />
         <Background color="#0a1220" />
         <Lighting>
           <Ambient color="#2244ff" intensity={0.4} />
@@ -26,7 +26,7 @@ export function SceneEnvironmentPanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-environment">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.3} polar={1.1} distance={8} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.3rad"} polar={"1.1rad"} distance={8} />
         <Background color="#0a1220" />
         <Lighting>
           <Ambient color="#2244ff" intensity={0.4} />

@@ -8,6 +8,7 @@ export * from './layout';
 export * from './math';
 export * from './runtime';
 export * from './input';
+export * from './units';
 export type { FunctionalTransitionSpec, ElementTransitionSpec } from './compiler/transitions/transitionTypes';
 export { blendNumber, blendOpacity, blendVec3, blendColor, transitionT, blendAxisRotation, blendAxisTranslation, resolveEnabledByOpacity } from './compiler/transitions/transitionTypes';
 export { ensureText, disposeText } from './text/TextRenderer';
@@ -31,5 +32,11 @@ export type { CacheStats } from './compiler/sceneTrackCache';
 export type { AnimationTrack } from './runtime/types';
 export type { Resolvable } from './compiler/sceneTypes';
 export { getNodeHandler } from './compiler/registry';
+export { clearRegistry } from './compiler/registry';
 export type { CompileWarning } from './compiler/sceneTrackTypes';
+
+// ─── Stream B: Scene-level lazy loading ──────────────────────────────────────
+export type { SceneLoadPolicy, SceneMembership } from './runtime/types';
+export { useSceneLoadState } from './player/useSceneLoadState';
+export type { SceneLoadState } from './player/useSceneLoadState';
 

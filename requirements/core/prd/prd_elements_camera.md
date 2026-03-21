@@ -3,8 +3,11 @@ title: "BrewSite Core — Camera Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Scene unit system: OrbitCameraProps.azimuth and polar now require SceneAngle strings (e.g. '0.5rad', '45deg'). CameraProps.fov requires SceneAngle. nvsTarget requires SceneLength tuple. DslTrackpadCameraConfig introduced with SceneAngle polar limits. Interaction prop type changed to DslTrackpadCameraConfig. Bare numbers except 0 are TypeScript errors on unit-typed props. Compiled SceneCamera state remains number. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Core over-engineering audit: updated internal dependency to note ElementTransitionSpec is deprecated and no longer implemented by the camera element. Camera uses FunctionalTransitionSpec exclusively."
@@ -104,14 +107,14 @@ Additionally, interactive camera controls (orbit, dolly, pan via trackpad) are a
 2. The `CameraDescriptorProps` type must be a discriminated union on a `mode` string literal. TypeScript must narrow the type correctly when switching on `mode`.
 3. The five valid DSL `mode` values are: `'world'`, `'orbit'`, `'fitBotHeight'`, `'fitFloorDepth'`, and `'nvsViewport'`. The `nvsViewport` mode is resolved to an equivalent `mode: 'world'` `SceneCamera` at compile time and does not appear in the runtime `CameraPositionDescriptor`.
 4. The four runtime `CameraPositionDescriptor` modes are: `WorldSpaceCamera`, `OrbitCamera`, `FitBotHeightCamera`, `FitFloorDepthCamera`.
-5. `WorldSpaceCamera` must accept `position: Vec3`, `target: Vec3`, optional `up: Vec3` (default `[0, 1, 0]`), and optional `nvsTarget: readonly [number, number]` for NVS-space look-at override.
-6. `OrbitCamera` must accept `target: Vec3`, `azimuth: number` (radians), `polar: number` (radians from equator, 0 = level, +PI/2 = top-down), `distance: number` (world units), optional `up: Vec3`, and optional `nvsTarget: readonly [number, number]`.
+5. `WorldSpaceCamera` must accept `position: Vec3`, `target: Vec3`, optional `up: Vec3` (default `[0, 1, 0]`), and optional `nvsTarget: readonly [SceneLength, SceneLength]` for NVS-space look-at override.
+6. `OrbitCamera` must accept `target: Vec3`, `azimuth: SceneAngle`, `polar: SceneAngle`, `distance: number` (world units), optional `up: Vec3`, and optional `nvsTarget: readonly [SceneLength, SceneLength]`.
 7. `FitBotHeightCamera` must accept `targetId: string` (ModelWidget ID), `targetHeight: number` (world units), optional `framingHeightPct: number` (default 0.4), optional `heightOffset: number`, and optional `distanceOffset: number`. The widget must compute the camera position at runtime using the current camera FOV and viewport dimensions.
 8. `FitFloorDepthCamera` must accept `floorY: number`, `floorZMin: number`, `floorZMax: number`, and optional `lookAtZ`, `cameraX`, `cameraY`.
 9. The `<Camera>` DSL component must accept optional flat lens fields: `fov`, `focalLength`, `filmGauge`, `near`, `far`. These map to `CameraLens`.
 10. When `focalLength` is provided, it must take precedence over `fov`. The effective FOV is computed from focal length and film gauge using the standard formula.
 11. The `<Camera>` DSL component must accept an optional flat `exposure` field. This maps to `CameraPost.exposure`.
-12. The `<Camera>` DSL component must accept an optional `interaction` prop of type `TrackpadCameraConfig`. This prop is included in the compiled `SceneCamera` state for runtime consumption by `CameraWidget`.
+12. The `<Camera>` DSL component must accept an optional `interaction` prop of type `DslTrackpadCameraConfig` (which replaces `minPolarAngle`/`maxPolarAngle` with `SceneAngle` at the authoring surface). This prop is included in the compiled `SceneCamera` state for runtime consumption by `CameraWidget`.
 13. The `<Camera>` DSL component must accept an optional `transitionIn` prop of type `CameraTransitionInterpolation` that controls how the camera moves between scene states during a transition.
 14. Between scenes where camera descriptors are both `mode: 'world'` or both `mode: 'orbit'`, the runtime must interpolate position, target, and FOV using the transition interpolation mode specified by `transitionIn` on the destination camera (defaulting to linear).
 15. Between scenes where camera mode changes (e.g., `orbit` -> `world`), the compiler must resolve both descriptors to world-space position and target at compile time, then interpolate the resolved coordinates.
@@ -146,17 +149,17 @@ export type WorldSpaceCamera = {
   position: Vec3;
   target: Vec3;
   up?: Vec3;
-  nvsTarget?: readonly [number, number];
+  nvsTarget?: readonly [number, number]; // compiled state stays number
 };
 
 export type OrbitCamera = {
   mode: 'orbit';
   target: Vec3;
-  azimuth: number;        // horizontal angle in radians (0 = +Z axis)
-  polar: number;          // vertical angle from equator in radians (0 = level, +PI/2 = top)
+  azimuth: number;        // horizontal angle in radians (compiled from SceneAngle)
+  polar: number;          // vertical angle from equator in radians (compiled from SceneAngle)
   distance: number;       // distance from target in world units
   up?: Vec3;
-  nvsTarget?: readonly [number, number];
+  nvsTarget?: readonly [number, number]; // compiled state stays number
 };
 
 export type FitBotHeightCamera = {
@@ -309,15 +312,17 @@ export type WorldCameraProps = {
   position: Vec3;
   target: Vec3;
   up?: Vec3;
+  nvsTarget?: readonly [SceneLength, SceneLength];
 };
 
 export type OrbitCameraProps = {
   mode: 'orbit';
   target: Vec3;
-  azimuth: number;
-  polar: number;
+  azimuth: SceneAngle;      // e.g. '0.5rad', '45deg'
+  polar: SceneAngle;        // e.g. '1.2rad', '63deg'
   distance: number;
   up?: Vec3;
+  nvsTarget?: readonly [SceneLength, SceneLength];
 };
 
 export type FitBotHeightCameraProps = {
@@ -352,17 +357,23 @@ export type CameraDescriptorProps =
   | FitFloorDepthCameraProps
   | NvsViewportCameraProps;
 
+/** DSL-surface override of TrackpadCameraConfig with SceneAngle polar limits. */
+export type DslTrackpadCameraConfig = Omit<TrackpadCameraConfig, 'minPolarAngle' | 'maxPolarAngle'> & {
+  minPolarAngle?: SceneAngle;   // e.g. 0, '10deg'
+  maxPolarAngle?: SceneAngle;   // e.g. '180deg'
+};
+
 export type CameraProps = CameraDescriptorProps & {
   // Lens (flat fields, map to CameraLens)
-  fov?: CameraLens['fov'];
+  fov?: SceneAngle;                        // e.g. '45deg'
   focalLength?: CameraLens['focalLength'];
   filmGauge?: CameraLens['filmGauge'];
   near?: CameraLens['near'];
   far?: CameraLens['far'];
   // Post (flat field, maps to CameraPost)
   exposure?: CameraPost['exposure'];
-  // Interaction
-  interaction?: TrackpadCameraConfig;
+  // Interaction (uses DslTrackpadCameraConfig with SceneAngle polar limits)
+  interaction?: DslTrackpadCameraConfig;
   // Transition
   transitionIn?: CameraTransitionInterpolation;
 };
@@ -379,7 +390,7 @@ World-space camera with explicit lens and exposure:
   mode="world"
   position={[0, 2, 8]}
   target={[0, 0, 0]}
-  fov={45}
+  fov={"45deg"}
   near={0.1}
   far={100}
   exposure={1.2}
@@ -392,10 +403,10 @@ Orbit camera with polar/azimuth positioning:
 <Camera
   mode="orbit"
   target={[0, 0, 0]}
-  azimuth={0.5}
-  polar={1.2}
+  azimuth={"0.5rad"}
+  polar={"1.2rad"}
   distance={6}
-  fov={50}
+  fov={"50deg"}
 />
 ```
 
@@ -469,7 +480,7 @@ Full interactive orbit with constraints:
   mode="orbit"
   target={[0, 0, 0]}
   azimuth={0}
-  polar={1.0}
+  polar={"1.0rad"}
   distance={5}
   interaction={{
     enabled: true,
@@ -477,8 +488,8 @@ Full interactive orbit with constraints:
     zoom: { speed: 0.5 },
     wheelZoom: true,
     damping: 0.25,
-    minPolarAngle: 0.3,
-    maxPolarAngle: 1.5,
+    minPolarAngle: "0.3rad",
+    maxPolarAngle: "1.5rad",
     minDistance: 2,
     maxDistance: 12,
     resetOnSceneChange: true,
@@ -721,7 +732,14 @@ The camera element does not import the model element. The bounding box read for 
 
 ## 9. Breaking Change Assessment
 
-**Semver impact: Minor** — This PRD describes the current, stable element API. No breaking changes are introduced.
+**Semver impact: Major** — The scene unit system changes the DSL authoring surface for Camera:
+
+- `OrbitCameraProps.azimuth` and `polar`: `number` → `SceneAngle` (e.g. `"0.5rad"`, `"45deg"`)
+- `CameraProps.fov`: `number` → `SceneAngle` (e.g. `"45deg"`)
+- `WorldCameraProps.nvsTarget` and `OrbitCameraProps.nvsTarget`: `readonly [number, number]` → `readonly [SceneLength, SceneLength]`
+- `CameraProps.interaction`: `TrackpadCameraConfig` → `DslTrackpadCameraConfig` (with `SceneAngle` polar limits)
+
+Compiled `SceneCamera` state remains `number` — no runtime or transition system changes. All existing scenes using bare numbers on these props will see TypeScript errors. A codemod (`pnpm migrate:units`) and migration guide (`packages/claude-author/docs/migration/unit-system.md`) are provided.
 
 The `CameraPositionDescriptor` discriminated union is stable. Adding a new `mode` value in a future release is a minor change (additive, no existing code breaks). Removing or renaming a mode value is a major change.
 

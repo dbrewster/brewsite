@@ -215,6 +215,13 @@ export type ChartState = {
    * depth: World-space thickness of 3D geometry (bars, areas). Default: 0.4.
    */
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
+  /**
+   * When true, bounds.width and bounds.height are scaled uniformly using
+   * vmin (min(visibleWorldWidth, visibleWorldHeight)) instead of per-axis scaling.
+   * Set by the compile layer when any DSL size prop uses the `u` unit.
+   * @default false
+   */
+  readonly uniformSizing: boolean;
   /** V2: Discriminated data source. Replaces V1 `dataSource: string`. */
   readonly dataSource: ChartStateDataSource;
   /** Serializable transforms applied at resolve time. */

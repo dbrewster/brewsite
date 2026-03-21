@@ -84,7 +84,7 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="multi-s2" id="multi-s2">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={1.0} polar={1.2} distance={6} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={"1rad"} polar={"1.2rad"} distance={6} />
       <Lighting>
         <Ambient color="#8855ff" intensity={0.6} />
       </Lighting>
@@ -144,8 +144,8 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="model-basic-s2" id="model-basic-s2">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.8} polar={1.3} distance={4} />
-      <Model type="MaleDummy" id="model-basic-character" rotation={[0, 1.2, 0]}>
+      <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={"0.8rad"} polar={"1.3rad"} distance={4} />
+      <Model type="MaleDummy" id="model-basic-character" rotation={[0, "1.2rad", 0]}>
         <Playback>
           <Animation clipName="chat-relax-m" enabled clipRepeat />
         </Playback>
@@ -178,7 +178,7 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="model-anim-active" id="model-anim-active">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.4} polar={1.2} distance={4} />
+      <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={"0.4rad"} polar={"1.2rad"} distance={4} />
       <Model type="MaleDummy" id="model-anim-character">
         <Playback>
           <Animation clipName="standing_chat_m_270753" enabled clipRepeat />
@@ -231,7 +231,7 @@ export const DOCS_SCENES: ReactNode = (
     {/* ── Camera orbit mode (Camera element) ───────────────────────────────── */}
     <Scene key="cam-orbit-s1" id="cam-orbit-s1">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.0} polar={1.2} distance={8} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.0} polar={"1.2rad"} distance={8} />
       <Lighting>
         <Ambient color="#ffffff" intensity={0.5} />
         <Directional color="#ffffff" intensity={1.0} position={[5, 10, 5]} />
@@ -242,7 +242,7 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="cam-orbit-s2" id="cam-orbit-s2">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={1.5} polar={1.0} distance={6} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={"1.5rad"} polar={"1rad"} distance={6} />
       <Lighting>
         <Ambient color="#ffffff" intensity={0.5} />
         <Directional color="#ffffff" intensity={1.0} position={[5, 10, 5]} />
@@ -253,7 +253,7 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="cam-orbit-s3" id="cam-orbit-s3">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={3.0} polar={0.8} distance={8} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={"3rad"} polar={"0.8rad"} distance={8} />
       <Lighting>
         <Ambient color="#ffffff" intensity={0.5} />
         <Directional color="#ffffff" intensity={1.0} position={[5, 10, 5]} />
@@ -353,7 +353,7 @@ export const DOCS_SCENES: ReactNode = (
     {/* ── Environment (Environment element) ────────────────────────────────── */}
     <Scene key="env-no-env" id="env-no-env">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.3} polar={1.1} distance={7} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.3rad"} polar={"1.1rad"} distance={7} />
       <Lighting>
         <Ambient color="#ffffff" intensity={0.8} />
         <Directional color="#ffffff" intensity={1.0} position={[5, 10, 5]} />
@@ -364,7 +364,7 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="env-with-env" id="env-with-env">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.8} polar={1.0} distance={7} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.8rad"} polar={"1rad"} distance={7} />
       <Lighting>
         <Ambient color="#ffffff" intensity={0.5} />
         <Directional color="#aaccff" intensity={0.8} position={[5, 10, 5]} />
@@ -447,7 +447,7 @@ export const DOCS_SCENES: ReactNode = (
         mode="orbit"
         target={[0, 0, 0]}
         azimuth={0}
-        polar={1.2}
+        polar={"1.2rad"}
         distance={6}
       />
       <Lighting>
@@ -472,7 +472,7 @@ export const DOCS_SCENES: ReactNode = (
     </Scene>
     <Scene key="var-detail" id="var-detail">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
-      <Camera mode="orbit" target={[0, 0, 0]} azimuth={1.2} polar={1.1} distance={6} />
+      <Camera mode="orbit" target={[0, 0, 0]} azimuth={"1.2rad"} polar={"1.1rad"} distance={6} />
       <Lighting>
         <Ambient color="#4488ff" intensity={0.5} />
       </Lighting>

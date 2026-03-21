@@ -227,6 +227,7 @@ export function compileGroup(
     orientation: dsl.orientation ?? gd.orientation,
     parentId: dsl.parentId,
     bounds,
+    uniformSizing: gd.uniformSizing,
     color: dsl.color ?? gd.color,
     borderColor: dsl.borderColor ?? gd.borderColor,
     borderWidth: gd.borderWidth,

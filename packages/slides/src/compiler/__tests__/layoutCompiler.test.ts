@@ -2,6 +2,20 @@
 
 import { describe, it, expect } from 'vitest';
 import { compileLayout } from '../layoutCompiler';
+import type { SceneLength } from '@brewsite/core';
+
+/** Mirror the production pct() helper so assertions match exactly. */
+function pct(value: number): SceneLength {
+  if (value === 0) return 0;
+  return `${value * 100}%` as SceneLength;
+}
+
+/** Parse a SceneLength back to an NVS fraction for numeric comparisons. */
+function nvs(v: SceneLength): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string' && v.endsWith('%')) return parseFloat(v) / 100;
+  return Number(v);
+}
 
 describe('compileLayout', () => {
   // ─── title ──────────────────────────────────────────────────────────────────
@@ -10,7 +24,7 @@ describe('compileLayout', () => {
     it('returns a single full-viewport region', () => {
       const regions = compileLayout({ layout: 'title', hasTitle: true });
       expect(regions).toHaveLength(1);
-      expect(regions[0]).toMatchObject({ id: 'title', x: 0, y: 0, w: 1, h: 1, layer: 1 });
+      expect(regions[0]).toMatchObject({ id: 'title', x: 0, y: 0, w: pct(1), h: pct(1), layer: 1 });
     });
 
     it('returns same result when hasTitle is false', () => {
@@ -26,7 +40,7 @@ describe('compileLayout', () => {
     it('returns a single full-viewport region', () => {
       const regions = compileLayout({ layout: 'section', hasTitle: true });
       expect(regions).toHaveLength(1);
-      expect(regions[0]).toMatchObject({ id: 'title', x: 0, y: 0, w: 1, h: 1, layer: 1 });
+      expect(regions[0]).toMatchObject({ id: 'title', x: 0, y: 0, w: pct(1), h: pct(1), layer: 1 });
     });
   });
 
@@ -44,9 +58,9 @@ describe('compileLayout', () => {
       const regions = compileLayout({ layout: 'content', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
       expect(title.x).toBe(0);
-      expect(title.w).toBe(1);
-      expect(title.y).toBeCloseTo(0.02);
-      expect(title.h).toBeCloseTo(0.16);
+      expect(title.w).toBe(pct(1));
+      expect(title.y).toBe(pct(0.02));
+      expect(title.h).toBe(pct(0.18 - 0.02));
       expect(title.layer).toBe(1);
     });
 
@@ -54,9 +68,9 @@ describe('compileLayout', () => {
       const regions = compileLayout({ layout: 'content', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
       const body = regions.find((r) => r.id === 'body')!;
-      expect(body.y).toBeCloseTo(0.20); // titleH + gutter = 0.18 + 0.02
-      expect(body.y).toBeGreaterThan(title.y + title.h);
-      expect(body.w).toBe(1);
+      expect(nvs(body.y)).toBeCloseTo(0.20); // titleH + gutter = 0.18 + 0.02
+      expect(nvs(body.y)).toBeGreaterThan(nvs(title.y) + nvs(title.h));
+      expect(body.w).toBe(pct(1));
       expect(body.layer).toBe(0);
     });
 
@@ -64,7 +78,7 @@ describe('compileLayout', () => {
       const regions = compileLayout({ layout: 'content', hasTitle: true });
       const body = regions.find((r) => r.id === 'body')!;
       // bodyH = 1 - 0.20 - 0.02 = 0.78
-      expect(body.h).toBeCloseTo(0.78);
+      expect(nvs(body.h)).toBeCloseTo(0.78);
     });
   });
 
@@ -82,28 +96,28 @@ describe('compileLayout', () => {
     it('title spans full width', () => {
       const regions = compileLayout({ layout: 'two-column', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
-      expect(title.w).toBe(1);
+      expect(title.w).toBe(pct(1));
     });
 
     it('left and right columns have equal width', () => {
       const regions = compileLayout({ layout: 'two-column', hasTitle: true });
       const left = regions.find((r) => r.id === 'left')!;
       const right = regions.find((r) => r.id === 'right')!;
-      expect(left.w).toBeCloseTo(right.w);
+      expect(nvs(left.w)).toBeCloseTo(nvs(right.w));
     });
 
     it('right column starts after left column with a gap', () => {
       const regions = compileLayout({ layout: 'two-column', hasTitle: true });
       const left = regions.find((r) => r.id === 'left')!;
       const right = regions.find((r) => r.id === 'right')!;
-      expect(right.x).toBeGreaterThan(left.x + left.w);
+      expect(nvs(right.x)).toBeGreaterThan(nvs(left.x) + nvs(left.w));
     });
 
     it('uses double gutter for column gap', () => {
       const regions = compileLayout({ layout: 'two-column', hasTitle: true });
       const left = regions.find((r) => r.id === 'left')!;
       const right = regions.find((r) => r.id === 'right')!;
-      const gap = right.x - (left.x + left.w);
+      const gap = nvs(right.x) - (nvs(left.x) + nvs(left.w));
       expect(gap).toBeCloseTo(0.04); // gutter * 2
     });
 
@@ -111,7 +125,7 @@ describe('compileLayout', () => {
       const regions = compileLayout({ layout: 'two-column', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
       const left = regions.find((r) => r.id === 'left')!;
-      expect(left.y).toBeGreaterThan(title.y + title.h);
+      expect(nvs(left.y)).toBeGreaterThan(nvs(title.y) + nvs(title.h));
     });
   });
 
@@ -129,7 +143,7 @@ describe('compileLayout', () => {
       const withoutTitle = compileLayout({ layout: 'two-column', hasTitle: false });
       const leftWithTitle = withTitle.find((r) => r.id === 'left')!;
       const leftNoTitle = withoutTitle.find((r) => r.id === 'left')!;
-      expect(leftNoTitle.y).toBeLessThan(leftWithTitle.y);
+      expect(nvs(leftNoTitle.y)).toBeLessThan(nvs(leftWithTitle.y));
     });
   });
 
@@ -146,8 +160,8 @@ describe('compileLayout', () => {
     it('image region is 55% wide by default', () => {
       const regions = compileLayout({ layout: 'image', hasTitle: false });
       const image = regions.find((r) => r.id === 'image')!;
-      expect(image.w).toBeCloseTo(0.55);
-      expect(image.h).toBe(1);
+      expect(nvs(image.w)).toBeCloseTo(0.55);
+      expect(image.h).toBe(pct(1));
     });
 
     it('defaults to image on the left', () => {
@@ -155,7 +169,7 @@ describe('compileLayout', () => {
       const image = regions.find((r) => r.id === 'image')!;
       const body = regions.find((r) => r.id === 'body')!;
       expect(image.x).toBe(0);
-      expect(body.x).toBeCloseTo(0.55 + 0.02); // imgW + gutter
+      expect(nvs(body.x)).toBeCloseTo(0.55 + 0.02); // imgW + gutter
     });
 
     it('places image on the right when imagePosition is right', () => {
@@ -163,14 +177,14 @@ describe('compileLayout', () => {
       const image = regions.find((r) => r.id === 'image')!;
       const body = regions.find((r) => r.id === 'body')!;
       expect(body.x).toBe(0);
-      expect(image.x).toBeGreaterThan(body.x + body.w);
+      expect(nvs(image.x)).toBeGreaterThan(nvs(body.x) + nvs(body.w));
     });
 
     it('body text region accounts for gutter padding', () => {
       const regions = compileLayout({ layout: 'image', hasTitle: false });
       const body = regions.find((r) => r.id === 'body')!;
-      expect(body.y).toBeCloseTo(0.02);
-      expect(body.h).toBeCloseTo(0.96); // 1 - gutter * 2
+      expect(nvs(body.y)).toBeCloseTo(0.02);
+      expect(nvs(body.h)).toBeCloseTo(0.96); // 1 - gutter * 2
     });
   });
 
@@ -186,36 +200,36 @@ describe('compileLayout', () => {
     it('defaults to bottom-left when overlayPosition is not specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false });
       const overlay = regions[0]!;
-      expect(overlay.x).toBeCloseTo(0.04);
-      expect(overlay.y).toBeGreaterThan(0.5);
+      expect(nvs(overlay.x)).toBeCloseTo(0.04);
+      expect(nvs(overlay.y)).toBeGreaterThan(0.5);
     });
 
     it('positions overlay at top-left when specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'top-left' });
       const overlay = regions[0]!;
-      expect(overlay.x).toBeCloseTo(0.04);
-      expect(overlay.y).toBeCloseTo(0.04);
+      expect(nvs(overlay.x)).toBeCloseTo(0.04);
+      expect(nvs(overlay.y)).toBeCloseTo(0.04);
     });
 
     it('positions overlay at top-right when specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'top-right' });
       const overlay = regions[0]!;
-      expect(overlay.x).toBeCloseTo(1 - 0.4 - 0.04);
-      expect(overlay.y).toBeCloseTo(0.04);
+      expect(nvs(overlay.x)).toBeCloseTo(1 - 0.4 - 0.04);
+      expect(nvs(overlay.y)).toBeCloseTo(0.04);
     });
 
     it('positions overlay at bottom-right when specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'bottom-right' });
       const overlay = regions[0]!;
-      expect(overlay.x).toBeCloseTo(1 - 0.4 - 0.04);
-      expect(overlay.y).toBeCloseTo(1 - 0.3 - 0.04);
+      expect(nvs(overlay.x)).toBeCloseTo(1 - 0.4 - 0.04);
+      expect(nvs(overlay.y)).toBeCloseTo(1 - 0.3 - 0.04);
     });
 
     it('positions overlay at center when specified', () => {
       const regions = compileLayout({ layout: 'full-bleed', hasTitle: false, overlayPosition: 'center' });
       const overlay = regions[0]!;
-      expect(overlay.x).toBeCloseTo(0.3);
-      expect(overlay.y).toBeCloseTo(0.35);
+      expect(nvs(overlay.x)).toBeCloseTo(0.3);
+      expect(nvs(overlay.y)).toBeCloseTo(0.35);
     });
 
     it('overlay region has layer 1', () => {
@@ -230,7 +244,7 @@ describe('compileLayout', () => {
     it('returns a single full-size body region', () => {
       const regions = compileLayout({ layout: 'blank', hasTitle: false });
       expect(regions).toHaveLength(1);
-      expect(regions[0]).toEqual({ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 });
+      expect(regions[0]).toEqual({ id: 'body', x: 0, y: 0, w: pct(1), h: pct(1), layer: 0 });
     });
 
     it('returns a single full-size body region even with hasTitle', () => {
@@ -279,13 +293,13 @@ describe('compileLayout', () => {
     it('stat regions are vertically centered', () => {
       const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 1 });
       const stat = regions[0]!;
-      expect(stat.h).toBeCloseTo(0.5);
-      expect(stat.y).toBeCloseTo(0.25); // (1 - 0.5) / 2
+      expect(nvs(stat.h)).toBeCloseTo(0.5);
+      expect(nvs(stat.y)).toBeCloseTo(0.25); // (1 - 0.5) / 2
     });
 
     it('stat regions have equal width with gaps', () => {
       const regions = compileLayout({ layout: 'big-number', hasTitle: false, statCount: 3 });
-      const widths = regions.map((r) => r.w);
+      const widths = regions.map((r) => nvs(r.w));
       expect(widths[0]).toBeCloseTo(widths[1]!);
       expect(widths[1]).toBeCloseTo(widths[2]!);
     });
@@ -300,7 +314,7 @@ describe('compileLayout', () => {
     it('title region height is 70% of standard title height', () => {
       const regions = compileLayout({ layout: 'big-number', hasTitle: true, statCount: 1 });
       const title = regions.find((r) => r.id === 'title')!;
-      expect(title.h).toBeCloseTo(0.18 * 0.7);
+      expect(nvs(title.h)).toBeCloseTo(0.18 * 0.7);
     });
   });
 
@@ -324,7 +338,7 @@ describe('compileLayout', () => {
 
     it('metric columns have equal width', () => {
       const regions = compileLayout({ layout: 'metric-grid', hasTitle: false, metricColumns: 3 });
-      const widths = regions.map((r) => r.w);
+      const widths = regions.map((r) => nvs(r.w));
       expect(widths[0]).toBeCloseTo(widths[1]!);
       expect(widths[1]).toBeCloseTo(widths[2]!);
     });
@@ -333,13 +347,13 @@ describe('compileLayout', () => {
       const regions = compileLayout({ layout: 'metric-grid', hasTitle: true });
       const title = regions.find((r) => r.id === 'title')!;
       const metric0 = regions.find((r) => r.id === 'metric-0')!;
-      expect(metric0.y).toBeGreaterThan(title.y + title.h);
+      expect(nvs(metric0.y)).toBeGreaterThan(nvs(title.y) + nvs(title.h));
     });
 
     it('metric columns start at gutter when hasTitle is false', () => {
       const regions = compileLayout({ layout: 'metric-grid', hasTitle: false });
       const metric0 = regions.find((r) => r.id === 'metric-0')!;
-      expect(metric0.y).toBeCloseTo(0.02);
+      expect(nvs(metric0.y)).toBeCloseTo(0.02);
     });
   });
 
@@ -373,27 +387,27 @@ describe('compileLayout', () => {
     it('quote region is horizontally centered with 10% margin', () => {
       const regions = compileLayout({ layout: 'quote', hasTitle: false });
       const quote = regions.find((r) => r.id === 'quote')!;
-      expect(quote.x).toBeCloseTo(0.1);
-      expect(quote.w).toBeCloseTo(0.8);
+      expect(nvs(quote.x)).toBeCloseTo(0.1);
+      expect(nvs(quote.w)).toBeCloseTo(0.8);
     });
 
     it('quote region is 60% tall', () => {
       const regions = compileLayout({ layout: 'quote', hasTitle: false });
       const quote = regions.find((r) => r.id === 'quote')!;
-      expect(quote.h).toBeCloseTo(0.6);
+      expect(nvs(quote.h)).toBeCloseTo(0.6);
     });
 
     it('attribution is below the quote region', () => {
       const regions = compileLayout({ layout: 'quote', hasTitle: false });
       const quote = regions.find((r) => r.id === 'quote')!;
       const attribution = regions.find((r) => r.id === 'attribution')!;
-      expect(attribution.y).toBeGreaterThan(quote.y + quote.h);
+      expect(nvs(attribution.y)).toBeGreaterThan(nvs(quote.y) + nvs(quote.h));
     });
 
     it('attribution has 10% height', () => {
       const regions = compileLayout({ layout: 'quote', hasTitle: false });
       const attribution = regions.find((r) => r.id === 'attribution')!;
-      expect(attribution.h).toBeCloseTo(0.1);
+      expect(nvs(attribution.h)).toBeCloseTo(0.1);
     });
 
     it('quote has layer 1, attribution has layer 0', () => {
@@ -429,7 +443,7 @@ describe('compileLayout', () => {
       // Cast to bypass type checking for unknown layout string
       const regions = compileLayout({ layout: 'unknown-future' as never, hasTitle: false });
       expect(regions).toHaveLength(1);
-      expect(regions[0]).toEqual({ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 });
+      expect(regions[0]).toEqual({ id: 'body', x: 0, y: 0, w: pct(1), h: pct(1), layer: 0 });
     });
   });
 
@@ -455,12 +469,16 @@ describe('compileLayout', () => {
     it.each(allLayouts)('all regions for $layout have coordinates in [0, 1]', (input) => {
       const regions = compileLayout(input);
       for (const r of regions) {
-        expect(r.x).toBeGreaterThanOrEqual(0);
-        expect(r.y).toBeGreaterThanOrEqual(0);
-        expect(r.w).toBeGreaterThan(0);
-        expect(r.h).toBeGreaterThan(0);
-        expect(r.x + r.w).toBeLessThanOrEqual(1.001); // small tolerance for float math
-        expect(r.y + r.h).toBeLessThanOrEqual(1.001);
+        const x = nvs(r.x);
+        const y = nvs(r.y);
+        const w = nvs(r.w);
+        const h = nvs(r.h);
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(w).toBeGreaterThan(0);
+        expect(h).toBeGreaterThan(0);
+        expect(x + w).toBeLessThanOrEqual(1.001); // small tolerance for float math
+        expect(y + h).toBeLessThanOrEqual(1.001);
       }
     });
   });

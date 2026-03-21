@@ -31,7 +31,7 @@ function createExplorerPlugins(): { plugins: WidgetPlugin[] } {
 const InnerPickerScene = (): JSX.Element => (
   <Scene id="inner-picker" primaryCarouselId="inner-carousel">
     <ProgressManager scrollUnits={600} />
-    <Camera mode="world" position={[0, 1, 6]} target={[0, 0, 0]} fov={42} />
+    <Camera mode="world" position={[0, 1, 6]} target={[0, 0, 0]} fov={"42deg"} />
     <Lighting intensityScale={1.0}>
       <Ambient intensity={2.5} color="#ffe8d7" />
       <Directional intensity={1.0} color="#ffffff" position={[2, 4, 3]} />
@@ -48,16 +48,16 @@ const InnerPickerScene = (): JSX.Element => (
     </InputController>
 
     <ViewLayout id="inner-carousel" kind="carousel" loop focusedIndex={0} zStep={8} fadeMin={0.3}>
-      <View id="inner-1" w={0.4} h={0.5}>
-        <BarChart id="inner-bar" data={innerData1} x={0} y={0} w={1} h={1} depth={0.25}>
+      <View id="inner-1" w={"40%"} h={"50%"}>
+        <BarChart id="inner-bar" data={innerData1} x={0} y={0} w={"100%"} h={"100%"} depth={0.25}>
           <ChartData keyField="label" />
           <ChartAxis axis="x" field="label" label="Day" />
           <ChartAxis axis="y" field="value" label="Count" />
           <ChartSeries field="value" label="Daily" />
         </BarChart>
       </View>
-      <View id="inner-2" w={0.4} h={0.5}>
-        <LineChart id="inner-line" data={innerData2} x={0} y={0} w={1} h={1}
+      <View id="inner-2" w={"40%"} h={"50%"}>
+        <LineChart id="inner-line" data={innerData2} x={0} y={0} w={"100%"} h={"100%"}
           lineShape="circle" lineSmoothness={0.5} showPoints depth={0.25}>
           <ChartData keyField="label" />
           <ChartAxis axis="x" field="label" label="Day" />
@@ -65,8 +65,8 @@ const InnerPickerScene = (): JSX.Element => (
           <ChartSeries field="value" label="Weekly" />
         </LineChart>
       </View>
-      <View id="inner-3" w={0.4} h={0.5}>
-        <BarChart id="inner-bar-2" data={innerData3} x={0} y={0} w={1} h={1}
+      <View id="inner-3" w={"40%"} h={"50%"}>
+        <BarChart id="inner-bar-2" data={innerData3} x={0} y={0} w={"100%"} h={"100%"}
           orientation="horizontal" depth={0.25}>
           <ChartData keyField="label" />
           <ChartAxis axis="x" field="label" label="Day" />

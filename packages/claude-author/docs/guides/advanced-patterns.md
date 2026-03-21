@@ -3,7 +3,7 @@ title: Advanced Scene Authoring Patterns
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## Multi-Scene Sequences
@@ -37,7 +37,7 @@ export function Scene1() {
         <Directional intensity={1.0} color="#ffffff" position={[3, 8, 6]} />
       </Lighting>
       <Background color="#030510" />
-      <Model type="Robot" id="robot" scale={0.06} x={0.5} y={0} w={0.5} h={1} />
+      <Model type="Robot" id="robot" scale={0.06} x={"50%"} y={"0%"} w={"50%"} h={"100%"} />
     </Scene>
   );
 }
@@ -61,7 +61,7 @@ export function Scene2() {
       </Lighting>
       <Background color="#040812" />
       {/* Same id "robot" — NVS x/y/w/h and opacity all interpolate */}
-      <Model type="Robot" id="robot" scale={0.06} x={0.25} y={0} w={0.5} h={1} />
+      <Model type="Robot" id="robot" scale={0.06} x={"25%"} y={"0%"} w={"50%"} h={"100%"} />
     </Scene>
   );
 }
@@ -81,10 +81,10 @@ export function Scene2() {
 import { View } from '@brewsite/core';
 
 // Right 60% panel, full height, with 5% padding on all sides
-<View id="right-panel" x={0.4} y={0} w={0.6} h={1} padding={[0.05, 0.04]}>
-  <Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
+<View id="right-panel" x={"40%"} y={"0%"} w={"60%"} h={"100%"} padding={["5%", "4%"]}>
+  <Model type="Robot" id="robot" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   {/* TextBox inside View is also relative to the View's bounds */}
-  <TextBox id="caption" x={0.05} y={0.88} w={0.9} h={0.10}>
+  <TextBox id="caption" x={"5%"} y={"88%"} w={"90%"} h={"10%"}>
     <p style={{ color: 'white', margin: 0 }}>Caption</p>
   </TextBox>
 </View>
@@ -95,11 +95,11 @@ import { View } from '@brewsite/core';
 | Prop | Type | Description |
 |---|---|---|
 | `id` | `string` | Required stable ID |
-| `x` | `number` | NVS x position [0..1]. Ignored inside a ViewLayout |
-| `y` | `number` | NVS y position [0..1]. Ignored inside a ViewLayout |
-| `w` | `number` | NVS width [0..1]. Used as size hint inside ViewLayout |
-| `h` | `number` | NVS height [0..1]. Used as size hint inside ViewLayout |
-| `padding` | `RegionPadding` | Inset padding. Uniform: `0.05`. [vertical, horizontal]: `[0.05, 0.04]`. Full: `[top, right, bottom, left]` |
+| `x` | `SceneLength` | NVS x position. Ignored inside a ViewLayout |
+| `y` | `SceneLength` | NVS y position. Ignored inside a ViewLayout |
+| `w` | `SceneLength` | NVS width. Used as size hint inside ViewLayout |
+| `h` | `SceneLength` | NVS height. Used as size hint inside ViewLayout |
+| `padding` | `RegionPadding` | Inset padding. Uniform: `"5%"`. [vertical, horizontal]: `["5%", "4%"]`. Full: `[top, right, bottom, left]` |
 | `children` | `ReactNode` | One renderable DSL element (plus optional TextBox/overlay content) |
 
 ---
@@ -111,15 +111,15 @@ import { View } from '@brewsite/core';
 **`kind="stack"` — row or column arrangement:**
 
 ```tsx
-<ViewLayout kind="stack" direction="horizontal" gap={0.04} x={0} y={0} w={1} h={1}>
-  <View id="panel-a" w={0.33} h={1}>
-    <BarChart id="chart-a" x={0} y={0} w={1} h={1} ... />
+<ViewLayout kind="stack" direction="horizontal" gap={"4%"} x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
+  <View id="panel-a" w={"33%"} h={"100%"}>
+    <BarChart id="chart-a" x={"0%"} y={"0%"} w={"100%"} h={"100%"} ... />
   </View>
-  <View id="panel-b" w={0.33} h={1}>
-    <BarChart id="chart-b" x={0} y={0} w={1} h={1} ... />
+  <View id="panel-b" w={"33%"} h={"100%"}>
+    <BarChart id="chart-b" x={"0%"} y={"0%"} w={"100%"} h={"100%"} ... />
   </View>
-  <View id="panel-c" w={0.33} h={1}>
-    <BarChart id="chart-c" x={0} y={0} w={1} h={1} ... />
+  <View id="panel-c" w={"33%"} h={"100%"}>
+    <BarChart id="chart-c" x={"0%"} y={"0%"} w={"100%"} h={"100%"} ... />
   </View>
 </ViewLayout>
 ```
@@ -134,18 +134,18 @@ The active view is centered at the front. Inactive views scale down and move bac
   activeIndex={1}         // 0-indexed: 0=left, 1=center, 2=right
   inactiveScale={0.72}    // inactive panels at 72% scale
   zStep={9}               // side panels 9 world units back in Z
-  gap={0.03}              // NVS gap between panels
-  y={0}
-  h={1}
+  gap={"3%"}              // NVS gap between panels
+  y={"0%"}
+  h={"100%"}
 >
-  <View id="panel-a" w={0.38} h={0.88}>
-    <Model type="Robot" id="robot-a" scale={0.06} x={0} y={0} w={1} h={1} />
+  <View id="panel-a" w={"38%"} h={"88%"}>
+    <Model type="Robot" id="robot-a" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   </View>
-  <View id="panel-b" w={0.38} h={0.88}>
-    <Model type="Robot" id="robot-b" scale={0.06} x={0} y={0} w={1} h={1} />
+  <View id="panel-b" w={"38%"} h={"88%"}>
+    <Model type="Robot" id="robot-b" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   </View>
-  <View id="panel-c" w={0.38} h={0.88}>
-    <Model type="Robot" id="robot-c" scale={0.06} x={0} y={0} w={1} h={1} />
+  <View id="panel-c" w={"38%"} h={"88%"}>
+    <Model type="Robot" id="robot-c" scale={0.06} x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   </View>
 </ViewLayout>
 ```
@@ -155,19 +155,19 @@ The active view is centered at the front. Inactive views scale down and move bac
 ```tsx
 // Scene A — panel B active
 <Scene id="carousel-1">
-  <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8} gap={0.04} h={1}>
-    <View id="panel-a" w={0.36} h={0.9}><Diagram id="d-a" ... /></View>
-    <View id="panel-b" w={0.36} h={0.9}><Diagram id="d-b" ... /></View>
-    <View id="panel-c" w={0.36} h={0.9}><Diagram id="d-c" ... /></View>
+  <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8} gap={"4%"} h={"100%"}>
+    <View id="panel-a" w={"36%"} h={"90%"}><Diagram id="d-a" ... /></View>
+    <View id="panel-b" w={"36%"} h={"90%"}><Diagram id="d-b" ... /></View>
+    <View id="panel-c" w={"36%"} h={"90%"}><Diagram id="d-c" ... /></View>
   </ViewLayout>
 </Scene>
 
 // Scene B — panel C active (carousel rotates forward)
 <Scene id="carousel-2">
-  <ViewLayout kind="carousel" activeIndex={1} inactiveScale={0.75} zStep={8} gap={0.04} h={1}>
-    <View id="panel-a" w={0.36} h={0.9}><Diagram id="d-a" ... /></View>
-    <View id="panel-b" w={0.36} h={0.9}><Diagram id="d-b" ... /></View>
-    <View id="panel-c" w={0.36} h={0.9}><Diagram id="d-c" ... /></View>
+  <ViewLayout kind="carousel" activeIndex={1} inactiveScale={0.75} zStep={8} gap={"4%"} h={"100%"}>
+    <View id="panel-a" w={"36%"} h={"90%"}><Diagram id="d-a" ... /></View>
+    <View id="panel-b" w={"36%"} h={"90%"}><Diagram id="d-b" ... /></View>
+    <View id="panel-c" w={"36%"} h={"90%"}><Diagram id="d-c" ... /></View>
   </ViewLayout>
 </Scene>
 ```
@@ -182,12 +182,12 @@ The active view is centered at the front. Inactive views scale down and move bac
   zStep={6}
   spread={0.7}      // ellipse width as fraction of container [0..1]
   fadeMin={0.4}     // farthest-back views at 40% opacity
-  h={1}
+  h={"100%"}
 >
-  <View id="v1" w={0.35} h={0.85}>{/* content */}</View>
-  <View id="v2" w={0.35} h={0.85}>{/* content */}</View>
-  <View id="v3" w={0.35} h={0.85}>{/* content */}</View>
-  <View id="v4" w={0.35} h={0.85}>{/* content */}</View>
+  <View id="v1" w={"35%"} h={"85%"}>{/* content */}</View>
+  <View id="v2" w={"35%"} h={"85%"}>{/* content */}</View>
+  <View id="v3" w={"35%"} h={"85%"}>{/* content */}</View>
+  <View id="v4" w={"35%"} h={"85%"}>{/* content */}</View>
 </ViewLayout>
 ```
 
@@ -197,11 +197,11 @@ The active view is centered at the front. Inactive views scale down and move bac
 |---|---|---|---|
 | `id` | `string` | auto | Optional stable ID |
 | `kind` | `'stack' \| 'carousel'` | — | Required layout policy |
-| `x` | `number` | 0 | NVS x of layout container |
-| `y` | `number` | 0 | NVS y of layout container |
-| `w` | `number` | 1 | NVS width of layout container |
-| `h` | `number` | 1 | NVS height of layout container |
-| `gap` | `number` | 0 | NVS gap between views |
+| `x` | `SceneLength` | `"0%"` | NVS x of layout container |
+| `y` | `SceneLength` | `"0%"` | NVS y of layout container |
+| `w` | `SceneLength` | `"100%"` | NVS width of layout container |
+| `h` | `SceneLength` | `"100%"` | NVS height of layout container |
+| `gap` | `SceneLength` | `"0%"` | NVS gap between views |
 | `direction` | `'horizontal' \| 'vertical'` | `'horizontal'` | Stack direction (stack only) |
 | `activeIndex` | `number` | 0 | Active view index (carousel only) |
 | `inactiveScale` | `number` | 0.75 | Inactive view scale (carousel only) |
@@ -455,7 +455,7 @@ import { EngineARContainer } from '@brewsite/core';
 **`--scene-scale`:** injected on every resize as `containerWidth / referenceWidth`. Use in TextBox content for proportional font sizing:
 
 ```tsx
-<TextBox id="title" x={0.04} y={0.1} w={0.5} h={0.15}>
+<TextBox id="title" x={"4%"} y={"10%"} w={"50%"} h={"15%"}>
   <h1 style={{ fontSize: `calc(2.5rem * var(--scene-scale, 1))` }}>
     Scaled Heading
   </h1>

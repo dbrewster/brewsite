@@ -3,7 +3,7 @@ title: Transitions
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## What Transitions Are
@@ -145,7 +145,7 @@ The `<Transition>` DSL component is a child of renderable elements (`<Model>`, `
 ```tsx
 import { Transition, easeOutCubic } from '@brewsite/core';
 
-<Model id="hero" type="Robot" x={0.5} y={0.5} w={0.6} h={0.8}>
+<Model id="hero" type="Robot" x={"50%"} y={"50%"} w={"60%"} h={"80%"}>
   <Transition
     enter={{ window: [0.7, 1.0], ease: easeOutCubic }}
     exit={{ window: [0.0, 0.3], ease: easeOutCubic }}

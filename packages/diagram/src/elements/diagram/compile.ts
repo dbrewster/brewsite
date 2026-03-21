@@ -12,13 +12,13 @@ import type {
   DiagramWarnFn,
 } from './types';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
-import { blendOpacity, blendVec3, lerp, validateNVSRect, validateNVSPosition } from '@brewsite/core';
+import { blendOpacity, blendVec3, lerp, validateNVSRect, validateNVSPosition, resolveToNVS, resolveAngle } from '@brewsite/core';
 import { defaultDiagramTheme } from './themes/enterprise';
 import { resolveDiagramTheme } from './themeRegistry';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
 import { compileNode, compileEdge } from './compiler/nodeCompiler';
-import { buildNodeDefaults, buildGroupDefaults } from './compiler/defaultsCompiler';
+import { buildNodeDefaults, buildEdgeDefaults, buildGroupDefaults } from './compiler/defaultsCompiler';
 import { optimizeSharedFlowTrunks } from './compiler/edgeRenderOptimizer';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import { normalizeToViewport } from './compiler/normalizeToViewport';
@@ -31,6 +31,7 @@ import {
   rerouteLiveEdges,
   blendDiagramEdges,
 } from './compiler/transitionHelpers';
+import { snapEdgePathToShapeBoundaries } from './compiler/shapeEndpointSnap';
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.
@@ -98,9 +99,9 @@ export function compileDiagram(
 ): DiagramState {
   const theme: DiagramTheme = resolveTheme(dsl.theme, fallbackTheme);
 
-  // Polygon shapes rendered as N-sided prisms inscribed in r = min(w, h) / 2.
-  // When w ≠ h, the geometry doesn't fill the AABB on the wider axis.
-  // Sizes are clamped to [min, min] before layout so spacing, normalization,
+  // Polygon shapes use uniform circumradius r = max(w, h) / 2 so circles are
+  // always circular and all polygon shapes are regular (not stretched).
+  // Sizes are clamped to [max, max] before layout so spacing, normalization,
   // edge routing, and rendering all agree on the node's actual extent.
   const POLYGON_SHAPES = new Set([
     'circle', 'triangle', 'pentagon', 'hexagon', 'heptagon',
@@ -131,13 +132,17 @@ export function compileDiagram(
   const sizeMap = new Map<string, readonly [number, number]>();
   const sizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   dsl.nodes.forEach((node) => {
-    const rawSize = node.size ?? theme.node.defaultSize;
-    const thickness = node.thickness ?? nd.thickness;
-    // Clamp polygon shapes to inscribed-circle extent BEFORE layout so that
-    // layout spacing, normalization, and rendering all use the same sizes.
+    // Resolve SceneLength DSL values to NVS numbers, falling back to theme defaults.
+    const rawSize: readonly [number, number] = node.size
+      ? [resolveToNVS(node.size[0]), resolveToNVS(node.size[1])]
+      : nd.size;
+    const thickness = node.thickness !== undefined ? resolveToNVS(node.thickness) : nd.thickness;
+    // Clamp polygon shapes to [max, max] so the uniform circumradius fills
+    // the larger declared dimension. This makes circles circular, hexagons
+    // regular, and ensures routing/rendering agree on the actual extent.
     const shape = node.shape ?? nd.shape;
     const size: readonly [number, number] = POLYGON_SHAPES.has(shape)
-      ? [Math.min(rawSize[0], rawSize[1]), Math.min(rawSize[0], rawSize[1])]
+      ? [Math.max(rawSize[0], rawSize[1]), Math.max(rawSize[0], rawSize[1])]
       : rawSize;
     sizeMap.set(node.id, size);
     sizeWithDepthMap.set(node.id, [size[0], size[1], thickness]);
@@ -154,7 +159,7 @@ export function compileDiagram(
     onWarn,
     dsl.childrenOrder ?? [],
     groupChildrenOrders,
-    theme.node.defaultSize,
+    nd.size,
   );
 
   // Compute group bounds in diagram units (Cartesian Y-up, GroupBounds.y = bottom)
@@ -202,27 +207,21 @@ export function compileDiagram(
   });
 
   // Compile nodes with diagram-unit positions (temporary pre-normalization form).
-  // Override the compiled size with the shape-clamped size from sizeMap so that
-  // normalization, routing, and rendering all use consistent dimensions.
   const nodesPreNorm = dsl.nodes.map((node) => {
     const positionFromMap = positions.get(node.id);
     const positionInherited = positionFromMap === undefined;
     const position: readonly [number, number, number] = positionFromMap ?? [0, 0, 0];
     const groupId = node.groupId ?? groupMap.get(node.id);
-    const compiled = compileNode(node, position, groupId, theme, positionInherited);
-    const clampedSize = sizeMap.get(node.id);
-    return clampedSize ? { ...compiled, size: clampedSize } : compiled;
+    return compileNode(node, position, groupId, theme, positionInherited);
   });
 
   // ─── Normalization ─────────────────────────────────────────────────────────
   // Convert layout positions/sizes to [0..1] NVS with center + uniform-scale-to-fit + Y-flip.
   // All layout modes (including ManualLayout) go through the same normalizeToViewport path.
   const { normalizedPositions, normalizedSizes, normalizedGroups, scaleFactor } =
-    normalizeToViewport(nodesPreNorm, groupBoundsMap, theme.node.defaultSize);
+    normalizeToViewport(nodesPreNorm, groupBoundsMap, nd.size);
 
   // Apply normalized positions/sizes to nodes.
-  // Polygon shapes were already clamped to [min, min] in the sizeMap above,
-  // so normalizedSizes already reflects the inscribed-circle extent.
   const nodes = nodesPreNorm
     .map((node) => ({
       ...node,
@@ -236,8 +235,6 @@ export function compileDiagram(
     .sort((a, b) => a.position[2] - b.position[2]);
 
   // Build normalized size map including depth (thickness) for edge routing.
-  // Sizes are already shape-corrected (polygon → inscribed circle) from the
-  // pre-layout clamping, so no additional adjustment is needed here.
   const normalizedSizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   for (const [id, norm] of normalizedSizes) {
     const originalDepth = sizeWithDepthMap.get(id)?.[2] ?? 0.4;
@@ -253,9 +250,12 @@ export function compileDiagram(
   }
 
   // Route edges with normalized positions (routing math is scale-invariant)
+  const ed = buildEdgeDefaults(theme);
   const edgesForRouting = dsl.edges.map((edge) => ({
     ...edge,
-    thickness: edge.thickness ?? theme.edge.defaultThickness,
+    thickness: edge.thickness !== undefined ? resolveToNVS(edge.thickness) : ed.thickness,
+    flowTurnRadius: edge.flowTurnRadius !== undefined ? resolveToNVS(edge.flowTurnRadius) : undefined,
+    flowFaceStub: edge.flowFaceStub !== undefined ? resolveToNVS(edge.flowFaceStub) : undefined,
   }));
   const normalizedEdgeRoutes = routeEdgesYDown(
     edgesForRouting,
@@ -266,13 +266,13 @@ export function compileDiagram(
     onWarn,
     theme.edge.organicVariation,
     {
-      flowTurnRadius: theme.edge.flowTurnRadius,
-      flowFaceStub: theme.edge.flowFaceStub,
+      flowTurnRadius: resolveToNVS(theme.edge.flowTurnRadius),
+      flowFaceStub: resolveToNVS(theme.edge.flowFaceStub),
       flowBundleStrength: theme.edge.flowBundleStrength,
-      flowObstaclePadding: theme.edge.flowObstaclePadding,
+      flowObstaclePadding: resolveToNVS(theme.edge.flowObstaclePadding),
       flowTargetApproachBias: theme.edge.flowTargetApproachBias,
-      flowUnderpassDepth: theme.edge.flowUnderpassDepth,
-      flowUnderpassClearance: theme.edge.flowUnderpassClearance,
+      flowUnderpassDepth: resolveToNVS(theme.edge.flowUnderpassDepth),
+      flowUnderpassClearance: resolveToNVS(theme.edge.flowUnderpassClearance),
       flowTurnPenalty: theme.edge.flowTurnPenalty,
       flowPunchthroughPenalty: theme.edge.flowPunchthroughPenalty,
       flowUnderpassPenalty: theme.edge.flowUnderpassPenalty,
@@ -285,18 +285,37 @@ export function compileDiagram(
     ),
   );
 
+  // Build node shape info map for shape-aware edge endpoint snapping.
+  // Edge routing uses rectangular bounding boxes for all shapes; polygon
+  // shapes (hexagon, octagon, circle, etc.) need their endpoints projected
+  // onto the actual shape surface so edges visually connect to the geometry.
+  const nodeShapeInfoMap = new Map(
+    nodes.map((node) => [node.id, {
+      position: node.position,
+      size: node.size,
+      shape: node.shape,
+    }] as const),
+  );
+
   const rawEdges = dsl.edges.map((edge, index) => {
     const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
     const route = normalizedEdgeRoutes.get(id);
+    const routePath = route?.path ?? {
+      commands: [],
+      startTangent: [0, 0, 0] as const,
+      endTangent: [0, 0, 0] as const,
+      usedUnderpass: false,
+      punctures: [],
+    };
+    // Snap edge endpoints to the actual polygon/circle surface.
+    const snappedPath = snapEdgePathToShapeBoundaries(
+      routePath,
+      nodeShapeInfoMap.get(edge.from),
+      nodeShapeInfoMap.get(edge.to),
+    );
     const compiled = compileEdge(
       edge,
-      route?.path ?? {
-        commands: [],
-        startTangent: [0, 0, 0],
-        endTangent: [0, 0, 0],
-        usedUnderpass: false,
-        punctures: [],
-      },
+      snappedPath,
       route?.controlPoints ?? [],
       index,
       theme,
@@ -334,10 +353,10 @@ export function compileDiagram(
     });
 
   const viewportBounds: NVSRect = {
-    x: dsl.x ?? 0,
-    y: dsl.y ?? 0,
-    w: dsl.w ?? 1,
-    h: dsl.h ?? 1,
+    x: dsl.x !== undefined ? resolveToNVS(dsl.x) : 0,
+    y: dsl.y !== undefined ? resolveToNVS(dsl.y) : 0,
+    w: dsl.w !== undefined ? resolveToNVS(dsl.w) : 1,
+    h: dsl.h !== undefined ? resolveToNVS(dsl.h) : 1,
   };
 
   if (process.env.NODE_ENV !== 'production') {
@@ -361,7 +380,7 @@ export function compileDiagram(
   return {
     id: dsl.id,
     viewportBounds,
-    tiltRotation: [dsl.tilt ?? 0, 0, 0],
+    tiltRotation: [dsl.tilt !== undefined ? resolveAngle(dsl.tilt) : 0, 0, 0],
     z: dsl.z ?? 0,
     scale: dsl.scale ?? 1,
     nodes,

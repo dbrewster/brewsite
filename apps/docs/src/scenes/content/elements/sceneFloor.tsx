@@ -17,7 +17,7 @@ export function SceneFloorPanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-floor-base">
-        <Camera mode="world" position={[0, 3, 11]} target={[0, 0, 0]} fov={44} />
+        <Camera mode="world" position={[0, 3, 11]} target={[0, 0, 0]} fov={"44deg"} />
         <Background color="#0a1220" />
         <Lighting>
           <Ambient color="#2244ff" intensity={0.4} />
@@ -31,7 +31,7 @@ export function SceneFloorPanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-floor">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="world" position={[0, 3, 9]} target={[0, 0, 0]} fov={44} />
+        <Camera mode="world" position={[0, 3, 9]} target={[0, 0, 0]} fov={"44deg"} />
         <Background color="#0a1220" />
         <Lighting>
           <Ambient color="#2244ff" intensity={0.4} />

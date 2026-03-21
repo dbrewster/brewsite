@@ -73,6 +73,11 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
     if (cached && cached.nvsW === nvsW && cached.nvsH === nvsH) {
       worldW = cached.worldW;
       worldH = cached.worldH;
+    } else if (state.uniformSizing) {
+      const uniform = Math.min(context.coords.visibleWorldWidth, context.coords.visibleWorldHeight);
+      worldW = nvsW * uniform;
+      worldH = nvsH * uniform;
+      this.cachedWorldScale = { nvsW, nvsH, worldW, worldH };
     } else {
       [worldW, worldH] = context.coords.toWorldSize(nvsW, nvsH);
       this.cachedWorldScale = { nvsW, nvsH, worldW, worldH };

@@ -15,7 +15,7 @@ export function SceneWidgetRegistryPanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-widget-registry-base">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.5} polar={1.0} distance={10} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.5rad"} polar={"1rad"} distance={10} />
         <Background color="#10080e" />
         <Lighting>
           <Ambient color="#cc44ff" intensity={0.4} />
@@ -26,7 +26,7 @@ export function SceneWidgetRegistryPanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-widget-registry">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.5} polar={1.0} distance={8} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.5rad"} polar={"1rad"} distance={8} />
         <Background color="#10080e" />
         <Lighting>
           <Ambient color="#cc44ff" intensity={0.4} />

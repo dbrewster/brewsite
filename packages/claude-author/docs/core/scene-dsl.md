@@ -3,7 +3,7 @@ title: Scene DSL
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## Scene Component
@@ -19,7 +19,7 @@ function Scene01Hero(): JSX.Element {
       <Camera ... />
       <Lighting>...</Lighting>
       <Background color="#0a0a14" />
-      <Model id="product" type="ProductHero" x={0.5} y={0.5} w={0.7} h={0.9} />
+      <Model id="product" type="ProductHero" x={"50%"} y={"50%"} w={"70%"} h={"90%"} />
     </Scene>
   );
 }
@@ -135,15 +135,15 @@ Use `scrollHeightMode="scroll-units"` with `pixelsPerScrollUnit` to control the 
 
 ### View
 
-`View` creates a named NVS subregion. Elements inside a `View` author in the View's local NVS space (0,0 = View's top-left, 1,1 = View's bottom-right).
+`View` creates a named NVS subregion. Elements inside a `View` author in the View's local NVS space (0%,0% = View's top-left, 100%,100% = View's bottom-right).
 
 ```tsx
 import { View } from '@brewsite/core';
 
 <Scene id="split-layout">
-  {/* Right panel: x=0.4 to x=1.0, full height */}
-  <View id="right-panel" x={0.4} y={0} w={0.6} h={1} padding={[0.05, 0.04]}>
-    <Model id="robot" type="Robot" x={0} y={0} w={1} h={1} />
+  {/* Right panel: x=40% to x=100%, full height */}
+  <View id="right-panel" x={"40%"} y={"0%"} w={"60%"} h={"100%"} padding={["5%", "4%"]}>
+    <Model id="robot" type="Robot" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   </View>
 </Scene>
 ```
@@ -153,11 +153,11 @@ import { View } from '@brewsite/core';
 | Prop | Type | Description |
 |---|---|---|
 | `id` | `string` | Required. Stable view identity. |
-| `x` | `number` | NVS x position [0..1]. Ignored when inside a `ViewLayout`. |
-| `y` | `number` | NVS y position [0..1]. Ignored when inside a `ViewLayout`. |
-| `w` | `number` | NVS width [0..1]. Size hint when inside a `ViewLayout`. |
-| `h` | `number` | NVS height [0..1]. Size hint when inside a `ViewLayout`. |
-| `padding` | `RegionPadding` | Padding inset. `[topBottom, leftRight]` or `[top, right, bottom, left]` as fractions of View dimensions. |
+| `x` | `SceneLength` | NVS x position. Accepts `"40%"`, `"15u"`, `"10vw"`, or `0`. Ignored when inside a `ViewLayout`. |
+| `y` | `SceneLength` | NVS y position. Accepts `"50%"`, `"15u"`, `"10vh"`, or `0`. Ignored when inside a `ViewLayout`. |
+| `w` | `SceneLength` | NVS width. Accepts `"60%"`, `"15u"`, `"10vw"`, or `0`. Size hint when inside a `ViewLayout`. |
+| `h` | `SceneLength` | NVS height. Accepts `"100%"`, `"15u"`, `"10vh"`, or `0`. Size hint when inside a `ViewLayout`. |
+| `padding` | `ScenePadding` | Padding inset. CSS shorthand: `["5%", "4%"]` or `["5%", "4%", "5%", "4%"]`. |
 | `children` | `ReactNode` | Exactly one renderable DSL element. |
 
 ### ViewLayout
@@ -167,12 +167,12 @@ import { View } from '@brewsite/core';
 ```tsx
 import { View, ViewLayout } from '@brewsite/core';
 
-<ViewLayout kind="stack" direction="horizontal" x={0} y={0} w={1} h={1} gap={0.02}>
-  <View id="panel-a" w={0.5} h={1}>
-    <Model id="model-a" type="ProductA" x={0} y={0} w={1} h={1} />
+<ViewLayout kind="stack" direction="horizontal" x={"0%"} y={"0%"} w={"100%"} h={"100%"} gap={"2%"}>
+  <View id="panel-a" w={"50%"} h={"100%"}>
+    <Model id="model-a" type="ProductA" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   </View>
-  <View id="panel-b" w={0.5} h={1}>
-    <Model id="model-b" type="ProductB" x={0} y={0} w={1} h={1} />
+  <View id="panel-b" w={"50%"} h={"100%"}>
+    <Model id="model-b" type="ProductB" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
   </View>
 </ViewLayout>
 ```
@@ -183,11 +183,11 @@ import { View, ViewLayout } from '@brewsite/core';
 |---|---|---|---|
 | `id` | `string` | auto-generated | Stable layout identity. |
 | `kind` | `ViewLayoutKind` | required | Layout policy: `'stack'` or `'carousel'`. |
-| `x` | `number` | `0` | NVS x position of the layout container. |
-| `y` | `number` | `0` | NVS y position of the layout container. |
-| `w` | `number` | `1` | NVS width of the layout container. |
-| `h` | `number` | `1` | NVS height of the layout container. |
-| `gap` | `number` | — | NVS gap between views. |
+| `x` | `SceneLength` | `"0%"` | NVS x position of the layout container. |
+| `y` | `SceneLength` | `"0%"` | NVS y position of the layout container. |
+| `w` | `SceneLength` | `"100%"` | NVS width of the layout container. |
+| `h` | `SceneLength` | `"100%"` | NVS height of the layout container. |
+| `gap` | `SceneLength` | — | NVS gap between views. |
 
 **Stack-specific:**
 
@@ -216,17 +216,17 @@ import { View, ViewLayout } from '@brewsite/core';
     activeIndex={1}
     inactiveScale={0.72}
     zStep={9}
-    gap={0.03}
-    y={0} h={1}
+    gap={"3%"}
+    y={"0%"} h={"100%"}
   >
-    <View id="panel-left" w={0.38} h={0.88}>
-      <Model id="model-a" type="ProductA" x={0} y={0} w={1} h={1} />
+    <View id="panel-left" w={"38%"} h={"88%"}>
+      <Model id="model-a" type="ProductA" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
     </View>
-    <View id="panel-center" w={0.38} h={0.88}>
-      <Model id="model-b" type="ProductB" x={0} y={0} w={1} h={1} />
+    <View id="panel-center" w={"38%"} h={"88%"}>
+      <Model id="model-b" type="ProductB" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
     </View>
-    <View id="panel-right" w={0.38} h={0.88}>
-      <Model id="model-c" type="ProductC" x={0} y={0} w={1} h={1} />
+    <View id="panel-right" w={"38%"} h={"88%"}>
+      <Model id="model-c" type="ProductC" x={"0%"} y={"0%"} w={"100%"} h={"100%"} />
     </View>
   </ViewLayout>
 

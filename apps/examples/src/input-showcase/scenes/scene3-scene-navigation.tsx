@@ -105,13 +105,13 @@ function StackCharts({ variant }: StackChartsProps): JSX.Element {
     : ['is-sn-chart-b1', 'is-sn-chart-b2', 'is-sn-chart-b3'];
 
   return (
-    <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.15} w={0.9} h={0.72} gap={0.04}>
+    <ViewLayout kind="stack" direction="horizontal" x={"5%"} y={"15%"} w={"90%"} h={"72%"} gap={"4%"}>
       {dataSet.map((data, i) => (
         <View id={`sn-v${variant}${i}`} key={ids[i]}>
           <BarChart
             id={ids[i]}
             data={data}
-            x={0} y={0} w={1} h={1}
+            x={0} y={0} w={"100%"} h={"100%"}
             depth={0.3}
           >
             <ChartData keyField="quarter" />
@@ -133,7 +133,7 @@ interface InfoBarProps {
 
 function InfoBar({ text }: InfoBarProps): JSX.Element {
   return (
-    <TextBox id="sn-info" x={0.05} y={0.06} w={0.9} h={0.07} layer={2}>
+    <TextBox id="sn-info" x={"5%"} y={"6%"} w={"90%"} h={"7%"} layer={2}>
       <div
         style={{
           height: '100%',
@@ -169,7 +169,7 @@ export const SceneNavAScene = (): JSX.Element => {
   return (
     <Scene id="input-scene-nav-a">
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS_A} target={CAM_TGT} fov={50} />
+      <Camera mode="world" position={CAM_POS_A} target={CAM_TGT} fov={"50deg"} />
       <Lighting intensityScale={1}>
         <Ambient intensity={0.55} color="#d7e8ff" />
         <Directional intensity={1.2} color="#b0ccff" position={[-5, 10, 8]} />
@@ -187,7 +187,7 @@ export const SceneNavBScene = (): JSX.Element => {
   return (
     <Scene id="input-scene-nav-b">
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS_B} target={CAM_TGT} fov={50} />
+      <Camera mode="world" position={CAM_POS_B} target={CAM_TGT} fov={"50deg"} />
       <Lighting intensityScale={1}>
         <Ambient intensity={0.55} color="#d7e8ff" />
         <Directional intensity={1.2} color="#b0ccff" position={[5, 10, 8]} />

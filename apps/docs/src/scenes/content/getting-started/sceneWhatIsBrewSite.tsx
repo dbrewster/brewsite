@@ -17,7 +17,7 @@ export function SceneWhatIsBrewSitePanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-what-is-brewsite-base">
-        <Camera mode="world" position={[0, 1.8, 10]} target={[0, 0.8, 0]} fov={40} />
+        <Camera mode="world" position={[0, 1.8, 10]} target={[0, 0.8, 0]} fov={"40deg"} />
         <Background color="#0d0f1a" />
         <Lighting>
           <Ambient color="#4466ff" intensity={0.4} />
@@ -31,7 +31,7 @@ export function SceneWhatIsBrewSitePanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-what-is-brewsite">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="world" position={[0, 1.8, 8]} target={[0, 0.8, 0]} fov={40} />
+        <Camera mode="world" position={[0, 1.8, 8]} target={[0, 0.8, 0]} fov={"40deg"} />
         <Background color="#0d0f1a" />
         <Lighting>
           <Ambient color="#4466ff" intensity={0.4} />

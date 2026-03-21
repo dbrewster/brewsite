@@ -338,6 +338,15 @@ export class ChartWidget
     if (cached && cached.nvsW === state.bounds.width && cached.nvsH === state.bounds.height) {
       worldW = cached.worldW;
       worldH = cached.worldH;
+    } else if (state.uniformSizing) {
+      // Uniform sizing: both axes scale by vmin (min of visible world dims)
+      const uniform = Math.min(ctx.coords.visibleWorldWidth, ctx.coords.visibleWorldHeight);
+      worldW = state.bounds.width * uniform;
+      worldH = state.bounds.height * uniform;
+      this.cachedWorldScale = {
+        nvsW: state.bounds.width, nvsH: state.bounds.height,
+        worldW, worldH,
+      };
     } else {
       [worldW, worldH] = ctx.coords.toWorldSize(state.bounds.width, state.bounds.height);
       this.cachedWorldScale = {

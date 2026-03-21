@@ -3,7 +3,7 @@ title: BrewSite Overview
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-21
 ---
 
 ## What BrewSite Is
@@ -48,9 +48,9 @@ Import DSL components from their owning package. Do not cross-import between pac
 
 ## NVS Coordinate System (Brief)
 
-NVS (Normalized Viewport Space) is the coordinate system for all element positioning. `(0, 0)` is top-left, `(1, 1)` is bottom-right. Think CSS `left`/`top` percentages, but for 3D space. An element at `x={0.5} y={0.5}` is centered. An element at `x={0} y={0} w={0.5} h={1}` occupies the left half.
+NVS (Normalized Viewport Space) is the coordinate system for all element positioning. `"0%"` is the origin edge, `"100%"` is the far edge. Think CSS `left`/`top` percentages, but for 3D space. An element at `x={"50%"} y={"50%"}` is centered. An element at `x={"0%"} y={"0%"} w={"50%"} h={"100%"}` occupies the left half.
 
-**Critical:** Y=0 is TOP. Y=1 is BOTTOM. This is the opposite of standard 3D Y-up convention. The NVS service converts to world space with a Y-flip internally.
+**Critical:** Y=`"0%"` is TOP. Y=`"100%"` is BOTTOM. This is the opposite of standard 3D Y-up convention. The NVS service converts to world space with a Y-flip internally.
 
 Full detail: search for `nvs-spatial-model`.
 

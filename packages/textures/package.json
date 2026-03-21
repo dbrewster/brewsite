@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/textures",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +34,7 @@
     "download": "bash scripts/download-textures.sh"
   },
   "peerDependencies": {
-    "@brewsite/core": "^0.7.2",
+    "@brewsite/core": "^0.7.3",
     "three": ">=0.170.0"
   },
   "devDependencies": {

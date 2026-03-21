@@ -29,9 +29,9 @@ describe('registerDiagramHandlers', () => {
         <Diagram id="diagram-basic">
           <ManualLayout />
           <DiagramGroup id="group-1" label="Group">
-            <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
+            <DiagramNode id="n1" label="Node 1" position={["0%", "0%", "0%"]} />
           </DiagramGroup>
-          <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
+          <DiagramNode id="n2" label="Node 2" position={["400%", "0%", "0%"]} />
           <DiagramEdge from="n1" to="n2" />
         </Diagram>
       </Scene>
@@ -57,7 +57,7 @@ describe('registerDiagramHandlers', () => {
           <ManualLayout />
           <DiagramGroup id="outer" label="Outer">
             <DiagramGroup id="inner" label="Inner">
-              <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
+              <DiagramNode id="n1" label="Node 1" position={["0%", "0%", "0%"]} />
             </DiagramGroup>
           </DiagramGroup>
         </Diagram>
@@ -82,7 +82,7 @@ describe('registerDiagramHandlers', () => {
       <Scene id="diagram-box-color">
         <Diagram id="diagram-box-color">
           <ManualLayout />
-          <DiagramNode id="n1" label="Node 1" position={[0.5, 0.5, 0]} boxColor="#334455" />
+          <DiagramNode id="n1" label="Node 1" position={["50%", "50%", "0%"]} boxColor="#334455" />
         </Diagram>
       </Scene>
     );
@@ -121,10 +121,10 @@ describe('Diagram handler composition through View', () => {
     // With composition: viewportBounds should reflect the View's bounds.
     const tree = (
       <Scene id="compose-test">
-        <View id="v1" x={0.2} y={0.1} w={0.5} h={0.6}>
-          <Diagram id="d1" x={0} y={0} w={1} h={1}>
+        <View id="v1" x={"20%"} y={"10%"} w={"50%"} h={"60%"}>
+          <Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
             <ManualLayout />
-            <DiagramNode id="n1" label="A" position={[0.5, 0.5, 0]} />
+            <DiagramNode id="n1" label="A" position={["50%", "50%", "0%"]} />
           </Diagram>
         </View>
       </Scene>
@@ -150,7 +150,7 @@ describe('Diagram handler composition through View', () => {
       <Scene id="z-test">
         <Diagram id="d1" z={0.5}>
           <ManualLayout />
-          <DiagramNode id="n1" label="A" position={[0.5, 0.5, 0]} />
+          <DiagramNode id="n1" label="A" position={["50%", "50%", "0%"]} />
         </Diagram>
       </Scene>
     );
@@ -171,16 +171,16 @@ describe('Diagram handler composition through View', () => {
     const tree = (
       <Scene id="opacity-test">
         <ViewLayout kind="carousel" loop activeIndex={0} fadeMin={0.2}>
-          <View id="v-active" w={0.4} h={0.8}>
+          <View id="v-active" w={"40%"} h={"80%"}>
             <Diagram id="d-active">
               <ManualLayout />
-              <DiagramNode id="n1" label="A" position={[0.5, 0.5, 0]} />
+              <DiagramNode id="n1" label="A" position={["50%", "50%", "0%"]} />
             </Diagram>
           </View>
-          <View id="v-inactive" w={0.4} h={0.8}>
+          <View id="v-inactive" w={"40%"} h={"80%"}>
             <Diagram id="d-inactive">
               <ManualLayout />
-              <DiagramNode id="n2" label="B" position={[0.5, 0.5, 0]} />
+              <DiagramNode id="n2" label="B" position={["50%", "50%", "0%"]} />
             </Diagram>
           </View>
         </ViewLayout>
@@ -206,19 +206,19 @@ describe('Diagram handler composition through View', () => {
     const tree = (
       <Scene id="group-opacity-test">
         <ViewLayout kind="carousel" loop activeIndex={0} fadeMin={0.2}>
-          <View id="v-active" w={0.4} h={0.8}>
+          <View id="v-active" w={"40%"} h={"80%"}>
             <Diagram id="d-active">
               <ManualLayout />
               <DiagramGroup id="g1" label="G">
-                <DiagramNode id="n1" label="A" position={[0.5, 0.5, 0]} />
+                <DiagramNode id="n1" label="A" position={["50%", "50%", "0%"]} />
               </DiagramGroup>
             </Diagram>
           </View>
-          <View id="v-inactive" w={0.4} h={0.8}>
+          <View id="v-inactive" w={"40%"} h={"80%"}>
             <Diagram id="d-inactive">
               <ManualLayout />
               <DiagramGroup id="g2" label="G">
-                <DiagramNode id="n2" label="B" position={[0.5, 0.5, 0]} />
+                <DiagramNode id="n2" label="B" position={["50%", "50%", "0%"]} />
               </DiagramGroup>
             </Diagram>
           </View>
@@ -259,7 +259,7 @@ describe('registerDiagramHandlers — SceneTheme bridging', () => {
       <Scene id="test">
         <Diagram id="d1">
           <ManualLayout />
-          <DiagramNode id="n1" label="Node" position={[0, 0, 0]} />
+          <DiagramNode id="n1" label="Node" position={["0%", "0%", "0%"]} />
         </Diagram>
       </Scene>
     );
@@ -283,7 +283,7 @@ describe('registerDiagramHandlers — SceneTheme bridging', () => {
       <Scene id="test">
         <Diagram id="d1">
           <ManualLayout />
-          <DiagramNode id="n1" label="Node" position={[0, 0, 0]} />
+          <DiagramNode id="n1" label="Node" position={["0%", "0%", "0%"]} />
         </Diagram>
       </Scene>
     );
@@ -303,7 +303,7 @@ describe('registerDiagramHandlers — SceneTheme bridging', () => {
       <Scene id="test">
         <Diagram id="d1">
           <ManualLayout />
-          <DiagramNode id="n1" label="Node" position={[0, 0, 0]} />
+          <DiagramNode id="n1" label="Node" position={["0%", "0%", "0%"]} />
         </Diagram>
       </Scene>
     );

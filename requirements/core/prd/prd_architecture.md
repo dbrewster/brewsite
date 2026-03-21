@@ -3,8 +3,11 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: added units/ module to core layer map. ViewProps and ViewLayoutProps x/y/w/h/gap now require SceneLength unit strings. RegionPadding (and View.padding) remains number — not yet migrated. All affected packages bump semver major. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Core over-engineering audit: updated transitions/ module description — transitionTypes.ts is now types-only; blend helpers extracted to transitionBlendHelpers.ts; quaternion math extracted to rotationMath.ts. ElementTransitionSpec marked as @deprecated type alias (all implementations removed). EngineFrameDriver removed from player layer description — inlined into useSceneEngine.ts. CompileApi gains layoutContext field (replaces WeakMap side-channel). CP9 zero-consumer exports marked @deprecated."
@@ -126,6 +129,7 @@ hud/         <- InputHud stub (legacy HUD system removed)
 input/       <- Input controller abstractions
 timeline/    <- Timeline algebra
 layout/      <- Region types + spatial composition utilities
+units/       <- Scene unit type definitions + resolution functions
 math/        <- Pure math utilities (bottom)
 ```
 
@@ -652,15 +656,17 @@ type ViewLayoutKind = 'stack' | 'carousel';
 type StackLayoutConfig = {
   kind: 'stack';
   direction?: 'horizontal' | 'vertical';  // default: 'horizontal'
-  gap?: number;                            // NVS gap between views. Default: 0.
+  gap?: number;                            // Resolved NVS gap between views. Default: 0.
+  // Note: this is a compiled/internal type. The DSL surface (ViewLayoutProps.gap) uses SceneLength.
 };
 
 type CarouselLayoutConfig = {
   kind: 'carousel';
   activeIndex: number;      // 0-indexed active view
-  gap?: number;             // NVS gap between adjacent views. Default: 0.04.
+  gap?: number;             // Resolved NVS gap between adjacent views. Default: 0.04.
   inactiveScale?: number;   // Scale for inactive views. Default: 0.75.
   zStep?: number;           // NVS z-step per position from active. Default: 0.1.
+  // Note: this is a compiled/internal type. The DSL surface (ViewLayoutProps.gap) uses SceneLength.
 };
 
 type ViewLayoutConfig = StackLayoutConfig | CarouselLayoutConfig;
@@ -727,6 +733,76 @@ function resolveCarouselLayout(
 **`layout/index.ts`** — Re-exports all public layout symbols. Consumers of the View/Region system import from `@brewsite/core/layout` or directly from `@brewsite/core` (types are re-exported from the core index).
 
 **Design rule for the layout module:** All functions are pure. They accept plain data and return plain data. There is no Three.js, no React, and no mutable shared state. Tests for this module use real inputs and assert exact output shapes.
+
+### 3.12 Units (`units/`)
+
+Pure type definitions and resolution functions for the scene unit system. No Three.js, no React, no side effects.
+
+All DSL spatial props (positions, sizes, gaps) require explicit unit strings instead of bare numbers. The unit system enforces authoring-time clarity about coordinate semantics while keeping compiled state as plain `number` for O(1) runtime sampling.
+
+**Type definitions (`units/types.ts`):**
+
+```typescript
+/** A spatial value with explicit units. */
+type SceneLength = `${number}u` | `${number}%` | `${number}vw` | `${number}vh` | 0;
+
+/** An angle value with explicit units. */
+type SceneAngle = `${number}deg` | `${number}rad` | 0;
+
+/** A 2D spatial value (e.g., size). */
+type SceneSize2 = readonly [SceneLength, SceneLength];
+
+/** A 3D spatial value (e.g., position with Z). */
+type ScenePosition3 = readonly [SceneLength, SceneLength, SceneLength];
+
+/**
+ * Layout padding — follows CSS shorthand.
+ * 1 value: uniform. 2 values: [vertical, horizontal].
+ * 3 values: [top, horizontal, bottom]. 4 values: [top, right, bottom, left].
+ */
+type ScenePadding =
+  | SceneLength
+  | readonly [SceneLength, SceneLength]
+  | readonly [SceneLength, SceneLength, SceneLength]
+  | readonly [SceneLength, SceneLength, SceneLength, SceneLength];
+
+type ParsedLength = { readonly value: number; readonly unit: 'u' | '%' | 'vw' | 'vh' };
+type ParsedAngle = { readonly value: number; readonly unit: 'deg' | 'rad' };
+```
+
+**Unit semantics:**
+- `u` — world units (maps 1:1 to Three.js world space at the default camera distance).
+- `%` — percentage of the parent container (or viewport when no parent).
+- `vw` — percentage of viewport width (analogous to CSS `vw`).
+- `vh` — percentage of viewport height (analogous to CSS `vh`).
+- `0` — literal zero, accepted without a unit suffix.
+
+**Resolution functions (`units/parse.ts`, `units/resolve.ts`):**
+
+```typescript
+function parseLength(value: SceneLength): ParsedLength;
+function parseAngle(value: SceneAngle): ParsedAngle;
+
+type UnitContext = {
+  viewportWidth: number;
+  viewportHeight: number;
+  containerWidth: number;
+  containerHeight: number;
+};
+
+function resolveToNVS(value: SceneLength, axis: 'x' | 'y', ctx: UnitContext): number;
+function resolveAngle(value: SceneAngle): number;  // always returns radians
+function isUniformUnit(a: SceneLength, b: SceneLength): boolean;
+function unitContextFromCoords(coords: NVSCoordService): UnitContext;
+```
+
+All resolution functions are pure. `resolveToNVS` converts a `SceneLength` to a normalized NVS fraction suitable for the compiled `ViewState` / `ViewLayoutState`. The compiled state remains `number` — the unit system is a DSL-surface concern only.
+
+**DSL-to-compiled boundary:** `ViewProps.x/y/w/h` and `ViewLayoutProps.x/y/w/h/gap` accept `SceneLength` at the DSL surface. The `viewHandlers.ts` compile step calls `resolveToNVS` to produce the `number` values stored in `ViewState` and `ViewLayoutState`. Internal layout types (`StackLayoutConfig.gap`, `CarouselLayoutConfig.gap`, `NVSRect` fields) remain `number` because they operate on already-resolved NVS fractions.
+
+**Not yet migrated:** `RegionPadding` (and `ViewProps.padding`) remains `number`-based. Migration to `ScenePadding` is a follow-on task.
+
+**`units/index.ts`** — Re-exports all public types and functions. Consumers import from `@brewsite/core` (types are re-exported from the core index).
 
 ---
 
@@ -1066,7 +1142,7 @@ Tests live in `__tests__/` directories co-located with the code they test. Test 
 
 **Coverage targets.** `vitest` coverage is configured to instrument:
 ```
-packages/core/src/{compiler,elements,runtime,widget,player,hud,input,timeline,math}/**/*.ts
+packages/core/src/{compiler,elements,runtime,widget,player,hud,input,timeline,units,math}/**/*.ts
 packages/diagram/src/**/*.ts
 packages/model/src/**/*.ts
 packages/charts/src/**/*.ts

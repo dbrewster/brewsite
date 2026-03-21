@@ -3,7 +3,7 @@ title: Lighting Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## Lighting Overview
@@ -137,7 +137,7 @@ Three.js `SpotLight`. Cone of light aimed at a target. Cast shadows, participate
   color="#ffffff"
   position={[0, 6, 2]}
   target={[0, 0, 0]}
-  angle={Math.PI / 6}   // cone half-angle in radians
+  angle={"30deg"}        // cone half-angle
   penumbra={0.2}         // softness of edge [0..1]
   distance={12}          // maximum light range
   decay={2}              // falloff rate
@@ -151,7 +151,7 @@ Three.js `SpotLight`. Cone of light aimed at a target. Cast shadows, participate
 | `color` | `string` | yes | Light color |
 | `position` | `Vec3` | yes | World-space spotlight source |
 | `target` | `Vec3` | yes | World-space aim point |
-| `angle` | `number` | yes | Cone half-angle in radians |
+| `angle` | `SceneAngle` | yes | Cone half-angle. Accepts `"30deg"`, `"0.52rad"`, or `0` |
 | `penumbra` | `number` | yes | Edge softness [0=hard, 1=soft] |
 | `distance` | `number` | no | Maximum range (0 = unlimited) |
 | `decay` | `number` | no | Falloff rate |

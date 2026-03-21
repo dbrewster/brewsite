@@ -3,7 +3,7 @@ title: "@brewsite/charts V2 — Charts Package"
 doc_type: prd
 status: current
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-21
 change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
@@ -26,6 +26,9 @@ change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "v1 release readiness audit: removed deprecated Chart component and ChartProps (superseded by per-type components). Deleted ChartTooltipOverlay component and file. Removed ChartThemePair deprecated type alias. Removed ChartDSL type alias. Removed deprecated bounds prop from BaseChartDSL. Added /testing sub-path with _resetChartThemeRegistryForTesting. Updated barrel exports section."
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: BaseChartDSL spatial props (x, y, w, h) now require SceneLength unit strings (e.g. '10%'). Rotation components require SceneAngle strings (e.g. '45deg', '0.5rad'). Bare numbers except 0 are TypeScript errors. Compiled ChartState remains number. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
 ---
 
 # @brewsite/charts V2 — Charts Package
@@ -118,7 +121,7 @@ V2.0.0 left five gaps identified through usage:
 - As a toolkit consumer, I want `<ChartDataLabels position="top" format=".0f">` so that bar tops and pie slices show data values without overlay components.
 - As a toolkit consumer, I want `<ReferenceLine axis="y" value={target} label="Goal">` so that I can annotate threshold lines directly in the DSL.
 - As a toolkit consumer, I want scene-to-scene bar morphing triggered by a `keyField` match so that my data-comparison scenes animate smoothly with no extra code.
-- As a toolkit consumer, I want `bounds={{ width: 0.5, height: 0.5 }}` to mean "50% of viewport" so that chart sizing is consistent with NVS positioning.
+- As a toolkit consumer, I want `w={"50%"} h={"50%"}` to mean "50% of viewport" so that chart sizing is consistent with NVS positioning. (**Note:** the `bounds` prop is deprecated; use `w`/`h` with SceneLength unit strings instead.)
 
 **V2.1.0 (current):**
 - As a toolkit consumer, I want to call `useLiveChartData(chartsPlugin, 'my-chart', rows)` so that React state changes in `rows` propagate to the rendered chart without recompiling the scene.
@@ -145,7 +148,7 @@ V2.0.0 left five gaps identified through usage:
 10. `<ChartLegend>` accepts `title`, `columns`, `maxItems` in addition to V1 `visible`, `position`.
 11. `<ChartDataLabels>` is a child DSL component that enables data-point value labels with `position` and `format` props.
 12. `<ReferenceLine>` is a child DSL component that draws a labeled threshold line with `axis`, `value`, `label`, `color` props.
-13. `ChartState.bounds.width` and `bounds.height` are NVS fractions in the range `[0..1]`, not world-space units. `bounds.depth` remains world-space.
+13. DSL props `w` and `h` accept `SceneLength` unit strings (e.g. `"80%"`). The compiler resolves these to numeric NVS fractions stored in `ChartState.bounds.width` and `bounds.height` (range `[0..1]`). `bounds.depth` remains world-space.
 14. Datum-level bar and scatter morphing is triggered when two consecutive scenes contain a chart with the same `id` and a resolved `keyField`.
 15. `ChartTooltipOverlay` accepts `nvsBounds: NVSRect` (required) in place of the removed `camera` and `domElement` props.
 
@@ -175,7 +178,7 @@ import {
 } from '@brewsite/charts';
 
 // Inline data — no ChartProvider required
-<BarChart id="rev" data={myRows} theme="darkGlass" x={0.1} y={0.1} w={0.8} h={0.8}
+<BarChart id="rev" data={myRows} theme="darkGlass" x={"10%"} y={"10%"} w={"80%"} h={"80%"}
   animateEntry animationDuration={0.4}>
   <ChartAxis axis="x" field="month" label="Month" />
   <ChartAxis axis="y" field="revenue" label="Revenue ($k)" gridlines />
@@ -215,12 +218,12 @@ type BaseChartDSL = {
   readonly dataUrl?: string;
   readonly opacity?: number;
   readonly interactive?: boolean;
-  readonly x?: number;   // NVS left edge [0, 1]
-  readonly y?: number;   // NVS top edge [0, 1]
-  readonly w?: number;   // NVS width [0, 1]
-  readonly h?: number;   // NVS height [0, 1]
+  readonly x?: SceneLength;   // NVS left edge (e.g. "10%")
+  readonly y?: SceneLength;   // NVS top edge (e.g. "10%")
+  readonly w?: SceneLength;   // NVS width (e.g. "80%")
+  readonly h?: SceneLength;   // NVS height (e.g. "80%")
   readonly z?: number;
-  readonly rotation?: readonly [number, number, number];
+  readonly rotation?: readonly [SceneAngle, SceneAngle, SceneAngle];
   /**
    * 3D extrusion depth of chart geometry in world units. Default: 0.4.
    * Only the depth dimension is meaningful — width and height are always derived from w/h.
@@ -594,9 +597,9 @@ When two consecutive scenes contain a chart with the same `id` and both have a r
 
 ### NVS Coordinate System
 
-`ChartWidget` implements `INVSBounded`. `bounds.width` and `bounds.height` are NVS fractions converted to world-space via `context.coords.toWorldSize()` at render time. V2.1 removes the absolute `0.8` world-unit floor from `minPlotWidth`, replacing it with a purely relative `bounds.width * 0.48` floor. `computeChartLayout()` now returns `fittedMargins: FittedMargins` alongside `plotFrame`; `AxesRenderer` uses these fitted values for all axis title and tick label positioning.
+`ChartWidget` implements `INVSBounded`. DSL spatial props (`x`, `y`, `w`, `h`) accept `SceneLength` unit strings (e.g. `"80%"`, `"10u"`). The compiler resolves these to numeric NVS fractions stored in `ChartState.bounds.width`, `bounds.height`, `nvsX`, and `nvsY`. At render time, NVS fractions are converted to world-space via `context.coords.toWorldSize()`. V2.1 removes the absolute `0.8` world-unit floor from `minPlotWidth`, replacing it with a purely relative `bounds.width * 0.48` floor. `computeChartLayout()` now returns `fittedMargins: FittedMargins` alongside `plotFrame`; `AxesRenderer` uses these fitted values for all axis title and tick label positioning.
 
-**View/Region Composition:** The `compileChart()` internal function accepts trailing `composeBounds`, `composeZ`, and `composeOpacity` parameters from `CompileApi`. All chart DSL handlers in `chartPlugin.ts` pass these three functions from the active `api` instance. When a chart is placed inside a `<View>`, the view handler creates a child `CompileApi` whose `composeBounds` maps local [0..1] NVS coordinates into the view's content bounds. `compileChart()` calls `composeBounds(localBounds)` to produce the final absolute `NVSRect` stored in `ChartState.nvsBounds`. The center point (`nvsX`, `nvsY`) is derived from the composed absolute bounds. Scene authors use only local [0..1] coordinates — no knowledge of parent view geometry is required.
+**View/Region Composition:** The `compileChart()` internal function accepts trailing `composeBounds`, `composeZ`, and `composeOpacity` parameters from `CompileApi`. All chart DSL handlers in `chartPlugin.ts` pass these three functions from the active `api` instance. When a chart is placed inside a `<View>`, the view handler creates a child `CompileApi` whose `composeBounds` maps local NVS coordinates into the view's content bounds. `compileChart()` calls `composeBounds(localBounds)` to produce the final absolute `NVSRect` stored in `ChartState.nvsBounds`. The center point (`nvsX`, `nvsY`) is derived from the composed absolute bounds. Scene authors use only local coordinates with SceneLength unit strings — no knowledge of parent view geometry is required.
 
 ### Bundle Impact
 
@@ -626,6 +629,18 @@ When two consecutive scenes contain a chart with the same `id` and both have a r
 | `IChartRenderer.update(ctx)` | `ctx.typeOptions` replaces flat ctx fields. |
 
 **V1 compatibility:** The deprecated `<Chart type="...">` component has been removed. Use the per-type DSL components (`<BarChart>`, `<LineChart>`, etc.). See `packages/charts/MIGRATION.md`.
+
+### Scene Unit System — Major Breaking Change
+
+| Symbol | Change |
+|---|---|
+| `BaseChartDSL.x` | `number` → `SceneLength` (`"${number}u"` \| `"${number}%"` \| `"${number}vw"` \| `"${number}vh"` \| `0`) |
+| `BaseChartDSL.y` | `number` → `SceneLength` |
+| `BaseChartDSL.w` | `number` → `SceneLength` |
+| `BaseChartDSL.h` | `number` → `SceneLength` |
+| `BaseChartDSL.rotation` | `readonly [number, number, number]` → `readonly [SceneAngle, SceneAngle, SceneAngle]` (`"${number}deg"` \| `"${number}rad"` \| `0`) |
+
+Bare numbers (except literal `0`) are TypeScript errors. Compiled `ChartState` fields (`nvsX`, `nvsY`, `bounds.width`, `bounds.height`, `rotation`) remain `number` — only the DSL authoring surface changed. World-space values (`depth`, `z`) and dimensionless values (`opacity`, `animationDuration`, `barPadding`, `sizeScale`, etc.) are unaffected. Migration guide: `packages/claude-author/docs/migration/unit-system.md`.
 
 ### V2.2.0 — Minor (2.1.0 → 2.2.0)
 
@@ -674,7 +689,9 @@ No breaking changes. All additions are additive:
 
 **Async fetch errors in production (V2.0):** `AsyncDataSource` charts that point to unavailable URLs render empty and log a console warning. A future iteration could expose an `onError` callback.
 
-**NVS bounds migration burden (V2.0):** Consumers with explicit world-unit `bounds.width`/`bounds.height` in V1 DSL must re-author as NVS fractions. See MIGRATION.md.
+**NVS bounds migration burden (V2.0):** Consumers with explicit world-unit `bounds.width`/`bounds.height` in V1 DSL must re-author as SceneLength unit strings on `w`/`h` (e.g. `w={"80%"}`). See MIGRATION.md.
+
+**Scene unit system migration burden:** All DSL spatial props (`x`, `y`, `w`, `h`) require `SceneLength` unit strings and `rotation` components require `SceneAngle` strings. Bare numbers (except literal `0`) are TypeScript errors. Compiled state remains `number`. See `packages/claude-author/docs/migration/unit-system.md`.
 
 ---
 
@@ -784,4 +801,5 @@ The theme system provides 12 themes across 6 families (enterprise, darkGlass, mi
 - **Theming PRD:** `requirements/charts/prd/prd_theming.md`
 - **V2.1 feature note:** `requirements/charts/notes/note_charts-overhaul-v2.md`
 - **V2.1 implementation plan:** `requirements/charts/plans/plan_charts-overhaul-v2.md`
+- **Scene unit system migration:** `packages/claude-author/docs/migration/unit-system.md`
 - **Example scenes:** `apps/examples/src/chart/scenes/`

@@ -1,6 +1,7 @@
 // Pure: SlideLayout + available props → SlideRegion[]. No React, no Three.js.
 
 import type { SlideLayout, SlideRegion } from '../types';
+import type { SceneLength } from '@brewsite/core';
 
 /**
  * Input for the layout compiler. Describes the layout variant and any
@@ -25,6 +26,12 @@ export type LayoutInput = {
 const TITLE_H = 0.18;
 const GUTTER = 0.02;
 
+/** Convert an NVS fraction [0..1] to a SceneLength percentage string. */
+function pct(value: number): SceneLength {
+  if (value === 0) return 0;
+  return `${value * 100}%` as SceneLength;
+}
+
 /**
  * Returns the NVS region descriptors for each TextBox slot in the given layout.
  * IDs are stable (e.g. 'title', 'body', 'left', 'right') and are used as
@@ -38,19 +45,19 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
 
   switch (input.layout) {
     case 'title': {
-      return [{ id: 'title', x: 0, y: 0, w: 1, h: 1, layer: 1 }];
+      return [{ id: 'title', x: 0, y: 0, w: pct(1), h: pct(1), layer: 1 }];
     }
 
     case 'section': {
-      return [{ id: 'title', x: 0, y: 0, w: 1, h: 1, layer: 1 }];
+      return [{ id: 'title', x: 0, y: 0, w: pct(1), h: pct(1), layer: 1 }];
     }
 
     case 'content': {
       const bodyY = titleH + gutter;
       const bodyH = 1 - bodyY - gutter;
       return [
-        { id: 'title', x: 0, y: gutter, w: 1, h: titleH - gutter, layer: 1 },
-        { id: 'body',  x: 0, y: bodyY,  w: 1, h: bodyH,           layer: 0 },
+        { id: 'title', x: 0, y: pct(gutter), w: pct(1), h: pct(titleH - gutter), layer: 1 },
+        { id: 'body',  x: 0, y: pct(bodyY),  w: pct(1), h: pct(bodyH),           layer: 0 },
       ];
     }
 
@@ -60,11 +67,11 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       const bodyY = input.hasTitle ? titleH + gutter : gutter;
       const bodyH = 1 - bodyY - gutter;
       const regions: SlideRegion[] = [
-        { id: 'left',  x: 0,              y: bodyY, w: colW, h: bodyH, layer: 0 },
-        { id: 'right', x: colW + colGap,  y: bodyY, w: colW, h: bodyH, layer: 0 },
+        { id: 'left',  x: 0,                   y: pct(bodyY), w: pct(colW), h: pct(bodyH), layer: 0 },
+        { id: 'right', x: pct(colW + colGap),  y: pct(bodyY), w: pct(colW), h: pct(bodyH), layer: 0 },
       ];
       if (input.hasTitle) {
-        regions.unshift({ id: 'title', x: 0, y: gutter, w: 1, h: titleH - gutter, layer: 1 });
+        regions.unshift({ id: 'title', x: 0, y: pct(gutter), w: pct(1), h: pct(titleH - gutter), layer: 1 });
       }
       return regions;
     }
@@ -76,14 +83,14 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       return [
         {
           id: 'image',
-          x: isLeft ? 0 : textW + gutter,
-          y: 0, w: imgW, h: 1,
+          x: isLeft ? 0 : pct(textW + gutter),
+          y: 0, w: pct(imgW), h: pct(1),
           layer: 0,
         },
         {
           id: 'body',
-          x: isLeft ? imgW + gutter : 0,
-          y: gutter, w: textW, h: 1 - gutter * 2,
+          x: isLeft ? pct(imgW + gutter) : 0,
+          y: pct(gutter), w: pct(textW), h: pct(1 - gutter * 2),
           layer: 0,
         },
       ];
@@ -100,11 +107,11 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       if (pos === 'bottom-left')  { x = PAD; y = 1 - OVERLAY_H - PAD; }
       if (pos === 'bottom-right') { x = 1 - OVERLAY_W - PAD; y = 1 - OVERLAY_H - PAD; }
       if (pos === 'center')       { x = (1 - OVERLAY_W) / 2; y = (1 - OVERLAY_H) / 2; }
-      return [{ id: 'overlay', x, y, w: OVERLAY_W, h: OVERLAY_H, layer: 1 }];
+      return [{ id: 'overlay', x: pct(x), y: pct(y), w: pct(OVERLAY_W), h: pct(OVERLAY_H), layer: 1 }];
     }
 
     case 'blank': {
-      return [{ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 }];
+      return [{ id: 'body', x: 0, y: 0, w: pct(1), h: pct(1), layer: 0 }];
     }
 
     case 'big-number': {
@@ -117,15 +124,15 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       for (let i = 0; i < count; i++) {
         regions.push({
           id: `stat-${i}`,
-          x: i * (statW + statGap),
-          y: statY,
-          w: statW,
-          h: statH,
+          x: pct(i * (statW + statGap)),
+          y: pct(statY),
+          w: pct(statW),
+          h: pct(statH),
           layer: 0,
         });
       }
       if (input.hasTitle) {
-        regions.unshift({ id: 'title', x: 0, y: gutter, w: 1, h: titleH * 0.7, layer: 1 });
+        regions.unshift({ id: 'title', x: 0, y: pct(gutter), w: pct(1), h: pct(titleH * 0.7), layer: 1 });
       }
       return regions;
     }
@@ -138,15 +145,15 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       const bodyH = 1 - bodyY - gutter;
       const regions: SlideRegion[] = [];
       if (input.hasTitle) {
-        regions.push({ id: 'title', x: 0, y: gutter, w: 1, h: titleH - gutter, layer: 1 });
+        regions.push({ id: 'title', x: 0, y: pct(gutter), w: pct(1), h: pct(titleH - gutter), layer: 1 });
       }
       for (let i = 0; i < cols; i++) {
         regions.push({
           id: `metric-${i}`,
-          x: i * (colW + colGap),
-          y: bodyY,
-          w: colW,
-          h: bodyH,
+          x: pct(i * (colW + colGap)),
+          y: pct(bodyY),
+          w: pct(colW),
+          h: pct(bodyH),
           layer: 0,
         });
       }
@@ -157,8 +164,8 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       const bodyY = titleH + gutter;
       const bodyH = 1 - bodyY - gutter;
       return [
-        { id: 'title', x: 0, y: gutter, w: 1, h: titleH - gutter, layer: 1 },
-        { id: 'body',  x: 0, y: bodyY,  w: 1, h: bodyH,           layer: 0 },
+        { id: 'title', x: 0, y: pct(gutter), w: pct(1), h: pct(titleH - gutter), layer: 1 },
+        { id: 'body',  x: 0, y: pct(bodyY),  w: pct(1), h: pct(bodyH),           layer: 0 },
       ];
     }
 
@@ -166,8 +173,8 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       const quoteH = 0.6;
       const quoteY = (1 - quoteH - 0.1) / 2;
       return [
-        { id: 'quote',       x: 0.1, y: quoteY,                    w: 0.8, h: quoteH, layer: 1 },
-        { id: 'attribution', x: 0.1, y: quoteY + quoteH + gutter,  w: 0.8, h: 0.1,    layer: 0 },
+        { id: 'quote',       x: pct(0.1), y: pct(quoteY),                    w: pct(0.8), h: pct(quoteH), layer: 1 },
+        { id: 'attribution', x: pct(0.1), y: pct(quoteY + quoteH + gutter),  w: pct(0.8), h: pct(0.1),    layer: 0 },
       ];
     }
 
@@ -175,13 +182,13 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       const bodyY = titleH + gutter;
       const bodyH = 1 - bodyY - gutter;
       return [
-        { id: 'title', x: 0, y: gutter, w: 1, h: titleH - gutter, layer: 1 },
-        { id: 'body',  x: 0, y: bodyY,  w: 1, h: bodyH,           layer: 0 },
+        { id: 'title', x: 0, y: pct(gutter), w: pct(1), h: pct(titleH - gutter), layer: 1 },
+        { id: 'body',  x: 0, y: pct(bodyY),  w: pct(1), h: pct(bodyH),           layer: 0 },
       ];
     }
 
     // Phase 1B+ layouts default to blank
     default:
-      return [{ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 }];
+      return [{ id: 'body', x: 0, y: 0, w: pct(1), h: pct(1), layer: 0 }];
   }
 }

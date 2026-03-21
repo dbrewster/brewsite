@@ -3,22 +3,23 @@
 
 import type { ViewLayoutKind } from '../../layout/regionTypes';
 import type { CarouselSelectHandler } from '../../input/carouselSelectTypes';
+import type { SceneLength } from '../../units/types';
 
 export type ViewLayoutProps = {
   /** Stable layout identity. Default: auto-generated from kind + scene index. */
   id?: string;
   /** Layout policy. */
   kind: ViewLayoutKind;
-  /** NVS x position [0..1] of the layout container. Default: 0. */
-  x?: number;
-  /** NVS y position [0..1] of the layout container. Default: 0. */
-  y?: number;
-  /** NVS width [0..1] of the layout container. Default: 1. */
-  w?: number;
-  /** NVS height [0..1] of the layout container. Default: 1. */
-  h?: number;
-  /** NVS gap between views. */
-  gap?: number;
+  /** NVS x position of the layout container. Use unit strings: "0%" = left edge. Default: 0. */
+  x?: SceneLength;
+  /** NVS y position of the layout container. Use unit strings: "0%" = top edge. Default: 0. */
+  y?: SceneLength;
+  /** NVS width of the layout container. Use unit strings: "100%" = full width. Default: "100%". */
+  w?: SceneLength;
+  /** NVS height of the layout container. Use unit strings: "100%" = full height. Default: "100%". */
+  h?: SceneLength;
+  /** NVS gap between views. Use unit strings: "2%" = 2% of viewport. */
+  gap?: SceneLength;
 
   // Stack-specific:
   /** Stack direction. Only used when kind='stack'. Default: 'horizontal'. */

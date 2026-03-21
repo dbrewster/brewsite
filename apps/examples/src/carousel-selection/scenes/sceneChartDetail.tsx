@@ -14,7 +14,7 @@ const CAM_TGT: [number, number, number] = [0, 0.3, 0];
 export const ChartDetailScene = (): JSX.Element => (
   <Scene id="detail-chart-view">
     <ProgressManager scrollUnits={800} />
-    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={38} />
+    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"38deg"} />
     <Lighting intensityScale={1.3}>
       <Ambient intensity={2.8} color="#d7e5ff" />
       <Directional intensity={1.5} color="#ffffff" position={[3, 5, 4]} />
@@ -24,7 +24,7 @@ export const ChartDetailScene = (): JSX.Element => (
     <BarChart
       id="picker-chart"
       data={revenueData}
-      x={0.08} y={0.05} w={0.84} h={0.85}
+      x={"8%"} y={"5%"} w={"84%"} h={"85%"}
       depth={0.45}
       interactive
     >

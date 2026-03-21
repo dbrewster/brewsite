@@ -7,6 +7,25 @@ import {
 } from './layoutResolver';
 
 import type { ResolvedLayout, ResolvedGridLayout, ResolvedHierarchicalLayout, ResolvedFlowLayout } from './layoutResolver';
+import { resolveToNVS } from '@brewsite/core';
+import type { SceneLength, ScenePosition3, SceneSize2 } from '@brewsite/core';
+
+/** Resolve a SceneLength to a number, passing through values that are already numeric. */
+const toNum = (v: SceneLength | number): number => typeof v === 'number' ? v : resolveToNVS(v);
+
+function resolvePosition(pos: ScenePosition3 | readonly [number, number, number]): readonly [number, number, number] {
+  return [toNum(pos[0]), toNum(pos[1]), toNum(pos[2])];
+}
+
+/** Convert an NVS fraction back to a SceneLength (percentage string) for synthetic nodes. */
+function nvsToLength(nvs: number): SceneLength {
+  if (nvs === 0) return 0;
+  return `${nvs * 100}%` as SceneLength;
+}
+
+function nvsToSize2(w: number, h: number): SceneSize2 {
+  return [nvsToLength(w), nvsToLength(h)];
+}
 
 // Re-export the four algorithm functions for backwards compatibility with existing callers.
 export { computeBounds } from './layout/bounds';
@@ -59,7 +78,7 @@ export function resolveLayout(
   const missing: DiagramNodeDSL[] = [];
   nodes.forEach((node) => {
     if (node.position) {
-      positions.set(node.id, node.position);
+      positions.set(node.id, resolvePosition(node.position));
     } else {
       missing.push(node);
     }
@@ -258,7 +277,7 @@ export function resolveLayoutWithGroups(
       // For child groups: un-normalize each child's localPositions using its absoluteCenter
       //   so positions are back in diagram (absolute) space.
       expandedPositions = new Map();
-      directMemberNodes.forEach((n) => expandedPositions.set(n.id, n.position!));
+      directMemberNodes.forEach((n) => expandedPositions.set(n.id, resolvePosition(n.position!)));
       for (const childGroup of childGroups) {
         const childInfo = groupInfoMap.get(childGroup.id)!;
         const [cx, cy, cz] = childInfo.absoluteCenter;
@@ -282,7 +301,7 @@ export function resolveLayoutWithGroups(
         virtualNodes.push({
           id: groupNodeId(childGroup.id),
           label: groupNodeId(childGroup.id),
-          size: [childInfo.size[0], childInfo.size[1]],
+          size: nvsToSize2(childInfo.size[0], childInfo.size[1]),
         });
       }
 
@@ -396,7 +415,7 @@ export function resolveLayoutWithGroups(
     topLevelLayoutNodes.push({
       id,
       label: id,
-      size: [info.size[0], info.size[1]],
+      size: nvsToSize2(info.size[0], info.size[1]),
     });
     topLevelLayoutNodeIds.add(id);
   }
@@ -611,7 +630,7 @@ export function resolveLayoutWithGroups(
   // Grouped explicit coordinates act as local positions; parent layout determines
   // the group block placement and thus the final global positions.
   nodes.forEach((n) => {
-    if (n.position && !allGroupedNodeIds.has(n.id)) finalPositions.set(n.id, n.position);
+    if (n.position && !allGroupedNodeIds.has(n.id)) finalPositions.set(n.id, resolvePosition(n.position));
   });
 
   // 2. Top-level group descendants: translate local positions by group center.

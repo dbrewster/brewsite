@@ -83,7 +83,7 @@ describe('ModelWidget DSL handler', () => {
           w={0.4}
           h={0.6}
           z={3}
-          rotation={[0, 0, 1]}
+          rotation={[0, 0, "1rad"]}
           metalness={() => 0.1}
           roughness={0.9}
           enabled={() => false}

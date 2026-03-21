@@ -3,7 +3,7 @@ title: Environment Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## Environment Overview
@@ -142,7 +142,7 @@ export function ModelScene() {
       <Environment intensity={0.6}>
         <EnvironmentHdri url="/assets/env/studio.hdr" />
       </Environment>
-      <Model type="Robot" id="robot" scale={0.06} x={0.5} y={0} w={0.5} h={1} />
+      <Model type="Robot" id="robot" scale={0.06} x={"50%"} y={"0%"} w={"50%"} h={"100%"} />
     </Scene>
   );
 }

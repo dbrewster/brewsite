@@ -15,7 +15,7 @@ export function SceneTimelinePanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-timeline-base">
-        <Camera mode="world" position={[2, 2, 10]} target={[0, 1, 0]} fov={44} />
+        <Camera mode="world" position={[2, 2, 10]} target={[0, 1, 0]} fov={"44deg"} />
         <Background color="#08100e" />
         <Lighting>
           <Ambient color="#44ff88" intensity={0.3} />
@@ -26,7 +26,7 @@ export function SceneTimelinePanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-timeline">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="world" position={[2, 2, 8]} target={[0, 1, 0]} fov={44} />
+        <Camera mode="world" position={[2, 2, 8]} target={[0, 1, 0]} fov={"44deg"} />
         <Background color="#08100e" />
         <Lighting>
           <Ambient color="#44ff88" intensity={0.3} />

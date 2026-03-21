@@ -21,8 +21,8 @@ export const defaultSlideTheme: SlideTheme = {
   density: {
     contentPadding: '48px',
     contentGap: '16px',
-    titleHeight: 0.18,
-    gutter: 0.02,
+    titleHeight: '18%',
+    gutter: '2%',
   },
   typography: {
     headingScale: 1.2,
@@ -52,8 +52,8 @@ export const compactSlideTheme: SlideTheme = {
   density: {
     contentPadding: '32px',
     contentGap: '12px',
-    titleHeight: 0.14,
-    gutter: 0.015,
+    titleHeight: '14%',
+    gutter: '1.5%',
   },
   typography: {
     headingScale: 1.0,
@@ -81,8 +81,8 @@ export const cinematicSlideTheme: SlideTheme = {
   density: {
     contentPadding: '64px',
     contentGap: '24px',
-    titleHeight: 0.22,
-    gutter: 0.03,
+    titleHeight: '22%',
+    gutter: '3%',
   },
   typography: {
     headingScale: 1.4,
@@ -110,8 +110,8 @@ export const minimalSlideTheme: SlideTheme = {
   density: {
     contentPadding: '40px',
     contentGap: '14px',
-    titleHeight: 0.16,
-    gutter: 0.02,
+    titleHeight: '16%',
+    gutter: '2%',
   },
   typography: {
     headingScale: 1.1,

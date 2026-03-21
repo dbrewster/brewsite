@@ -3,7 +3,7 @@ title: "@brewsite/charts — Pie Chart"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## When to Use PieChart
@@ -102,7 +102,7 @@ export function ScenePie() {
       <PieChart
         id="market-share"
         data={marketShareData}
-        x={0.30} y={0.25} w={0.40} h={0.40}
+        x={"30%"} y={"25%"} w={"40%"} h={"40%"}
         depth={0.3}
         innerRadius={0}
         pieTilt={0.3}
@@ -133,7 +133,7 @@ export function SceneDonut() {
       <PieChart
         id="market-share"
         data={marketShareData}
-        x={0.30} y={0.25} w={0.40} h={0.40}
+        x={"30%"} y={"25%"} w={"40%"} h={"40%"}
         depth={0.3}
         innerRadius={0.45}
         pieTilt={0.3}

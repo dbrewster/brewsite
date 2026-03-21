@@ -3,7 +3,7 @@ title: Input DSL
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## Two Input Systems
@@ -68,7 +68,7 @@ The defaults use Cmd+scroll for orbit. To also enable left-drag orbit in a speci
 <Scene id="product-viewer">
   <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 0.5, 0]} fov={40} />
   <Background color="#111" />
-  <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.7} h={0.8} />
+  <Model id="product" type="ProductModel" x={"50%"} y={"50%"} w={"70%"} h={"80%"} />
 
   <InputController scope="canvas">
     {/* New action — appended to defaults (id does not match any default) */}
@@ -381,7 +381,7 @@ export function ProductViewerScene() {
       <Camera mode="world" position={[0, 1, 3.5]} target={[0, 0.5, 0]} fov={40} />
       <Lighting>...</Lighting>
       <Background color="#111" />
-      <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.7} h={0.8} />
+      <Model id="product" type="ProductModel" x={"50%"} y={"50%"} w={"70%"} h={"80%"} />
       {/* No InputController needed — defaults provide:
           Cmd+scroll orbit, pinch zoom, Shift+scroll pan, R reset,
           arrow key scene/carousel nav, scroll Y/X navigation */}
@@ -410,7 +410,7 @@ export function InteractiveViewerScene() {
       <Camera id="cam" mode="world" position={[0, 1, 3.5]} target={[0, 0.5, 0]} fov={40} />
       <Lighting>...</Lighting>
       <Background color="#111" />
-      <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.7} h={0.8} />
+      <Model id="product" type="ProductModel" x={"50%"} y={"50%"} w={"70%"} h={"80%"} />
 
       <InputController>
         {/* Adds left-drag orbit ON TOP of defaults */}
@@ -450,7 +450,7 @@ export function FullCustomScene() {
       <Camera id="cam" mode="world" position={[0, 1.5, 7]} target={[0, 0, 0]} fov={48} />
       <Lighting>...</Lighting>
       <Background color="#0a0a14" />
-      <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.8} h={0.8} />
+      <Model id="product" type="ProductModel" x={"50%"} y={"50%"} w={"80%"} h={"80%"} />
 
       {/* mode="replace" — no defaults, only these actions */}
       <InputController scope="canvas" mode="replace">
@@ -483,10 +483,10 @@ export function FullCustomScene() {
 
 ```tsx
 <Scene id="carousel-scene" primaryCarouselId="feature-carousel">
-  <ViewLayout id="feature-carousel" kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={6} gap={0.04}>
-    <View id="panel-a" w={0.4} h={0.85}><Model id="a" type="FeatureA" x={0} y={0} w={1} h={1} /></View>
-    <View id="panel-b" w={0.4} h={0.85}><Model id="b" type="FeatureB" x={0} y={0} w={1} h={1} /></View>
-    <View id="panel-c" w={0.4} h={0.85}><Model id="c" type="FeatureC" x={0} y={0} w={1} h={1} /></View>
+  <ViewLayout id="feature-carousel" kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={6} gap={"4%"}>
+    <View id="panel-a" w={"40%"} h={"85%"}><Model id="a" type="FeatureA" x={"0%"} y={"0%"} w={"100%"} h={"100%"} /></View>
+    <View id="panel-b" w={"40%"} h={"85%"}><Model id="b" type="FeatureB" x={"0%"} y={"0%"} w={"100%"} h={"100%"} /></View>
+    <View id="panel-c" w={"40%"} h={"85%"}><Model id="c" type="FeatureC" x={"0%"} y={"0%"} w={"100%"} h={"100%"} /></View>
   </ViewLayout>
 
   {/* Override default carousel to add click-to-advance */}

@@ -19,6 +19,7 @@ import { Highlight } from '../../elements/carousel-scrubber/highlightDsl';
 import type { HighlightProps } from '../../elements/carousel-scrubber/highlightDsl';
 import { compileTrayFromViewLayout, type TrayViewBounds } from '../../elements/carousel-scrubber/compileTray';
 import { normalizePadding, applyPaddingToRect } from '../../layout/regionNormalize';
+import { resolveToNVS } from '../../units/resolve';
 
 /**
  * NodeHandler for the <View> DSL component.
@@ -27,7 +28,11 @@ import { normalizePadding, applyPaddingToRect } from '../../layout/regionNormali
  */
 export const viewHandler: NodeHandler = (node, api, helpers) => {
   const props = node.props as ViewProps;
-  const { id, x, y, w, h, padding } = props;
+  const { id, padding } = props;
+  const x = props.x !== undefined ? resolveToNVS(props.x) : undefined;
+  const y = props.y !== undefined ? resolveToNVS(props.y) : undefined;
+  const w = props.w !== undefined ? resolveToNVS(props.w) : undefined;
+  const h = props.h !== undefined ? resolveToNVS(props.h) : undefined;
 
   // Validate id
   if (!id || typeof id !== 'string') {
@@ -159,7 +164,12 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
  */
 export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
   const props = node.props as ViewLayoutProps;
-  const { id: explicitId, kind, x, y, w, h, gap, direction, activeIndex: deprecatedActiveIndex, focusedIndex: explicitFocusedIndex, inactiveScale, zStep, loop, spread, fadeMin } = props;
+  const { id: explicitId, kind, direction, activeIndex: deprecatedActiveIndex, focusedIndex: explicitFocusedIndex, inactiveScale, zStep, loop, spread, fadeMin } = props;
+  const x = props.x !== undefined ? resolveToNVS(props.x) : undefined;
+  const y = props.y !== undefined ? resolveToNVS(props.y) : undefined;
+  const w = props.w !== undefined ? resolveToNVS(props.w) : undefined;
+  const h = props.h !== undefined ? resolveToNVS(props.h) : undefined;
+  const gap = props.gap !== undefined ? resolveToNVS(props.gap) : undefined;
 
   // Generate layout id if not provided
   const layoutId = explicitId ?? `__viewLayout_${kind}_${api.context.sceneIndex}`;
@@ -184,7 +194,7 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
       );
       continue;
     }
-    const childProps = childEl.props as { id?: string; w?: number; h?: number };
+    const childProps = childEl.props as ViewProps;
     if (!childProps.id) {
       console.error(`[ViewLayout] <View> inside ViewLayout requires an 'id' prop.`);
       continue;
@@ -194,8 +204,8 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
     // fractions of the ViewLayout container, not absolute NVS coordinates.
     // For stack layouts, 0 remains the sentinel for "auto-distribute remaining space".
     // For carousel layouts, unspecified size defaults to filling the container.
-    const rawW = childProps.w ?? 0;
-    const rawH = childProps.h ?? 0;
+    const rawW = childProps.w !== undefined ? resolveToNVS(childProps.w) : 0;
+    const rawH = childProps.h !== undefined ? resolveToNVS(childProps.h) : 0;
     if (kind === 'carousel') {
       childSizeHints.push({
         w: (rawW > 0 ? rawW : 1) * composedContainerBounds.w,

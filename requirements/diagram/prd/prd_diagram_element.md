@@ -3,8 +3,11 @@ title: "BrewSite Diagram — Diagram Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-19
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: all diagram DSL spatial props now require SceneLength/SceneAngle/SceneSize2/ScenePosition3/ScenePadding unit strings. DiagramNodeProps.size is SceneSize2, thickness/cornerRadius/iconDepth/borderWidth/borderHeight are SceneLength. DiagramEdgeProps.thickness/flowTurnRadius/flowFaceStub are SceneLength. DiagramProps.x/y/w/h are SceneLength, tilt is SceneAngle. All layout spacing/gap/margin/groupPadding/titleGap are SceneLength/SceneSize2/ScenePadding. Compiled DiagramState remains number. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-10
     author: "Toolkit Product"
     summary: "Edge routing rewrite: canonical routing mode is now flow, orthogonal is removed from the public DSL, DiagramEdgeState now carries explicit path commands, flow routes attach to exact face centers, and the renderer consumes DiagramEdgePathCommand[] rather than inferring spline semantics from control-point counts."
@@ -47,7 +50,7 @@ change_history:
 
 ## Overview
 
-The `Diagram` element is the primary authoring surface in `@brewsite/diagram`. It is a 3D interactive diagram composed of typed nodes, directed edges, and group containers. Authors declare `<Diagram>` directly inside `<Scene>` with `x/y/w/h` NVS bounds; the compiler resolves layout, routes edges, applies theme defaults, and produces a fully resolved `DiagramState`. `DiagramWidget` drives this state through Three.js, rendering directly into the main scene using the NVS coordinate service, to produce a prism-based 3D visualization that transitions smoothly between scenes. This element is for TypeScript developers building animated architectural, infrastructure, or flow diagrams for immersive 3D marketing scenes.
+The `Diagram` element is the primary authoring surface in `@brewsite/diagram`. It is a 3D interactive diagram composed of typed nodes, directed edges, and group containers. Authors declare `<Diagram>` directly inside `<Scene>` with `x/y/w/h` SceneLength bounds; the compiler resolves layout, routes edges, applies theme defaults, and produces a fully resolved `DiagramState`. All spatial DSL props use the scene unit system (`SceneLength`, `SceneAngle`, `SceneSize2`, `ScenePosition3`, `ScenePadding`) — explicit unit strings like `"15%"`, `"8u"`, `"0.1rad"` — while compiled `DiagramState` fields remain plain `number` values. `DiagramWidget` drives this state through Three.js, rendering directly into the main scene using the NVS coordinate service, to produce a prism-based 3D visualization that transitions smoothly between scenes. This element is for TypeScript developers building animated architectural, infrastructure, or flow diagrams for immersive 3D marketing scenes.
 
 Affected package: `@brewsite/diagram`.
 
@@ -103,22 +106,21 @@ Technical marketing scenes frequently need to visualize system architecture, dat
 
 ```typescript
 // packages/diagram/src/elements/diagram/dsl.tsx
+import type { SceneLength, SceneAngle } from '@brewsite/core';
+
 export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
-  /** NVS left edge [0..1]. Default: 0. */
-  x?: number;
-  /** NVS top edge [0..1]. Default: 0. */
-  y?: number;
-  /** NVS width [0..1]. Default: 1. */
-  w?: number;
-  /** NVS height [0..1]. Default: 1. */
-  h?: number;
-  /**
-   * Pitch tilt in radians applied to the diagram geometry group.
-   * Negative = top edge tilts away from viewer. Default: 0.
-   */
-  tilt?: number;
+  /** NVS left edge as a SceneLength. Default: 0. */
+  x?: SceneLength;
+  /** NVS top edge as a SceneLength. Default: 0. */
+  y?: SceneLength;
+  /** NVS width as a SceneLength. Default: "100%". */
+  w?: SceneLength;
+  /** NVS height as a SceneLength. Default: "100%". */
+  h?: SceneLength;
+  /** Pitch tilt as a SceneAngle applied to diagram geometry. Default: 0. */
+  tilt?: SceneAngle;
   /**
    * World-space Z depth of the diagram's geometry plane. Default: 0.
    * Allows diagrams to be composited in front of or behind other scene elements.
@@ -133,6 +135,8 @@ export interface DiagramProps {
 ### `<DiagramNode>` — Node
 
 ```typescript
+import type { SceneLength, SceneSize2, ScenePosition3 } from '@brewsite/core';
+
 export interface DiagramNodeProps {
   /** Unique ID within the diagram */
   id: string;
@@ -157,20 +161,19 @@ export interface DiagramNodeProps {
    */
   icon?: DiagramIconVariant;
   /**
-   * Diagram-local position [x, y, z].
+   * Diagram-local position as ScenePosition3 [x, y, z].
    * z controls depth layering. If omitted, auto-layout assigns based on declaration order.
+   * Example: position={["50%", "50%", 0]} places at viewport center.
    */
-  position?: [number, number, number];
+  position?: ScenePosition3;
   /**
-   * Node size as NVS fractions [width, height].
-   * width ∈ [0..1]: fraction of diagram viewport width.
-   * height ∈ [0..1]: fraction of diagram viewport height.
-   * Example: [0.15, 0.08] = 15% wide, 8% tall.
-   * Default: from theme (typically [0.15, 0.08]).
+   * Node size as SceneSize2 [width, height].
+   * Example: ["15%", "8%"] = 15% wide, 8% tall.
+   * Default: from theme (typically ["15%", "8%"]).
    */
-  size?: [number, number];
-  /** Node prism Z-depth as an NVS fraction of diagram viewport width. Default: from theme (darkGlass: 0.150). */
-  thickness?: number;
+  size?: SceneSize2;
+  /** Node prism Z-depth as a SceneLength. Default: from theme (enterprise: "7.5%"). */
+  thickness?: SceneLength;
   /** Front-face fill color (CSS hex). Default: from theme */
   color?: string;
   /** Side/box faces color (CSS hex). Default: derived from color via theme sideColorDarkenFactor */
@@ -191,8 +194,8 @@ export interface DiagramNodeProps {
    * - object: full control over intensity and color
    */
   glow?: boolean | DiagramNodeGlowConfig;
-  /** Corner radius as an NVS fraction of diagram viewport width. Default: from theme (darkGlass: 0.009). */
-  cornerRadius?: number;
+  /** Corner radius as a SceneLength. Default: from theme. */
+  cornerRadius?: SceneLength;
   /** Label text color (CSS hex). Default: from theme */
   labelColor?: string;
   /** Sublabel text color (CSS hex). Default: '#a0a8c0' */
@@ -219,10 +222,14 @@ export interface DiagramNodeProps {
    */
   iconStyle?: SvgIcon3DStyle;
   /**
-   * Icon extrusion depth in NVS units. Default: from theme (0.15).
+   * Icon extrusion depth as a SceneLength. Default: from theme ("15%").
    * Only applies when iconStyle !== 'flat'.
    */
-  iconDepth?: number;
+  iconDepth?: SceneLength;
+  /** Border line width as a SceneLength. Default: from theme ("0.5%"). */
+  borderWidth?: SceneLength;
+  /** Border frame Z-depth as a SceneLength. Default: from theme ("0.5%"). */
+  borderHeight?: SceneLength;
   /** Runtime mouse-enter handler */
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler */
@@ -240,6 +247,8 @@ export interface DiagramNodeProps {
 ### `<DiagramEdge>` — Edge / Connector
 
 ```typescript
+import type { SceneLength } from '@brewsite/core';
+
 export interface DiagramEdgeProps {
   /** Unique ID within the diagram. Auto-generated as `${from}-${to}-${index}` if absent. */
   id?: string;
@@ -261,8 +270,8 @@ export interface DiagramEdgeProps {
   flowColor?: string;
   /** Edge color (CSS hex). Default: from theme */
   color?: string;
-  /** Tube radius as an NVS fraction of diagram viewport width. Default: from theme. */
-  thickness?: number;
+  /** Tube radius as a SceneLength. Default: from theme. */
+  thickness?: SceneLength;
   /** Edge opacity [0–1]. Default: 1 */
   opacity?: number;
   /**
@@ -278,10 +287,10 @@ export interface DiagramEdgeProps {
   fromPort?: DiagramEdgePort;      // 'top' | 'bottom' | 'left' | 'right' | 'front' | 'back'
   /** Explicit attachment port at the destination node. */
   toPort?: DiagramEdgePort;
-  /** Per-edge override for canonical flow turn radius. Only applies when routing='flow'. */
-  flowTurnRadius?: number;
-  /** Per-edge override for canonical flow face stub length. Only applies when routing='flow'. */
-  flowFaceStub?: number;
+  /** Per-edge override for canonical flow turn radius as a SceneLength. Only applies when routing='flow'. */
+  flowTurnRadius?: SceneLength;
+  /** Per-edge override for canonical flow face stub length as a SceneLength. Only applies when routing='flow'. */
+  flowFaceStub?: SceneLength;
   /** Per-edge override for how long sibling flow edges remain bundled before splitting. */
   flowBundleStrength?: number;
   /** Per-edge override for how strongly a flow edge prefers direct target ingress after splitting. */
@@ -350,15 +359,17 @@ export interface DiagramGroupProps {
 ### `<FlowLayout>` — Sequential Flow Layout
 
 ```typescript
+import type { SceneLength, ScenePadding } from '@brewsite/core';
+
 export interface FlowLayoutProps {
   /** Primary layout axis. Default: 'top-down' */
   direction?: 'top-down' | 'left-right';
-  /** Edge-to-edge gap between adjacent items in NVS fractions. Default: 0.06 */
-  gap?: number;
-  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 (all sides) */
-  groupPadding?: LayoutPadding;
-  /** Gap between group title label and content area in NVS fractions. Default: 0.025 */
-  titleGap?: number;
+  /** Edge-to-edge gap between adjacent items as a SceneLength. Default: "6%" */
+  gap?: SceneLength;
+  /** Padding inside group boundary boxes as ScenePadding. Default: "3.5%" */
+  groupPadding?: ScenePadding;
+  /** Gap between group title and content as a SceneLength. Default: "2.5%" */
+  titleGap?: SceneLength;
 }
 ```
 
@@ -369,13 +380,16 @@ export interface FlowLayoutProps {
 Both components are direct children of `<Diagram>`. At most one `<DiagramExit>` and one `<DiagramEnter>` per diagram.
 
 ```typescript
+import type { ScenePosition3 } from '@brewsite/core';
+
 export interface DiagramExitProps {
   /**
-   * Target viewport position at end of exit animation, in [0..1] NVS space.
+   * Target viewport position at end of exit animation as ScenePosition3.
    * Values outside [0..1] move the diagram off-screen.
+   * Example: to={["50%", "200%", 0]} exits 1 full viewport height below center.
    * Absent: diagram stays in place (fade only).
    */
-  to?: [number, number, number];
+  to?: ScenePosition3;
   /**
    * If true (default), all node and edge opacities fade to 0 during exit.
    * Set false for translate-only exit.
@@ -390,11 +404,11 @@ export interface DiagramExitProps {
 
 export interface DiagramEnterProps {
   /**
-   * Source viewport position at start of enter animation, in [0..1] NVS space.
+   * Source viewport position at start of enter animation as ScenePosition3.
    * Values outside [0..1] start the animation from off-screen.
    * Absent: diagram enters from its declared viewportBounds (fade only).
    */
-  from?: [number, number, number];
+  from?: ScenePosition3;
   /**
    * If true (default), all node and edge opacities fade in from 0 during enter.
    */
@@ -424,9 +438,9 @@ export interface DiagramNodeState {
   readonly shape: DiagramNodeShape;
   /** World-space position after layout resolution. [x, y, z] */
   readonly position: readonly [number, number, number];
-  /** Node width and height as NVS fractions [0..1]. */
+  /** Node width and height as resolved numbers (compiled from SceneSize2 DSL prop). */
   readonly size: readonly [number, number];
-  /** Physical prism Z-depth as an NVS fraction of diagram viewport width. Converted to world units by render.ts (× uniformWorldW). */
+  /** Physical prism Z-depth as a resolved number (compiled from SceneLength DSL prop). Converted to world units by render.ts (x uniformWorldW). */
   readonly thickness: number;
   readonly color: string;
   readonly sideColor: string;
@@ -455,7 +469,7 @@ export interface DiagramNodeState {
   readonly iconUrl: string | undefined;
   readonly iconScale: number;
   readonly iconStyle: SvgIcon3DStyle;
-  /** Icon extrusion depth in NVS units. */
+  /** Icon extrusion depth as a resolved number (compiled from SceneLength DSL prop). */
   readonly iconDepth: number;
   readonly groupId: string | undefined;
   readonly onMouseEnter?: DiagramNodeMouseHandler;
@@ -505,9 +519,9 @@ export interface DiagramGroupState {
     readonly y: number;
     readonly w: number;
     readonly h: number;
-    /** Resolved [top, right, bottom, left] padding as NVS fractions. Already incorporated into x/y/w/h. */
+    /** Resolved [top, right, bottom, left] padding as numbers (compiled from ScenePadding DSL prop). Already incorporated into x/y/w/h. */
     readonly padding: readonly [number, number, number, number];
-    /** Gap between group title label and content area as an NVS fraction. */
+    /** Gap between group title label and content area as a resolved number (compiled from SceneLength DSL prop). */
     readonly titleGap: number;
   };
   readonly color: string;
@@ -615,20 +629,20 @@ Ghost node declarations are intentionally minimal:
 
 Four rendering classes collaborate to produce the Three.js scene. All live in `packages/diagram/src/elements/diagram/rendering/`.
 
-**`DiagramRenderer`** — Orchestrates the other renderers. Maintains a `THREE.Group` per diagram widget ID in the scene. On each `update(state, scene)` call, delegates to `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` with the appropriate sub-arrays from `DiagramState`. Manages `InteractionRegistry` and `GroupInteractionRegistry` for click and hover hit-testing. Converts NVS positions and sizes to world-space using `uniformWorldW` / `uniformWorldH` — no aspect ratio correction is needed because all sizes are NVS fractions in the same coordinate system.
+**`DiagramRenderer`** — Orchestrates the other renderers. Maintains a `THREE.Group` per diagram widget ID in the scene. On each `update(state, scene)` call, delegates to `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` with the appropriate sub-arrays from `DiagramState`. Manages `InteractionRegistry` and `GroupInteractionRegistry` for click and hover hit-testing. Converts compiled numeric positions and sizes to world-space using `uniformWorldW` / `uniformWorldH` — no aspect ratio correction is needed because all sizes are resolved numbers in the same coordinate system. (The DSL-to-compiled-number resolution happens in the compile pipeline, not in the renderer.)
 
 **`NodeRenderer`** — Manages the Three.js mesh lifecycle for each `DiagramNodeState`. Creates or reuses a box geometry (either `BoxGeometry` for `cornerRadius === 0` or rounded box via `ExtrudeGeometry` for `cornerRadius > 0`). Applies `MeshStandardMaterial` for PBR nodes and `MeshBasicMaterial` for flat-shaded elements. Uses a **fit-to-content layout** algorithm: label position arithmetic (Y offsets, font sizes, Z depth) is computed by the pure `computeNodeLabelLayout()` function in `rendering/nodeLabelLayout.ts`, which returns a `NodeLabelLayout` struct. The layout vertically stacks icon, label, and sublabel within the node's content area, scaling text and icon sizes to fit. `NodeRenderer` applies the result to Troika `Text` meshes for primary and sublabels. Renders icon sprites loaded via `IconLoader` from SVG URLs on the `DiagramNodeState.iconUrl` field; icon size is automatically scaled down by fit-to-content layout when combined with labels. Renders a glow sprite behind the node when `themeConfig.nodeGlowIntensity > 0`.
 
-**Node Sizing Guide:** Nodes require minimum NVS sizes for readable content:
+**Node Sizing Guide:** Nodes require minimum sizes for readable content. Sizes are authored as `SceneSize2` unit strings:
 
-| Content | Minimum Size (NVS) | Notes |
+| Content | Minimum Size | Notes |
 |---------|-------------|-------|
-| Label only | `[0.15, 0.08]` | Theme default |
-| Label + sublabel | `[0.15, 0.10]` | Two text lines need vertical room |
-| Icon + label | `[0.12, 0.12]` | Icon needs vertical space |
-| Icon + label + sublabel | `[0.15, 0.12]` | Safe minimum for all three stacking |
-| Icon + label + sublabel (circle/hex) | `[0.13, 0.13]` | Polygon content area < bounding box |
-| Icon + label + sublabel (diamond) | `[0.15, 0.15]` | Diamond content area ~50% of bbox |
+| Label only | `["15%", "8%"]` | Theme default |
+| Label + sublabel | `["15%", "10%"]` | Two text lines need vertical room |
+| Icon + label | `["12%", "12%"]` | Icon needs vertical space |
+| Icon + label + sublabel | `["15%", "12%"]` | Safe minimum for all three stacking |
+| Icon + label + sublabel (circle/hex) | `["13%", "13%"]` | Polygon content area < bounding box |
+| Icon + label + sublabel (diamond) | `["15%", "15%"]` | Diamond content area ~50% of bbox |
 
 **`EdgeRenderer`** — Manages the Three.js tube geometry lifecycle for each `DiagramEdgeState`. Consumes explicit `DiagramEdgePathCommand[]` from `DiagramEdgeState.path`, building a `CurvePath` from `LineCurve3` and `CubicBezierCurve3` commands instead of inferring spline semantics from control-point counts. Generates arrowhead geometries at `arrowStart` and `arrowEnd` positions (`LatheGeometry` for 3D cones when `themeConfig.use3DArrows`, flat `ShapeGeometry` for 2D arrowheads). Supports dashed material for `style === 'dashed'`. Animates flow pulses via UV offset on a flow-pulse material when `flow !== 'none'`.
 
@@ -723,10 +737,10 @@ function Scene1() {
     <Scene id="scene-1">
       <Diagram id="pipeline" theme={darkGlassTheme}>
         <ManualLayout />
-        <DiagramNode id="ingest" label="Ingest" icon="aws:kinesis" position={[-9, 0, 0]} />
-        <DiagramNode id="process" label="Process" icon="aws:lambda" position={[-3, 0, 0]} />
-        <DiagramNode id="store" label="Store" icon="aws:s3" position={[3, 0, 0]} />
-        <DiagramNode id="serve" label="Serve" icon="aws:cloudfront" position={[9, 0, 0]} />
+        <DiagramNode id="ingest" label="Ingest" icon="aws:kinesis" position={["15%", "50%", 0]} />
+        <DiagramNode id="process" label="Process" icon="aws:lambda" position={["38%", "50%", 0]} />
+        <DiagramNode id="store" label="Store" icon="aws:s3" position={["62%", "50%", 0]} />
+        <DiagramNode id="serve" label="Serve" icon="aws:cloudfront" position={["85%", "50%", 0]} />
         <DiagramEdge from="ingest" to="process" flow="forward" />
         <DiagramEdge from="process" to="store" flow="forward" />
         <DiagramEdge from="store" to="serve" flow="forward" />
@@ -750,16 +764,16 @@ function Scene2() {
   return (
     <Scene id="scene-2">
       <Diagram id="microservices" theme={darkGlassTheme}>
-        <HierarchicalLayout direction="top-down" spacing={[3, 4]} />
+        <HierarchicalLayout direction="top-down" spacing={["4.5%", "4.5%"]} />
 
         <DiagramGroup id="frontend" label="Frontend" variant="boundary">
-          <GridLayout columns={2} spacing={[2, 2]} />
+          <GridLayout columns={2} spacing={["6%", "6%"]} />
           <DiagramNode id="web" label="Web App" icon="tech:react" />
           <DiagramNode id="mobile" label="Mobile" icon="tech:react-native" />
         </DiagramGroup>
 
         <DiagramGroup id="backend" label="Backend" variant="boundary">
-          <GridLayout columns={3} spacing={[2, 2]} />
+          <GridLayout columns={3} spacing={["6%", "6%"]} />
           <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" />
           <DiagramNode id="auth" label="Auth" icon="aws:cognito" />
           <DiagramNode id="db" label="Database" icon="aws:rds" />
@@ -789,19 +803,19 @@ function Scene3() {
   return (
     <Scene id="scene-3">
       {/* viewportBounds fills the full canvas; tilt adds a slight perspective lean */}
-      <Diagram id="microservices" theme={darkGlassTheme} tilt={[0.1, 0, 0]}>
+      <Diagram id="microservices" theme={darkGlassTheme} tilt={"0.1rad"}>
         <ManualLayout />
         {/* Full nodes in this scene — explicitly positioned in the expanded view */}
-        <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" position={[0, 2, 0]} />
-        <DiagramNode id="auth" label="Auth Service" icon="aws:cognito" position={[-4, -2, 0]} />
-        <DiagramNode id="db" label="Database" icon="aws:rds" position={[4, -2, 0]} />
+        <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" position={["50%", "25%", 0]} />
+        <DiagramNode id="auth" label="Auth Service" icon="aws:cognito" position={["25%", "75%", 0]} />
+        <DiagramNode id="db" label="Database" icon="aws:rds" position={["75%", "75%", 0]} />
         {/* Ghost nodes — inherit label/shape/position from Scene 2 at reduced opacity */}
         <DiagramNode id="web" opacity={0.15} />
         <DiagramNode id="mobile" opacity={0.15} />
         <DiagramEdge from="api" to="auth" style="dashed" />
         <DiagramEdge from="api" to="db" arrowEnd="filled" />
         {/* Fade in from right on enter */}
-        <DiagramEnter from={[1.5, 0.5, 0]} fade easing="spring" />
+        <DiagramEnter from={["150%", "50%", 0]} fade easing="spring" />
       </Diagram>
     </Scene>
   );
@@ -812,7 +826,7 @@ function Scene3() {
 
 - **Group bounds use a synthetic position/size injection.** After `resolveGroupBoundsMap`, each group's center position and border-inset size are injected into the same `positions` and `sizeWithDepthMap` used by `routeEdges`. This allows edges to terminate visually at the group border frame, not at the group center.
 - **Edge control points are recomputed on every interpolation tick.** `rerouteLiveEdges` in `transitionHelpers.ts` re-runs edge routing at each blended position during a scene transition. This is necessary for smooth edge motion as nodes move during interpolation.
-- **Coordinate normalization is a pure, testable module.** `compiler/normalizeToViewport.ts` performs center + uniform-scale-to-fit + Y-flip on NVS-scale layout output. When a dense layout exceeds [0..1] on either axis, all positions and sizes are uniformly scaled by the same factor to fit within 96% usable area (2% margin per side). The function returns `scaleFactor` (1.0 when no scale-down is needed); the compile pipeline multiplies all NVS dimensional props (thickness, cornerRadius, borderWidth, borderHeight) by `scaleFactor` for proportional down-scaling. It is a pure function with no Three.js or React dependencies and is covered directly by unit tests.
+- **Coordinate normalization is a pure, testable module.** `compiler/normalizeToViewport.ts` performs center + uniform-scale-to-fit + Y-flip on layout output. When a dense layout exceeds [0..1] on either axis, all positions and sizes are uniformly scaled by the same factor to fit within 96% usable area (2% margin per side). The function returns `scaleFactor` (1.0 when no scale-down is needed); the compile pipeline multiplies all resolved dimensional values (thickness, cornerRadius, borderWidth, borderHeight) by `scaleFactor` for proportional down-scaling. SceneLength/SceneSize2/ScenePadding unit strings from the DSL are resolved to plain numbers by the unit parser before normalization. It is a pure function with no Three.js or React dependencies and is covered directly by unit tests.
 - **Three.js geometry is reused across frames.** `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` maintain per-ID geometry caches. Geometry is disposed and recreated only when the corresponding state changes structurally (e.g., node shape changes, edge control point count changes).
 - **`DiagramRenderer` supports optional `IIconLoader` injection.** Passing an `IIconLoader` implementation to the `DiagramRenderer` constructor overrides the default global icon loader. Tests and consumers that need to control icon loading (e.g., stub out network requests) pass a custom `IIconLoader`. The global `dispose()` side effect that previously ran at module-load time has been removed; disposal is now explicit via `DiagramRenderer.dispose()`.
 - **Troika text is loaded asynchronously.** Label text meshes created via `ensureText` (imported directly from `@brewsite/core`) are async. There is no blocking on text load; labels appear as they resolve. This is consistent with the rest of the Three.js rendering model in the toolkit.
@@ -829,11 +843,11 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | `DiagramProps.rotation` | `[number,number,number]` | removed |
 | `DiagramProps.scale` | `number` | removed |
 | `DiagramProps.pivot` | `DiagramPivot` | removed |
-| `DiagramProps.x/y/w/h` | absent | `number \| undefined` (NVS bounds props, replace `viewportBounds`) |
-| `DiagramProps.tilt` | absent | `number \| undefined` (scalar pitch; was `[number,number,number]` in intermediate form) |
+| `DiagramProps.x/y/w/h` | absent | `SceneLength \| undefined` (unit-string bounds props, replace `viewportBounds`) |
+| `DiagramProps.tilt` | absent | `SceneAngle \| undefined` (scalar pitch; was `[number,number,number]` in intermediate form) |
 | `DiagramProps.z` | absent | `number \| undefined` |
 | `DiagramProps.scale` | `number` on `DiagramCanvas` | now on `<Diagram>` directly |
-| `DiagramNodeProps.iconDepth` | `number` (NVS units) | `number` (NVS units, absolute depth) |
+| `DiagramNodeProps.iconDepth` | `number` (NVS units) | `SceneLength` (unit string, e.g. `"15%"`) |
 | `DiagramState.position` | `readonly [number,number,number]` | removed |
 | `DiagramState.rotation` | `readonly [number,number,number]` | removed |
 | `DiagramState.scale` | `number` | removed |
@@ -849,23 +863,30 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | `DiagramGroupState.labelColor` | absent | `readonly string` (new, non-breaking) |
 | `DiagramPivot` type | exported | deleted |
 | `DiagramState.contentAspect` | `number` | removed (NVS-native sizing eliminates aspect correction) |
-| `DiagramNodeProps.size` | content units for auto-layout, NVS for manual | NVS fractions `[0..1]` for all layout modes |
-| `FlowLayoutProps.gap` | content units (default: `2`) | NVS fractions (default: `0.06`) |
-| Layout `spacing` | content units (default: `[2, 2]`) | NVS fractions (default: `[0.06, 0.06]`) |
-| Layout `groupPadding` | dual: content units or NVS | NVS fractions (default: `0.035`) |
-| Layout `titleGap` | dual: content units or NVS | NVS fractions (default: `0.025`) |
-| `theme.node.defaultSize` | `[4, 2]` (content units) | `[0.15, 0.08]` (NVS fractions) |
-| `DiagramNodeProps.thickness` | content units (e.g. `1.0`) | NVS fractions (e.g. `0.150`) |
-| `DiagramEdgeProps.thickness` | content units (e.g. `0.065`) | NVS fractions (e.g. `0.00975`) |
-| `theme.node.defaultThickness` | content units | NVS fractions of viewport width |
-| `theme.node.cornerRadius` | content units (raw, no conversion) | NVS fractions of viewport width |
-| `theme.edge.defaultThickness` | content units | NVS fractions of viewport width |
-| `theme.group.defaultBorderWidth` | content units (triple multiplier pipeline) | NVS fractions of viewport width |
-| `theme.group.defaultBorderHeight` | content units | NVS fractions of viewport width |
+| `DiagramNodeProps.position` | `[number, number, number]` | `ScenePosition3` (e.g. `["50%", "50%", 0]`) |
+| `DiagramNodeProps.size` | `[number, number]` (bare numbers) | `SceneSize2` (e.g. `["15%", "8%"]`) |
+| `DiagramNodeProps.thickness` | `number` (bare number) | `SceneLength` (e.g. `"7.5%"`) |
+| `DiagramNodeProps.cornerRadius` | `number` (bare number) | `SceneLength` (e.g. `"0.9%"`) |
+| `DiagramNodeProps.borderWidth` | `number` (bare number) | `SceneLength` (e.g. `"0.5%"`) |
+| `DiagramNodeProps.borderHeight` | `number` (bare number) | `SceneLength` (e.g. `"0.5%"`) |
+| `DiagramEdgeProps.thickness` | `number` (bare number) | `SceneLength` (e.g. `"0.975%"`) |
+| `DiagramEdgeProps.flowTurnRadius` | `number` (bare number) | `SceneLength` |
+| `DiagramEdgeProps.flowFaceStub` | `number` (bare number) | `SceneLength` |
+| `FlowLayoutProps.gap` | `number` (default: `0.06`) | `SceneLength` (default: `"6%"`) |
+| Layout `spacing` | `[number, number]` (default: `[0.06, 0.06]`) | `SceneSize2` (default: `["6%", "6%"]`) |
+| Layout `margin` | `number \| [number, number]` | `SceneLength \| SceneSize2` |
+| Layout `groupPadding` | `number \| LayoutPadding` (default: `0.035`) | `ScenePadding` (default: `"3.5%"`) |
+| Layout `titleGap` | `number` (default: `0.025`) | `SceneLength` (default: `"2.5%"`) |
+| `theme.node.defaultSize` | `[0.15, 0.08]` (bare numbers) | `["15%", "8%"]` (SceneSize2 unit strings) |
+| `theme.node.defaultThickness` | bare number | SceneLength unit string |
+| `theme.node.cornerRadius` | bare number | SceneLength unit string |
+| `theme.edge.defaultThickness` | bare number | SceneLength unit string |
+| `theme.group.defaultBorderWidth` | bare number | SceneLength unit string |
+| `theme.group.defaultBorderHeight` | bare number | SceneLength unit string |
 | `normalizeToViewport().thicknessNormFactor` | `scaleFactor × max(defaultNodeSize)` | removed; returns `scaleFactor` only |
 | `GROUP_BORDER_PX_TO_UNITS` constant | `0.4` (render-time multiplier) | deleted |
 
-**Migration path.** Replace `position`, `rotation`, `pivot` on `<Diagram>` with `x/y/w/h` NVS props. Move `scale` from `<DiagramCanvas>` to `<Diagram>` directly. Replace `tilt=[x,y,z]` with scalar `tilt` (pitch only). `iconDepth` on `<DiagramNode>` is now an absolute NVS value (no longer a fraction of thickness). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate. See `packages/diagram/MIGRATION.md` for step-by-step instructions.
+**Migration path.** All spatial DSL props now require explicit unit strings (`SceneLength`, `SceneAngle`, `SceneSize2`, `ScenePosition3`, `ScenePadding`) instead of bare numbers. For example: `size={[0.15, 0.08]}` becomes `size={["15%", "8%"]}`, `thickness={0.075}` becomes `thickness={"7.5%"}`, `tilt={0.1}` becomes `tilt={"0.1rad"}`, `spacing={[0.06, 0.06]}` becomes `spacing={["6%", "6%"]}`. Compiled state types remain `number` — only the DSL authoring surface changed. Replace `position`, `rotation`, `pivot` on `<Diagram>` with `x/y/w/h` SceneLength props. Move `scale` from `<DiagramCanvas>` to `<Diagram>` directly. Replace `tilt=[x,y,z]` with scalar `tilt` SceneAngle (pitch only). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen coordinate. See `packages/claude-author/docs/migration/unit-system.md` for the full unit system migration guide.
 
 ## Open Questions
 

@@ -3,8 +3,11 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: the compilation pipeline now includes a unit resolution step. DSL-authored SceneLength/SceneAngle unit strings are parsed and resolved to NVS numbers (via parseLength/resolveLength from packages/core/src/units/) within each element's compile.ts function. This happens before tick baking — compiled state and the SceneTrack remain pure number values. The units/ module (types.ts, parse.ts, resolve.ts) is a new pure module with no Three.js or React dependencies. No changes to the compiler infrastructure (sceneDslCompiler, sceneTrackCompiler) — resolution is delegated to per-element compile functions."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Carousel selection region: viewLayoutDsl.tsx updated to document `focusedIndex` (replaces deprecated `activeIndex`) and `onSelect` callback prop. Added `extractInteractionCallbacks.ts` and `interactionCallbackRegistry.ts` to compiler files list. Updated ViewLayoutState type to include `focusedIndex` field. Documented `getSceneProgressFromTrack` pure function in `sceneTrackHelpers.ts`."

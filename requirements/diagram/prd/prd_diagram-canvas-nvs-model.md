@@ -3,8 +3,11 @@ title: "DiagramCanvas NVS Sub-Viewport Model"
 doc_type: prd
 owner: product
 status: deprecated
-updated: 2026-03-09
+updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Note: this deprecated document predates the scene unit system. All bare-number spatial DSL props shown in examples below would now require SceneLength/SceneAngle unit strings. See prd_diagram_element.md for current Diagram element spec with unit types."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "DEPRECATED: The DiagramCanvas scissored sub-viewport model described in this document has been superseded by the NVS Universal Coordinate System (plan_nvs-universal-coordinate-system.md). DiagramCanvas has been removed from @brewsite/diagram entirely. Diagrams now render into the main Three.js scene via DiagramWidget using context.coords (NVSCoordService). The IExtraRenderPass contract and private-scene isolation model are no longer in use. See prd_canvas_element.md (deprecated) and prd_diagram_element.md for the current Diagram element spec."

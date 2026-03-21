@@ -283,6 +283,21 @@ export type SlidePlayerProps = {
   progressIndicator?: ProgressStyle;
   /** Canvas aspect ratio. Default: 16/9. */
   aspectRatio?: number;
+  /**
+   * How the deck fits within the display. Default: 'contain'.
+   *
+   * NOTE: This default intentionally differs from EngineARContainer's own
+   * default of 'fit-width'. Presentations use 'contain' because slide
+   * content should never be cropped — letterboxing/pillarboxing is the
+   * industry-standard behavior for fixed-aspect-ratio presentation decks.
+   */
+  scaleMode?: 'contain' | 'cover' | 'fit-width' | 'fit-height';
+  /**
+   * Reference width for content scaling. Default: 1920.
+   * Content authored at this pixel width scales proportionally to all
+   * displays via the --scene-scale CSS variable.
+   */
+  referenceWidth?: number;
   /** Navigation configuration. */
   navigation?: SlideNavigationConfig;
   /** Force fullscreen mode (controlled). */
@@ -325,6 +340,8 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
       transition: transitionProp,
       progressIndicator: progressIndicatorProp,
       aspectRatio = 16 / 9,
+      scaleMode = 'contain',
+      referenceWidth = 1920,
       navigation,
       fullscreen,
       defaultFullscreen = false,
@@ -476,7 +493,7 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
         {/* Scene elements injected directly — SceneEngine context comes from parent */}
         {sceneElements}
 
-        <EngineARContainer aspectRatio={aspectRatio} scaleMode="contain">
+        <EngineARContainer aspectRatio={aspectRatio} scaleMode={scaleMode} referenceWidth={referenceWidth}>
           <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
           <SceneCanvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
           <EngineOverlayHost

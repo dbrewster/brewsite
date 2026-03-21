@@ -91,7 +91,7 @@ export const CameraControlsScene = (): JSX.Element => {
   return (
     <Scene id="input-camera">
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={48} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"48deg"} />
       <Lighting intensityScale={1}>
         <Ambient intensity={0.5} color="#d7e8ff" />
         <Directional intensity={1.3} color="#b0ccff" position={[-5, 10, 8]} />
@@ -116,47 +116,47 @@ export const CameraControlsScene = (): JSX.Element => {
       </InputController>
 
       {/* Chart view */}
-      <View id="cam-diagram-view" x={0.05} y={0.50} w={0.58} h={0.40}>
-        <Diagram id="cf-overview" x={0} y={0} w={1} h={1} scale={1.4}>
-          <FlowLayout direction="top-down" gap={0.06} />
+      <View id="cam-diagram-view" x={"5%"} y={"50%"} w={"58%"} h={"40%"}>
+        <Diagram id="cf-overview" x={0} y={0} w={"100%"} h={"100%"} scale={1.4}>
+          <FlowLayout direction="top-down" gap={"6%"} />
 
           <DiagramNode
             id="cf-db"
             label=".swarm/memory.db"
             sublabel="SQLite · single file · 12 tables"
-            size={[0.30, 0.10]}
+            size={["0.3u", "0.1u"]}
             glow={{ intensity: 0.12 }}
           />
 
           <DiagramGroup id="cf-categories" variant="container">
-            <GridLayout columns={2} spacing={[0.12, 0.06]} />
+            <GridLayout columns={2} spacing={["12%", "6%"]} />
 
             <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.04} />
-              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[0.18, 0.10]}  />
-              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[0.18, 0.10]}  />
+              <FlowLayout direction="top-down" gap={"4%"} />
+              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={["0.18u", "0.1u"]}  />
+              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={["0.18u", "0.1u"]}  />
             </DiagramGroup>
           </DiagramGroup>
 
@@ -166,11 +166,11 @@ export const CameraControlsScene = (): JSX.Element => {
           <DiagramEdge from="cf-db" to="cf-recov" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
         </Diagram>
       </View>
-      <View id="cam-chart-view" x={0.05} y={0.09} w={0.58} h={0.39}>
+      <View id="cam-chart-view" x={"5%"} y={"9%"} w={"58%"} h={"39%"}>
         <BarChart
           id="is-camera-binding-chart"
           data={cameraBindingData}
-          x={0} y={0} w={1} h={1}
+          x={0} y={0} w={"100%"} h={"100%"}
           depth={0.3}
         >
           <ChartData keyField="action" />
@@ -181,7 +181,7 @@ export const CameraControlsScene = (): JSX.Element => {
       </View>
 
       {/* Controls reference card */}
-      <TextBox id="cam-ref" x={0.66} y={0.08} w={0.32} h={0.86} layer={3}>
+      <TextBox id="cam-ref" x={"66%"} y={"8%"} w={"32%"} h={"86%"} layer={3}>
         <div
           style={{
             height: '100%',

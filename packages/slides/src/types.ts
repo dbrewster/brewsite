@@ -1,6 +1,7 @@
 // Type contracts for @brewsite/slides. No runtime or Three.js imports.
 
 import type { ReactNode } from 'react';
+import type { SceneLength } from '@brewsite/core';
 
 // ─── Layout Variants ──────────────────────────────────────────────────────────
 
@@ -98,10 +99,10 @@ export type SlideTheme = {
     readonly contentPadding: string;
     /** Vertical gap between elements in a region. CSS length string. Default: '16px'. */
     readonly contentGap: string;
-    /** Title bar height as NVS fraction [0-1]. Default: 0.18. */
-    readonly titleHeight: number;
-    /** Inter-region gutter as NVS fraction [0-1]. Default: 0.02. */
-    readonly gutter: number;
+    /** Title bar height. Accepts SceneLength (e.g. `'18%'`). Default: `'18%'`. */
+    readonly titleHeight: SceneLength;
+    /** Inter-region gutter. Accepts SceneLength (e.g. `'2%'`). Default: `'2%'`. */
+    readonly gutter: SceneLength;
   };
 
   /** Typography scale overrides (multiplied against --brewsite-font-size-*). */
@@ -205,14 +206,14 @@ export type ResolvedSlideConfig = {
 export type SlideRegion = {
   /** Stable ID for this region within the slide. */
   id: string;
-  /** NVS x-coordinate [0, 1]. */
-  x: number;
-  /** NVS y-coordinate [0, 1]. */
-  y: number;
-  /** NVS width [0, 1]. */
-  w: number;
-  /** NVS height [0, 1]. */
-  h: number;
+  /** NVS x-coordinate. Accepts SceneLength (e.g. `'10%'`). */
+  x: SceneLength;
+  /** NVS y-coordinate. Accepts SceneLength. */
+  y: SceneLength;
+  /** NVS width. Accepts SceneLength. */
+  w: SceneLength;
+  /** NVS height. Accepts SceneLength. */
+  h: SceneLength;
   /** z-index layer. Title regions are layer 1, body regions are layer 0. */
   layer: number;
 };

@@ -24,13 +24,13 @@ export type CarouselTrayProps = {
   /** Gap between tray bottom edge and floor in world units. Default: 0.02. */
   gap?: number;
   /**
-   * Extra border around the outside of the tray beyond the view extent,
-   * in NVS coordinates. Applied uniformly to all edges.
+   * Extra border around the outside of the tray beyond the view extent.
+   * Applied uniformly to all edges. Use unit strings: "10%" = 10% of viewport.
    * Default: 0 (tray hugs the views with only the built-in 5% padding).
    *
-   * @example outerMargin={0.1}  // 10% of viewport width per side
+   * @example outerMargin={"10%"}  // 10% of viewport width per side
    */
-  outerMargin?: number;
+  outerMargin?: import('../../units/types').SceneLength;
   /** Material metalness [0-1]. Default: 0.4. */
   metalness?: number;
   /** Material roughness [0-1]. Default: 0.55. */
@@ -139,6 +139,6 @@ export type CarouselScrubberProps = {
   showBase?: boolean;
   trayDepth?: number;
   gap?: number;
-  outerMargin?: number;
+  outerMargin?: import('../../units/types').SceneLength;
   style?: Partial<CarouselScrubberStyle>;
 };

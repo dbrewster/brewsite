@@ -7,7 +7,7 @@ import {
   DiagramNode,
   DiagramEdge,
   DiagramGroup,
-  ManualLayout,
+  ManualLayout, FlowLayout,
 } from '@brewsite/diagram';
 
 /**
@@ -20,24 +20,24 @@ import {
 export function ViewerScene(): JSX.Element {
   return (
     <Scene id="viewer">
-      <Diagram id="arch-diagram" x={0} y={0} w={1} h={1} tilt={-0.3} scale={1}>
-        <ManualLayout />
+      <Diagram id="arch-diagram" x={0} y={0} w={"100%"} h={"100%"} tilt={"-0.3rad"} scale={1}>
+        <FlowLayout gap={"20%"}/>
         <DiagramGroup id="backend" label="Backend Services">
           <DiagramNode
             id="api"
             label="API Gateway"
             shape="rectangle"
             icon="ui:globe-alt"
-            position={[0.35, 0.5, 0]}
-            size={[0.2, 0.15]}
+            position={["35%", "50%", 0]}
+            size={["0.2u", "0.15u"]}
           />
           <DiagramNode
             id="db"
             label="Database"
             shape="circle"
             icon="ui:circle-stack"
-            position={[0.65, 0.5, 0]}
-            size={[0.2, 0.2]}
+            position={["65%", "50%", 0]}
+            size={["0.2u", "0.2u"]}
           />
         </DiagramGroup>
         <DiagramNode
@@ -45,8 +45,8 @@ export function ViewerScene(): JSX.Element {
           label="Web Client"
           shape="rectangle"
           icon="ui:computer-desktop"
-          position={[0.5, 0.15, 0]}
-          size={[0.2, 0.15]}
+          position={["50%", "15%", 0]}
+          size={["0.2u", "0.15u"]}
         />
         <DiagramEdge from="client" to="api" label="HTTPS" />
         <DiagramEdge from="api" to="db" label="SQL" />

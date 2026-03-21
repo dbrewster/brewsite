@@ -8,7 +8,7 @@ export function Scene01Intro(): JSX.Element {
   return (
     <Scene id="model-intro">
       <ProgressManager scrollUnits={1200} />
-      <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={45} />
+      <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={"45deg"} />
       <Lighting intensityScale={1.1}>
         <Ambient intensity={0.7} color="#d0e4ff" />
         <Directional intensity={1.0} color="#ffffff" position={[3, 8, 6]} />

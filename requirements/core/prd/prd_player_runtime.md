@@ -3,8 +3,11 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-21
 change_history:
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: updated TextBox code example to use SceneLength unit strings for x/y/w/h. All DSL spatial props across the toolkit now require unit strings. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "v2 player API (major breaking change — @brewsite/core v2.0.0): EngineProvider, EngineInputRegion, ScenePlayer, and ScrollCaptureSection are deleted. useEngineScroll and useEngineInput hooks deleted. SceneEngine replaces EngineProvider as the primary integration component. ScrollStage replaces EngineInputRegion for the full-page scroll pattern. SceneReel introduced for embedded/docs/slides use cases. Composable input components (ScrollInput, TimeInput, KeyboardInput, PointerInput, ControlledInput) replace all input mode configuration. useEngineState(id) unifies useEngineState and deleted useSceneEngineState. useGoToScene hook added for programmatic scene navigation. IScrollSource / ScrollSourceProp replace deleted ScrollSource type. Spring-physics inertia model replaces DOM-scroll inertia. BackgroundLayer extracted as standalone component. SceneCanvas gains engineId prop for cross-tree binding. All section 7 EngineProvider documentation rewritten for SceneEngine. All apps migrated; MIGRATION.md published."
@@ -473,7 +476,7 @@ function App() {
     <SceneEngine id="main" plugins={[corePlugin()]}>
       <Scene key="intro">
         <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
-        <TextBox id="headline" x={0.1} y={0.1} w={0.4} h={0.2}>
+        <TextBox id="headline" x={"10%"} y={"10%"} w={"40%"} h={"20%"}>
           <h1>Hello World</h1>
         </TextBox>
       </Scene>

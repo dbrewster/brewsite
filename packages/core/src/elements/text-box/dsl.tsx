@@ -2,16 +2,18 @@
 // Renders a position:absolute div at the given NVS x/y/w/h percentages.
 
 import { type ReactElement, type ReactNode } from 'react';
+import type { SceneLength } from '../../units/types';
+import { resolveToNVS } from '../../units/resolve';
 
 export interface TextBoxProps {
-  /** NVS x position [0=left edge, 1=right edge] */
-  x: number;
-  /** NVS y position [0=top edge, 1=bottom edge] */
-  y: number;
-  /** NVS width [0..1] */
-  w: number;
-  /** NVS height [0..1] */
-  h: number;
+  /** NVS x position. Use unit strings: "50%" = 50% from left edge. */
+  x: SceneLength;
+  /** NVS y position. Use unit strings: "50%" = 50% from top edge. */
+  y: SceneLength;
+  /** NVS width. Use unit strings: "100%" = full viewport width. */
+  w: SceneLength;
+  /** NVS height. Use unit strings: "100%" = full viewport height. */
+  h: SceneLength;
   /** z-index layer (default 0) */
   layer?: number;
   /** Whether content clips to box bounds (default 'hidden') */
@@ -31,21 +33,27 @@ export const TextBox = ({
   layer = 0,
   overflow = 'hidden',
   children,
-}: TextBoxProps): ReactElement => (
-  <div
-    style={{
-      position: 'absolute',
-      left: `${x * 100}%`,
-      top: `${y * 100}%`,
-      width: `${w * 100}%`,
-      height: `${h * 100}%`,
-      zIndex: layer,
-      overflow,
-      boxSizing: 'border-box',
-    }}
-  >
-    {children}
-  </div>
-);
+}: TextBoxProps): ReactElement => {
+  const nvsX = resolveToNVS(x);
+  const nvsY = resolveToNVS(y);
+  const nvsW = resolveToNVS(w);
+  const nvsH = resolveToNVS(h);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: `${nvsX * 100}%`,
+        top: `${nvsY * 100}%`,
+        width: `${nvsW * 100}%`,
+        height: `${nvsH * 100}%`,
+        zIndex: layer,
+        overflow,
+        boxSizing: 'border-box',
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 TextBox.displayName = 'TextBox';

@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Layout System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-21
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -23,6 +23,9 @@ change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "Clarified titleGap default behavior: the package-level DEFAULT_TITLE_GAP constant is 1, but the enterprise theme (which is the default/fallback theme) overrides titleGap to 0.75 for grid, hierarchical, and manual layouts. Added note in BaseLayoutDSL, ManualLayoutDSL, and FlowLayoutDSL type documentation to clarify the effective default consumers see. Updated DSL component type comments to match dsl.tsx (Grid/Hierarchical/Manual: 0.75, Flow: 1)."
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "Scene unit system: all layout DSL spatial props now require unit strings. spacing is SceneSize2 (e.g. ['6%', '6%']), gap/titleGap are SceneLength (e.g. '6%'), margin is SceneLength | SceneSize2, groupPadding is ScenePadding. Compiled resolved types remain number. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
 ---
 
 # BrewSite Diagram — Layout System
@@ -93,10 +96,10 @@ All non-ghost nodes must have an explicit `position` prop. The layout resolver a
 ```typescript
 export interface ManualLayoutDSL {
   readonly kind: 'manual';
-  /** Padding inside group boundary boxes in diagram units (CSS shorthand). Default: 1.5 */
-  readonly groupPadding?: LayoutPadding;
-  /** Vertical gap between group title label and content area. Package default: 1; enterprise theme overrides to 0.75. */
-  readonly titleGap?: number;
+  /** Padding inside group boundary boxes as ScenePadding (CSS shorthand). Default: "3.5%" */
+  readonly groupPadding?: ScenePadding;
+  /** Gap between group title label and content area as a SceneLength. Default: "2.5%" */
+  readonly titleGap?: SceneLength;
 }
 ```
 
@@ -104,9 +107,9 @@ export interface ManualLayoutDSL {
 
 ```typescript
 export interface ManualLayoutProps {
-  groupPadding?: LayoutPadding;
-  /** Gap between group title and content. Default: 0.75 (enterprise theme override of package constant 1) */
-  titleGap?: number;
+  groupPadding?: ScenePadding;
+  /** Gap between group title and content as a SceneLength. Default: "2.5%" */
+  titleGap?: SceneLength;
 }
 
 export function ManualLayout(_props: ManualLayoutProps): null { return null; }
@@ -117,8 +120,8 @@ export function ManualLayout(_props: ManualLayoutProps): null { return null; }
 ```typescript
 export interface ResolvedManualLayout {
   readonly kind: 'manual';
-  readonly groupPadding: readonly [number, number, number, number]; // always normalized
-  readonly titleGap: number;
+  readonly groupPadding: readonly [number, number, number, number]; // always normalized NVS fractions
+  readonly titleGap: number; // NVS fraction
 }
 ```
 
@@ -149,22 +152,23 @@ export interface GridLayoutDSL extends BaseLayoutDSL {
 ```typescript
 export interface BaseLayoutDSL {
   /**
-   * Gap between adjacent node footprints [colGap, rowGap] in diagram units.
-   * This is the gap between expanded footprints (node size + 2×margin). Default: [2, 2]
+   * Gap between adjacent node footprints [colGap, rowGap] as SceneSize2.
+   * This is the gap between expanded footprints (node size + 2×margin).
+   * Default: ["6%", "6%"] for grid, ["4.5%", "4.5%"] for hierarchical.
    */
-  readonly spacing?: readonly [number, number];
+  readonly spacing?: SceneSize2;
   /**
-   * Per-node breathing room in diagram units. Expands each node's claimed bounding box
-   * before spacing is applied.
-   * number     → uniform margin on all axes
-   * [h, v]     → separate horizontal and vertical margin
+   * Per-node breathing room as a SceneLength or SceneSize2. Expands each node's
+   * claimed bounding box before spacing is applied.
+   * SceneLength → uniform margin on all axes
+   * SceneSize2  → separate horizontal (x) and vertical (y) margin
    * Default: 0
    */
-  readonly margin?: number | readonly [number, number];
-  /** Padding inside group boundary boxes in diagram units (CSS shorthand). Default: 1.5 */
-  readonly groupPadding?: LayoutPadding;
-  /** Gap between group title label and content area. Package default: 1; enterprise theme overrides to 0.75. */
-  readonly titleGap?: number;
+  readonly margin?: SceneLength | SceneSize2;
+  /** Padding inside group boundary boxes as ScenePadding (CSS shorthand). Default: "3.5%" */
+  readonly groupPadding?: ScenePadding;
+  /** Gap between group title label and content area as a SceneLength. Default: "2.5%" */
+  readonly titleGap?: SceneLength;
   /**
    * Alignment of nodes within a row.
    * 'left'   — pack left from row start (default for grid)
@@ -187,11 +191,14 @@ export interface BaseLayoutDSL {
 ```typescript
 export interface GridLayoutProps {
   columns?: number | 'auto';
-  spacing?: [number, number];
-  margin?: number | [number, number];
-  groupPadding?: LayoutPadding;
-  /** Gap between group title and content. Default: 0.75 (enterprise theme override of package constant 1) */
-  titleGap?: number;
+  /** Gap between node footprints [colGap, rowGap] as SceneSize2. Default: ["6%", "6%"] */
+  spacing?: SceneSize2;
+  /** Per-node margin as SceneLength or SceneSize2. Default: 0 */
+  margin?: SceneLength | SceneSize2;
+  /** Padding inside group boundary boxes as ScenePadding. Default: "3.5%" */
+  groupPadding?: ScenePadding;
+  /** Gap between group title and content as a SceneLength. Default: "2.5%" */
+  titleGap?: SceneLength;
   alignment?: LayoutAlignment;
   disconnected?: LayoutDisconnected;
 }
@@ -207,16 +214,15 @@ export interface ResolvedGridLayout extends ResolvedBaseLayout {
   readonly columns: number | 'auto';  // 'auto' resolves to 4 inside the algorithm
 }
 
-// Package-level defaults (before theme override):
-// Note: the enterprise theme (default fallback) overrides titleGap to 0.75.
-// Consumers effectively see titleGap: 0.75 unless they override it explicitly.
+// Package-level defaults (NVS fractions, before theme override):
+// The enterprise theme (default fallback) provides matching values for all fields.
 export const DEFAULT_RESOLVED_GRID: ResolvedGridLayout = {
   kind: 'grid',
-  columns: 'auto',         // → 4
-  spacing: [2, 2],
+  columns: 'auto',                        // → 4
+  spacing: [0.06, 0.06],                  // DSL: ["6%", "6%"]
   margin: [0, 0],
-  groupPadding: [1.5, 1.5, 1.5, 1.5],
-  titleGap: 1,             // effective: 0.75 with enterprise theme
+  groupPadding: [0.035, 0.035, 0.035, 0.035], // DSL: "3.5%"
+  titleGap: 0.025,                         // DSL: "2.5%"
   alignment: 'left',
   disconnected: 'next-to',
 };
@@ -262,11 +268,14 @@ export interface HierarchicalLayoutDSL extends BaseLayoutDSL {
 ```typescript
 export interface HierarchicalLayoutProps {
   direction?: 'top-down' | 'left-right';
-  spacing?: [number, number];
-  margin?: number | [number, number];
-  groupPadding?: LayoutPadding;
-  /** Gap between group title and content. Default: 0.75 (enterprise theme override of package constant 1) */
-  titleGap?: number;
+  /** Gap between node footprints [colGap, rowGap] as SceneSize2. Default: ["4.5%", "4.5%"] */
+  spacing?: SceneSize2;
+  /** Per-node margin as SceneLength or SceneSize2. Default: 0 */
+  margin?: SceneLength | SceneSize2;
+  /** Padding inside group boundary boxes as ScenePadding. Default: "3.5%" */
+  groupPadding?: ScenePadding;
+  /** Gap between group title and content as a SceneLength. Default: "2.5%" */
+  titleGap?: SceneLength;
   alignment?: LayoutAlignment;
   disconnected?: LayoutDisconnected;
 }
@@ -282,14 +291,14 @@ export interface ResolvedHierarchicalLayout extends ResolvedBaseLayout {
   readonly direction: 'top-down' | 'left-right';
 }
 
-// Package-level defaults (before theme override):
+// Package-level defaults (NVS fractions, before theme override):
 export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
   kind: 'hierarchical',
   direction: 'top-down',
-  spacing: [1.5, 1.5],    // [within-level gap, between-level gap]
+  spacing: [0.045, 0.045],                // DSL: ["4.5%", "4.5%"] — [within-level gap, between-level gap]
   margin: [0, 0],
-  groupPadding: [1.5, 1.5, 1.5, 1.5],
-  titleGap: 1,             // effective: 0.75 with enterprise theme
+  groupPadding: [0.035, 0.035, 0.035, 0.035], // DSL: "3.5%"
+  titleGap: 0.025,                         // DSL: "2.5%"
   alignment: 'center',
   disconnected: 'next-to',
 };
@@ -324,12 +333,12 @@ export interface FlowLayoutDSL {
   readonly kind: 'flow';
   /** Primary layout axis. 'top-down' (default) stacks items vertically; 'left-right' stacks them horizontally. */
   readonly direction?: 'top-down' | 'left-right';
-  /** Edge-to-edge distance between adjacent item footprints in diagram units. Default: 2 */
-  readonly gap?: number;
-  /** Padding inside group boundary boxes in diagram units (CSS shorthand). Default: 1.5 */
-  readonly groupPadding?: LayoutPadding;
-  /** Gap between group title label and content area. Default: 1 */
-  readonly titleGap?: number;
+  /** Edge-to-edge gap between adjacent item footprints as a SceneLength. Default: "6%" */
+  readonly gap?: SceneLength;
+  /** Padding inside group boundary boxes as ScenePadding (CSS shorthand). Default: "3.5%" */
+  readonly groupPadding?: ScenePadding;
+  /** Gap between group title label and content area as a SceneLength. Default: "2.5%" */
+  readonly titleGap?: SceneLength;
 }
 ```
 
@@ -338,9 +347,12 @@ export interface FlowLayoutDSL {
 ```typescript
 export interface FlowLayoutProps {
   direction?: 'top-down' | 'left-right';
-  gap?: number;
-  groupPadding?: LayoutPadding;
-  titleGap?: number;
+  /** Edge-to-edge gap between adjacent items as a SceneLength. Default: "6%" */
+  gap?: SceneLength;
+  /** Padding inside group boundary boxes as ScenePadding. Default: "3.5%" */
+  groupPadding?: ScenePadding;
+  /** Gap between group title and content as a SceneLength. Default: "2.5%" */
+  titleGap?: SceneLength;
 }
 
 export function FlowLayout(_props: FlowLayoutProps): null { return null; }
@@ -352,22 +364,25 @@ export function FlowLayout(_props: FlowLayoutProps): null { return null; }
 export interface ResolvedFlowLayout {
   readonly kind: 'flow';
   readonly direction: 'top-down' | 'left-right';
+  /** Edge-to-edge gap in NVS fractions. Default: 0.06 (DSL: "6%"). */
   readonly gap: number;
-  readonly groupPadding: readonly [number, number, number, number]; // always normalized
+  /** Normalized group padding [top, right, bottom, left] in NVS fractions. */
+  readonly groupPadding: readonly [number, number, number, number];
+  /** Gap between group title and content area in NVS fractions. */
   readonly titleGap: number;
 }
 
-// Package-level defaults:
+// Package-level defaults (NVS fractions):
 export const DEFAULT_RESOLVED_FLOW: ResolvedFlowLayout = {
   kind: 'flow',
   direction: 'top-down',
-  gap: 2,
-  groupPadding: [1.5, 1.5, 1.5, 1.5],
-  titleGap: 1,
+  gap: 0.06,                               // DSL: "6%"
+  groupPadding: [0.035, 0.035, 0.035, 0.035], // DSL: "3.5%"
+  titleGap: 0.025,                          // DSL: "2.5%"
 };
 ```
 
-Note: `FlowLayout` does **not** extend `BaseLayoutDSL`. It does not have `spacing`, `margin`, `alignment`, or `disconnected` props. Those concepts apply to 2D grid and topological layouts; flow layout reduces to a single `gap` value for edge-to-edge spacing on the primary axis.
+Note: `FlowLayout` does **not** extend `BaseLayoutDSL`. It does not have `spacing`, `margin`, `alignment`, or `disconnected` props. Those concepts apply to 2D grid and topological layouts; flow layout reduces to a single `gap: SceneLength` value for edge-to-edge spacing on the primary axis.
 
 **`childrenOrder` field:**
 
@@ -427,52 +442,51 @@ export function resolveEffectiveLayout(
 **Full cascade example:**
 
 ```
-Root Diagram: <HierarchicalLayout direction="top-down" spacing={[3, 4]} />
+Root Diagram: <HierarchicalLayout direction="top-down" spacing={["3%", "4%"]} />
 │
-├── Group A (no layout) → inherits HierarchicalLayout[direction=top-down, spacing=[3,4]]
+├── Group A (no layout) → inherits HierarchicalLayout[direction=top-down, spacing=["3%","4%"]]
 │
 ├── Group B: <GridLayout columns={2} /> → DIFFERENT KIND → replaces with GridLayout defaults
-│   spacing=[2,2], margin=[0,0], alignment='left', columns=2
+│   spacing=["6%","6%"], margin=0, alignment='left', columns=2
 │
-├── Group C: <HierarchicalLayout spacing={[1.5, 2]} />  → SAME KIND → merges
-│   direction=top-down (from root), spacing=[1.5, 2] (overrides root)
+├── Group C: <HierarchicalLayout spacing={["1.5%", "2%"]} />  → SAME KIND → merges
+│   direction=top-down (from root), spacing=["1.5%","2%"] (overrides root)
 │   │
-│   └── Group C1 (no layout) → inherits Group C's layout: HierarchicalLayout[spacing=[1.5,2]]
+│   └── Group C1 (no layout) → inherits Group C's layout: HierarchicalLayout[spacing=["1.5%","2%"]]
 │
-└── Group D: <FlowLayout direction="top-down" gap={3} /> → DIFFERENT KIND → replaces with FlowLayout defaults + direction + gap
-    direction='top-down', gap=3, groupPadding=[1.5,1.5,1.5,1.5], titleGap=1
+└── Group D: <FlowLayout direction="top-down" gap={"3%"} /> → DIFFERENT KIND → replaces with FlowLayout defaults + direction + gap
+    direction='top-down', gap="3%", groupPadding="3.5%", titleGap="2.5%"
 ```
 
 `resolveGroupLayouts(groups, rootLayout, defaults)` builds the full cascade map in one DFS pass, memoizing each group's resolved layout.
 
-## `LayoutPadding` Type
+## `ScenePadding` Type (Layout Padding)
+
+Layout padding uses the `ScenePadding` type from the scene unit system (`@brewsite/core/units`). This replaces the former `LayoutPadding` type (which accepted bare `number` values) with unit-qualified strings:
 
 ```typescript
+/** A spatial value with explicit units. */
+export type SceneLength = `${number}u` | `${number}%` | `${number}vw` | `${number}vh` | 0;
+
 /**
- * CSS-style padding shorthand for group interior padding in diagram units.
- * number                              → all four sides equal
- * [vertical, horizontal]              → top/bottom and left/right
- * [top, horizontal, bottom]           → top, left/right, bottom
- * [top, right, bottom, left]          → each side individually (CSS order)
+ * CSS-style padding shorthand using SceneLength values.
+ * SceneLength                                       → all four sides equal
+ * [SceneLength, SceneLength]                        → [vertical, horizontal]
+ * [SceneLength, SceneLength, SceneLength]            → [top, horizontal, bottom]
+ * [SceneLength, SceneLength, SceneLength, SceneLength] → [top, right, bottom, left] (CSS order)
  */
-export type LayoutPadding =
-  | number
-  | readonly [number, number]
-  | readonly [number, number, number]
-  | readonly [number, number, number, number];
+export type ScenePadding =
+  | SceneLength
+  | readonly [SceneLength, SceneLength]
+  | readonly [SceneLength, SceneLength, SceneLength]
+  | readonly [SceneLength, SceneLength, SceneLength, SceneLength];
 ```
 
-`normalizeGroupPadding(p: LayoutPadding)` in `layoutResolver.ts` always normalizes to `[top, right, bottom, left]` before storing. This normalization is applied at resolution time so that all downstream code receives a consistent `[number, number, number, number]` tuple.
+At resolution time, `ScenePadding` values are parsed and resolved to NVS fractions, then normalized to a consistent `[number, number, number, number]` tuple (CSS order: top, right, bottom, left). All downstream code receives the normalized numeric tuple.
 
 ```typescript
-export function normalizeGroupPadding(
-  p: LayoutPadding,
-): readonly [number, number, number, number] {
-  if (typeof p === 'number') return [p, p, p, p];
-  if (p.length === 2) return [p[0], p[1], p[0], p[1]];
-  if (p.length === 3) return [p[0], p[1], p[2], p[1]];
-  return [p[0], p[1], p[2], p[3]];
-}
+// After resolution, padding is always a [top, right, bottom, left] tuple of NVS fractions:
+readonly groupPadding: readonly [number, number, number, number];
 ```
 
 ## Theme Layout Defaults
@@ -489,34 +503,34 @@ export interface DiagramThemeLayoutConfig {
   /** Defaults applied when resolving a grid layout. */
   readonly grid?: {
     readonly columns?: number | 'auto';
-    readonly spacing?: readonly [number, number];
-    readonly margin?: number | readonly [number, number];
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly spacing?: SceneSize2;
+    readonly margin?: SceneLength | SceneSize2;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
     readonly alignment?: LayoutAlignment;
     readonly disconnected?: LayoutDisconnected;
   };
   /** Defaults applied when resolving a hierarchical layout. */
   readonly hierarchical?: {
     readonly direction?: 'top-down' | 'left-right';
-    readonly spacing?: readonly [number, number];
-    readonly margin?: number | readonly [number, number];
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly spacing?: SceneSize2;
+    readonly margin?: SceneLength | SceneSize2;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
     readonly alignment?: LayoutAlignment;
     readonly disconnected?: LayoutDisconnected;
   };
   /** Defaults applied when resolving a manual layout. */
   readonly manual?: {
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
   };
   /** Defaults applied when resolving a flow layout. */
   readonly flow?: {
     readonly direction?: 'top-down' | 'left-right';
-    readonly gap?: number;
-    readonly groupPadding?: LayoutPadding;
-    readonly titleGap?: number;
+    readonly gap?: SceneLength;
+    readonly groupPadding?: ScenePadding;
+    readonly titleGap?: SceneLength;
   };
 }
 ```
@@ -587,7 +601,7 @@ Six services arranged in a 3-column grid with center alignment. No positions nee
 
 ```tsx
 <Diagram id="services">
-  <GridLayout columns={3} spacing={[2.5, 2]} alignment="center" groupPadding={2} />
+  <GridLayout columns={3} spacing={["2.5%", "2%"]} alignment="center" groupPadding={"2%"} />
   <DiagramNode id="auth" label="Auth" icon="aws:cognito" />
   <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" />
   <DiagramNode id="lambda" label="Functions" icon="aws:lambda" />
@@ -603,7 +617,7 @@ A pipeline with dependencies. The layout places sources at the top and sinks at 
 
 ```tsx
 <Diagram id="deploy-pipeline">
-  <HierarchicalLayout direction="top-down" spacing={[2.5, 3.5]} alignment="center" />
+  <HierarchicalLayout direction="top-down" spacing={["2.5%", "3.5%"]} alignment="center" />
   <DiagramNode id="code" label="Code Commit" icon="tech:git" />
   <DiagramNode id="build" label="Build" icon="tech:docker" />
   <DiagramNode id="test-unit" label="Unit Tests" />
@@ -624,11 +638,11 @@ A pipeline with dependencies. The layout places sources at the top and sinks at 
 
 ### Example 4: Layout Cascade — Mixed Strategy
 
-The root diagram uses hierarchical layout. The inner `backend` group uses grid layout (different kind → replaces). The inner `edge-services` group uses hierarchical layout with custom spacing (same kind → merges, narrowing spacing from root's [2, 3] to [1.5, 2.5]).
+The root diagram uses hierarchical layout. The inner `backend` group uses grid layout (different kind → replaces). The inner `edge-services` group uses hierarchical layout with custom spacing (same kind → merges, narrowing spacing from root's ["2%", "3%"] to ["1.5%", "2.5%"]).
 
 ```tsx
 <Diagram id="full-stack">
-  <HierarchicalLayout direction="top-down" spacing={[2, 3]} alignment="center" />
+  <HierarchicalLayout direction="top-down" spacing={["2%", "3%"]} alignment="center" />
 
   <DiagramGroup id="frontend" label="Frontend" variant="boundary">
     {/* No layout: inherits top-down hierarchical from root */}
@@ -639,7 +653,7 @@ The root diagram uses hierarchical layout. The inner `backend` group uses grid l
 
   <DiagramGroup id="backend" label="Backend Services" variant="boundary">
     {/* Different kind: replaces with grid defaults + columns=2 */}
-    <GridLayout columns={2} spacing={[2, 1.5]} />
+    <GridLayout columns={2} spacing={["2%", "1.5%"]} />
     <DiagramNode id="api" label="API" icon="aws:api-gateway" />
     <DiagramNode id="auth" label="Auth" icon="aws:cognito" />
     <DiagramNode id="worker" label="Worker" icon="aws:lambda" />
@@ -648,7 +662,7 @@ The root diagram uses hierarchical layout. The inner `backend` group uses grid l
 
   <DiagramGroup id="edge-services" label="Edge" variant="cluster">
     {/* Same kind: merges spacing override; inherits direction=top-down from root */}
-    <HierarchicalLayout spacing={[1.5, 2.5]} />
+    <HierarchicalLayout spacing={["1.5%", "2.5%"]} />
     <DiagramNode id="waf" label="WAF" />
     <DiagramNode id="shield" label="Shield" />
     <DiagramEdge from="waf" to="shield" />
@@ -665,10 +679,10 @@ A root diagram uses FlowLayout top-down. The inner `processing` group uses GridL
 
 ```tsx
 <Diagram id="pipeline">
-  <FlowLayout direction="top-down" gap={2} />
+  <FlowLayout direction="top-down" gap={"2%"} />
   <DiagramNode id="input" label="Input" icon="tech:arrow-down" />
   <DiagramGroup id="processing" label="Processing">
-    <GridLayout columns={3} spacing={[2, 1.5]} />
+    <GridLayout columns={3} spacing={["2%", "1.5%"]} />
     <DiagramNode id="p1" label="Step 1" />
     <DiagramNode id="p2" label="Step 2" />
     <DiagramNode id="p3" label="Step 3" />
@@ -683,7 +697,7 @@ Result: `input` is placed at the top; the `processing` group occupies the next s
 
 ```tsx
 <Diagram id="stages">
-  <FlowLayout direction="left-right" gap={3} />
+  <FlowLayout direction="left-right" gap={"3%"} />
   <DiagramNode id="plan" label="Plan" />
   <DiagramNode id="build" label="Build" />
   <DiagramNode id="test" label="Test" />
@@ -691,7 +705,7 @@ Result: `input` is placed at the top; the `processing` group occupies the next s
 </Diagram>
 ```
 
-Result: four nodes arranged left to right in declaration order with 3-unit edge-to-edge gaps between them. All center-aligned on the Y axis (`y = 0`).
+Result: four nodes arranged left to right in declaration order with `"3%"` edge-to-edge gaps between them. All center-aligned on the Y axis (`y = 0`).
 
 ### Example 7: Theme-Level Layout Defaults
 
@@ -707,12 +721,12 @@ const customEnterprise: DiagramTheme = {
     defaultKind: 'hierarchical',
     hierarchical: {
       direction: 'left-right',
-      spacing: [3, 2.5],
+      spacing: ['3%', '2.5%'],
       alignment: 'center',
     },
     manual: {
-      groupPadding: 2,
-      titleGap: 1,
+      groupPadding: '2%',
+      titleGap: '1%',
     },
   },
 };
@@ -735,11 +749,13 @@ const customEnterprise: DiagramTheme = {
 
 ## Breaking Change Assessment
 
-Semver impact: **none** (documentation of implemented behavior).
+Semver impact: **major** (breaking). All DSL spatial props (`spacing`, `margin`, `groupPadding`, `titleGap`, `gap`) changed from bare `number` / `[number, number]` to `SceneLength` / `SceneSize2` / `ScenePadding` unit-string types. Existing consumers passing bare numbers will see TypeScript compilation errors and must migrate to unit-qualified strings (e.g., `spacing={[2, 2]}` → `spacing={["2%", "2%"]}`). The literal `0` remains valid without units. Resolved (compiled) types are unchanged — they remain `number` / `[number, number]` NVS fractions. See migration guide: `packages/claude-author/docs/migration/unit-system.md`.
 
 ## Dependencies
 
-- `packages/diagram/src/elements/diagram/types.ts` — `LayoutDSL`, `LayoutPadding`, `LayoutAlignment`, `LayoutDisconnected`, `DiagramThemeLayoutConfig`, `BaseLayoutDSL`, `GridLayoutDSL`, `HierarchicalLayoutDSL`, `ManualLayoutDSL`, `FlowLayoutDSL`
+- `packages/core/src/units/types.ts` — `SceneLength`, `SceneSize2`, `ScenePadding` (unit-string types used by all DSL spatial props)
+- `packages/core/src/units/resolve.ts` — `resolveToNVS`, `resolveScenePadding`, `resolveSceneMargin` (compile-time resolution of unit strings to NVS fractions)
+- `packages/diagram/src/elements/diagram/types.ts` — `LayoutDSL`, `LayoutAlignment`, `LayoutDisconnected`, `DiagramThemeLayoutConfig`, `BaseLayoutDSL`, `GridLayoutDSL`, `HierarchicalLayoutDSL`, `ManualLayoutDSL`, `FlowLayoutDSL`
 - `packages/diagram/src/elements/diagram/dsl.tsx` — `FlowLayout`, `FlowLayoutProps`
 - `packages/diagram/src/elements/diagram/compiler/layoutAlgorithms.ts` — `resolveLayout`, `resolveLayoutWithGroups` (orchestrator; delegates algorithm implementations to `compiler/layout/`)
 - `packages/diagram/src/elements/diagram/compiler/layout/` — `computeBounds` (`bounds.ts`), `resolveFlowLayout` (`flowLayout.ts`), `resolveGridLayout` (`gridLayout.ts`), `resolveHierarchicalLayout` (`hierarchicalLayout.ts`)
@@ -755,7 +771,8 @@ Semver impact: **none** (documentation of implemented behavior).
 | `'fill'` alignment producing overlapping nodes when rows contain very wide nodes | By design: `fill` distributes centers, not edges; consumers should use `'left'` or `'center'` when node sizes vary significantly |
 | Performance regression from group-aware bottom-up pass on large diagrams | O(n + m) complexity; `collectAllDescendantNodeIds` is memoized; benchmarked for 100-node, 10-group diagrams |
 | `FlowLayout` `childrenOrder` mismatch when items are present in `nodes` but absent from `childrenOrder` | Defensive fallback in `resolveFlowLayout` appends missing IDs in node-array order; logged at warn level so authors can identify stale compiled data |
-| Confusion between `FlowLayout gap` and `GridLayout spacing` semantics | `gap` is edge-to-edge (simpler); `spacing` is footprint-to-footprint after margin expansion. Documented clearly; the different field names make them non-substitutable at the type level |
+| Confusion between `FlowLayout gap` and `GridLayout spacing` semantics | `gap` is edge-to-edge (simpler); `spacing` is footprint-to-footprint after margin expansion. Documented clearly; the different field names make them non-substitutable at the type level. Both now use SceneLength/SceneSize2 unit strings |
+| Bare-number values passed to layout DSL props after unit migration | TypeScript will flag these at compile time. The literal `0` is the only bare number that remains valid (as a special case in the SceneLength union). Migration guide at `packages/claude-author/docs/migration/unit-system.md` |
 
 ## Open Questions
 

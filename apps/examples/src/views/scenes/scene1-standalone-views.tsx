@@ -39,21 +39,21 @@ export const StandaloneViewsScene = (): JSX.Element => {
   return (
   <Scene id="standalone-views">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
     <Lighting intensityScale={1.2}>
       <Ambient intensity={0.9} color="#d7e5ff" />
       <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
     </Lighting>
 
     {/* Left view — revenue chart */}
-    <View id="left" x={0.02} y={0.25} w={0.46} h={0.5}>
+    <View id="left" x={"2%"} y={"25%"} w={"46%"} h={"50%"}>
       <BarChart
         id="chart-left"
         data={dataLeft}
         x={0}
         y={0}
-        w={1}
-        h={1}
+        w={"100%"}
+        h={"100%"}
         depth={0.35}
       >
         <ChartData keyField="quarter" />
@@ -65,14 +65,14 @@ export const StandaloneViewsScene = (): JSX.Element => {
     </View>
 
     {/* Right view — engagement chart */}
-    <View id="right" x={0.52} y={0.25} w={0.46} h={0.5}>
+    <View id="right" x={"52%"} y={"25%"} w={"46%"} h={"50%"}>
       <BarChart
         id="chart-right"
         data={dataRight}
         x={0}
         y={0}
-        w={1}
-        h={1}
+        w={"100%"}
+        h={"100%"}
         depth={0.35}
       >
         <ChartData keyField="quarter" />

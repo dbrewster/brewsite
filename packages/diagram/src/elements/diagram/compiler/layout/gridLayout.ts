@@ -2,6 +2,19 @@
 
 import type { DiagramNodeDSL, DiagramEdgeDSL } from '../../types';
 import type { ResolvedGridLayout } from '../layoutResolver';
+import { resolveToNVS } from '@brewsite/core';
+import type { SceneLength, ScenePosition3, SceneSize2 } from '@brewsite/core';
+
+/** Resolve a SceneLength to a number, passing through values that are already numeric. */
+const toNum = (v: SceneLength | number): number => typeof v === 'number' ? v : resolveToNVS(v);
+
+function resolvePosition(pos: ScenePosition3 | readonly [number, number, number]): readonly [number, number, number] {
+  return [toNum(pos[0]), toNum(pos[1]), toNum(pos[2])];
+}
+
+function resolveSize(size: SceneSize2 | readonly [number, number]): readonly [number, number] {
+  return [toNum(size[0]), toNum(size[1])];
+}
 
 const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
 
@@ -29,7 +42,7 @@ export function resolveGridLayout(
 
   nodes.forEach((node) => {
     if (node.position) {
-      positions.set(node.id, node.position);
+      positions.set(node.id, resolvePosition(node.position));
     } else {
       missing.push(node);
     }
@@ -59,7 +72,7 @@ export function resolveGridLayout(
   const nodeSizeById = new Map<string, readonly [number, number]>(
     orderedMissing.map((node) => [
       node.id,
-      (node.size ?? defaultNodeSize) as readonly [number, number],
+      node.size ? resolveSize(node.size) : defaultNodeSize,
     ]),
   );
   const effectiveSizeById = new Map<string, readonly [number, number]>(
@@ -110,7 +123,7 @@ export function resolveGridLayout(
       const fillStep = widestRowWidth / (rowNodes.length - 1);
       const x = col * fillStep + rowOffset;
       const y = rowCenterY[row] ?? 0;
-      const z = node.position?.[2] ?? 0;
+      const z = node.position ? toNum(node.position[2]) : 0;
       positions.set(node.id, [x, y, z]);
       return;
     }
@@ -118,7 +131,7 @@ export function resolveGridLayout(
       rowOffset = (widestRowWidth - rowWidth) / 2;
       const x = rowOffset + rowWidth / 2;
       const y = rowCenterY[row] ?? 0;
-      const z = node.position?.[2] ?? 0;
+      const z = node.position ? toNum(node.position[2]) : 0;
       positions.set(node.id, [x, y, z]);
       return;
     }
@@ -137,7 +150,7 @@ export function resolveGridLayout(
       }
     }
     const y = rowCenterY[row] ?? 0;
-    const z = node.position?.[2] ?? 0;
+    const z = node.position ? toNum(node.position[2]) : 0;
     positions.set(node.id, [x, y, z]);
   });
 

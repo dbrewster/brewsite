@@ -2,7 +2,8 @@
 
 import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
-import type { CompileApi, CompileHelpers, WidgetRegistry } from '@brewsite/core';
+import type { CompileApi, CompileHelpers, WidgetRegistry, SceneLength, SceneAngle } from '@brewsite/core';
+import { resolveToNVS } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
 import { resolveDiagramTheme } from '../elements/diagram/themeRegistry';
 import type {
@@ -222,11 +223,11 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
     edges,
     groups,
     childrenOrder,
-    x: props.x as number | undefined,
-    y: props.y as number | undefined,
-    w: props.w as number | undefined,
-    h: props.h as number | undefined,
-    tilt: typeof props.tilt === 'number' ? props.tilt : undefined,
+    x: props.x as SceneLength | undefined,
+    y: props.y as SceneLength | undefined,
+    w: props.w as SceneLength | undefined,
+    h: props.h as SceneLength | undefined,
+    tilt: props.tilt as SceneAngle | undefined,
     z: props.z as number | undefined,
     scale: props.scale as number | undefined,
     exit: exitDSL,
@@ -304,7 +305,12 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
     // This is essential when <Diagram> is nested inside a <View> or other scoped
     // container — without it, viewportBounds ignores the parent coordinate system
     // (carousel scale, view position, etc.) and the diagram renders at the wrong size.
-    const localBounds = { x: dsl.x ?? 0, y: dsl.y ?? 0, w: dsl.w ?? 1, h: dsl.h ?? 1 };
+    const localBounds = {
+      x: dsl.x !== undefined ? resolveToNVS(dsl.x) : 0,
+      y: dsl.y !== undefined ? resolveToNVS(dsl.y) : 0,
+      w: dsl.w !== undefined ? resolveToNVS(dsl.w) : 1,
+      h: dsl.h !== undefined ? resolveToNVS(dsl.h) : 1,
+    };
     const composedBounds = api.composeBounds(localBounds);
     const composedZ = api.composeZ(dsl.z ?? 0);
 
@@ -314,8 +320,14 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
     // renderer changes needed.
     const viewOpacity = api.composeOpacity(1);
 
+    // Pass composed numeric bounds back as SceneLength '%' strings for compile.ts
+    const xLen = `${composedBounds.x * 100}%` as SceneLength;
+    const yLen = `${composedBounds.y * 100}%` as SceneLength;
+    const wLen = `${composedBounds.w * 100}%` as SceneLength;
+    const hLen = `${composedBounds.h * 100}%` as SceneLength;
+
     let diagramState = compileDiagram(
-      { ...dsl, x: composedBounds.x, y: composedBounds.y, w: composedBounds.w, h: composedBounds.h, z: composedZ },
+      { ...dsl, x: xLen, y: yLen, w: wLen, h: hLen, z: composedZ },
       themedResolvedTheme,
       onWarn,
     );
@@ -333,12 +345,14 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
       };
     }
 
-    // Lazily create and register a DiagramWidget when the plugin provides a registry
-    // and no widget for this ID has been registered yet.
-    if (registry && !registry.get(dsl.id)) {
+    // Lazily create and register a DiagramWidget. Prefer the per-compilation
+    // registry from api.context (multi-engine safe) over the closure-captured
+    // registry (single-engine backward compat).
+    const reg = api.context.widgetRegistry ?? registry;
+    if (reg && !reg.get(dsl.id)) {
       const widget = new DiagramWidget(dsl.id, makeDefaultDiagramState(dsl.id));
-      widget.setRegistry(registry);
-      registry.register(widget);
+      widget.setRegistry(reg);
+      reg.register(widget);
     }
 
     api.setWidgetState(dsl.id, diagramState);

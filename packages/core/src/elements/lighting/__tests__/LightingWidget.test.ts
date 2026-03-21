@@ -134,7 +134,7 @@ describe('LightingWidget', () => {
           React.createElement(Directional, { intensity: 0.9, color: '#222222', position: [1, 2, 3] }),
           React.createElement(GlowPoint, { intensity: 0.5, color: '#ffaa33', position: [2, 3, 4], distance: 14, decay: 1.1 }),
           React.createElement(Point, { intensity: 1, color: '#333333', position: [0, 1, 0] }),
-          React.createElement(Spot, { intensity: 1, color: '#444444', position: [0, 2, 0], target: [0, 0, 0], angle: 0.4, penumbra: 0.1 }),
+          React.createElement(Spot, { intensity: 1, color: '#444444', position: [0, 2, 0], target: [0, 0, 0], angle: '0.4rad', penumbra: 0.1 }),
           React.createElement(LightStrand, {
             id: 'strand-a',
             count: 3,
@@ -149,7 +149,7 @@ describe('LightingWidget', () => {
             waveFrequency: 2,
             depthAmplitude: 0.25,
             depthFrequency: 3,
-            depthPhase: 0.1,
+            depthPhase: '0.1rad',
           })),
           React.createElement(Panel, { id: 'p1', origin: [0, 0, 0], rows: 1, cols: 1, spacing: [1, 1, 1], intensity: 1, color: '#ffffff' }),
         ],

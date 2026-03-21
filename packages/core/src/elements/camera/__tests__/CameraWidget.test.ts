@@ -114,7 +114,7 @@ describe('CameraWidget', () => {
     expect(handler).toBeDefined();
     let captured: SceneCamera | undefined;
     handler?.(
-      { props: { mode: 'world', position: [1, 2, 3], target: [0, 0, 0], fov: 50 } },
+      { props: { mode: 'world', position: [1, 2, 3], target: [0, 0, 0], fov: '50deg' } },
       { setWidgetState: (_id, state) => { captured = state as SceneCamera; } } as never,
     );
     expect(captured?.descriptor?.mode).toBe('world');
@@ -129,7 +129,7 @@ describe('CameraWidget', () => {
       | undefined;
     let captured: SceneCamera | undefined;
     handler?.(
-      { props: { mode: 'orbit', target: [0, 0, 0], azimuth: 1, polar: 0.5, distance: 10 } },
+      { props: { mode: 'orbit', target: [0, 0, 0], azimuth: '1rad', polar: '0.5rad', distance: 10 } },
       { setWidgetState: (_id, state) => { captured = state as SceneCamera; } } as never,
     );
     expect(captured?.descriptor?.mode).toBe('orbit');

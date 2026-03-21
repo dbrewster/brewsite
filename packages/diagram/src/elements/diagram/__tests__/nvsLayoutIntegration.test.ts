@@ -30,7 +30,7 @@ describe('NVS layout integration', () => {
   it('grid layout produces centered NVS positions within [0..1]', () => {
     const dsl: DiagramDSL = {
       id: 'grid-nvs',
-      layout: { kind: 'grid', columns: 2, spacing: [0.06, 0.06] },
+      layout: { kind: 'grid', columns: 2, spacing: ['6%', '6%'] },
       nodes: [
         makeNode('a'),
         makeNode('b'),
@@ -61,7 +61,7 @@ describe('NVS layout integration', () => {
   it('hierarchical layout produces correct level spacing in NVS', () => {
     const dsl: DiagramDSL = {
       id: 'hier-nvs',
-      layout: { kind: 'hierarchical', direction: 'top-down', spacing: [0.045, 0.045] },
+      layout: { kind: 'hierarchical', direction: 'top-down', spacing: ['4.5%', '4.5%'] },
       nodes: [
         makeNode('root'),
         makeNode('child1'),
@@ -99,7 +99,7 @@ describe('NVS layout integration', () => {
   it('flow layout produces sequential NVS positions', () => {
     const dsl: DiagramDSL = {
       id: 'flow-nvs',
-      layout: { kind: 'flow', direction: 'top-down', gap: 0.05 },
+      layout: { kind: 'flow', direction: 'top-down', gap: '5%' },
       childrenOrder: ['a', 'b', 'c'],
       nodes: [
         makeNode('a'),
@@ -138,8 +138,8 @@ describe('NVS layout integration', () => {
       id: 'manual-nvs',
       layout: { kind: 'manual' },
       nodes: [
-        makeNode('a', { position: [0.3, 0.7, 0] }),
-        makeNode('b', { position: [0.6, 0.2, 0] }),
+        makeNode('a', { position: ['30%', '70%', '0%'] }),
+        makeNode('b', { position: ['60%', '20%', '0%'] }),
       ],
       edges: [],
       groups: [],
@@ -168,7 +168,7 @@ describe('NVS layout integration', () => {
       id: 'thickness-nvs',
       layout: { kind: 'grid', columns: 1 },
       nodes: [
-        makeNode('a', { thickness: 0.075 }),
+        makeNode('a', { thickness: '7.5%' }),
       ],
       edges: [],
       groups: [],
@@ -187,7 +187,7 @@ describe('NVS layout integration', () => {
     const nodes = Array.from({ length: 12 }, (_, i) => makeNode(`n${i}`));
     const dsl: DiagramDSL = {
       id: 'dense-nvs',
-      layout: { kind: 'grid', columns: 4, spacing: [0.06, 0.06] },
+      layout: { kind: 'grid', columns: 4, spacing: ['6%', '6%'] },
       nodes,
       edges: [],
       groups: [],
@@ -220,7 +220,7 @@ describe('NVS layout integration', () => {
   it('edge anchors align with node surfaces (no aspect distortion)', () => {
     const dsl: DiagramDSL = {
       id: 'edge-anchor-nvs',
-      layout: { kind: 'flow', direction: 'top-down', gap: 0.05 },
+      layout: { kind: 'flow', direction: 'top-down', gap: '5%' },
       childrenOrder: ['src', 'dst'],
       nodes: [
         makeNode('src'),
@@ -257,10 +257,10 @@ describe('NVS layout integration', () => {
 
   it('scale-to-fit adjusts scaleFactor proportionally', () => {
     // Create a wide single-row layout that will trigger scale-to-fit
-    const nodes = Array.from({ length: 8 }, (_, i) => makeNode(`n${i}`, { thickness: 0.060 }));
+    const nodes = Array.from({ length: 8 }, (_, i) => makeNode(`n${i}`, { thickness: '6%' }));
     const dsl: DiagramDSL = {
       id: 'scale-thickness-nvs',
-      layout: { kind: 'grid', columns: 8, spacing: [0.06, 0.06] },
+      layout: { kind: 'grid', columns: 8, spacing: ['6%', '6%'] },
       nodes,
       edges: [],
       groups: [],

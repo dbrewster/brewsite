@@ -82,7 +82,7 @@ export default function SlidesDemoPage(): JSX.Element {
   }, []);
 
   return (
-    <div className="ex-page" style={{ width: '100vw' }}>
+    <div className="ex-page" style={{ width: '100vw', height: '100vh' }}>
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}
@@ -145,19 +145,26 @@ export default function SlidesDemoPage(): JSX.Element {
         </div>
       )}
 
-      {/* Player container */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      {/* Player container — background matches slides to hide letterbox gaps */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        background: 'var(--brewsite-surface, #0a0a0f)',
+      }}>
         <SceneEngine
           key={`${family}-${polarity}`}
           plugins={plugins}
           theme={theme}
+          loadPolicy={{ eager: [0, 1], preloadAhead: 1 }}
         >
           <SlidePlayer
             slideTheme={slideTheme}
             template={nexusTemplate}
             progressIndicator={progressStyle}
             transition="dissolve"
-            aspectRatio={16 / 9}
+            aspectRatio={9 / 9}
+            scaleMode="fit-height"
+            referenceWidth={1920}
             navigation={{ keyboard: true, touch: true, pointer: true }}
             onSlideChange={handleSlideChange}
           >

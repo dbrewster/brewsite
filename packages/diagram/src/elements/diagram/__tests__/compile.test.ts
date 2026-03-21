@@ -239,22 +239,22 @@ describe('compileDiagram', () => {
   it('keeps flow fan-out to nested groups within NVS bounds after Y-down normalization', () => {
     const dsl: DiagramDSL = {
       id: 'cf-overview-regression',
-      layout: { kind: 'flow', direction: 'top-down', gap: 0.035 },
+      layout: { kind: 'flow', direction: 'top-down', gap: '3.5%' },
       childrenOrder: ['cf-db', 'cf-categories'],
       nodes: [
-        makeNode('cf-db', { size: [0.30, 0.10] }),
-        makeNode('cf-memstore', { size: [0.18, 0.06] }),
-        makeNode('cf-sessions', { size: [0.18, 0.06] }),
-        makeNode('cf-agents', { size: [0.18, 0.06] }),
-        makeNode('cf-tasks', { size: [0.18, 0.06] }),
-        makeNode('cf-shared', { size: [0.18, 0.06] }),
-        makeNode('cf-agmem', { size: [0.18, 0.06] }),
-        makeNode('cf-events', { size: [0.18, 0.06] }),
-        makeNode('cf-topology', { size: [0.18, 0.06] }),
-        makeNode('cf-patterns', { size: [0.18, 0.06] }),
-        makeNode('cf-perf', { size: [0.18, 0.06] }),
-        makeNode('cf-workflow', { size: [0.18, 0.06] }),
-        makeNode('cf-consensus', { size: [0.18, 0.06] }),
+        makeNode('cf-db', { size: ['30%', '10%'] }),
+        makeNode('cf-memstore', { size: ['18%', '6%'] }),
+        makeNode('cf-sessions', { size: ['18%', '6%'] }),
+        makeNode('cf-agents', { size: ['18%', '6%'] }),
+        makeNode('cf-tasks', { size: ['18%', '6%'] }),
+        makeNode('cf-shared', { size: ['18%', '6%'] }),
+        makeNode('cf-agmem', { size: ['18%', '6%'] }),
+        makeNode('cf-events', { size: ['18%', '6%'] }),
+        makeNode('cf-topology', { size: ['18%', '6%'] }),
+        makeNode('cf-patterns', { size: ['18%', '6%'] }),
+        makeNode('cf-perf', { size: ['18%', '6%'] }),
+        makeNode('cf-workflow', { size: ['18%', '6%'] }),
+        makeNode('cf-consensus', { size: ['18%', '6%'] }),
       ],
       edges: [
         makeEdge('cf-db', 'cf-core', { routing: 'flow' }),
@@ -268,35 +268,35 @@ describe('compileDiagram', () => {
           nodeIds: [],
           childGroupIds: ['cf-core', 'cf-coord', 'cf-intel', 'cf-recov'],
           childrenOrder: ['cf-core', 'cf-coord', 'cf-intel', 'cf-recov'],
-          layout: { kind: 'grid', columns: 2, spacing: [0.06, 0.04] },
+          layout: { kind: 'grid', columns: 2, spacing: ['6%', '4%'] },
         },
         {
           id: 'cf-core',
           parentId: 'cf-categories',
           nodeIds: ['cf-memstore', 'cf-sessions', 'cf-agents', 'cf-tasks'],
           childrenOrder: ['cf-memstore', 'cf-sessions', 'cf-agents', 'cf-tasks'],
-          layout: { kind: 'flow', direction: 'top-down', gap: 0.025 },
+          layout: { kind: 'flow', direction: 'top-down', gap: '2.5%' },
         },
         {
           id: 'cf-coord',
           parentId: 'cf-categories',
           nodeIds: ['cf-shared', 'cf-agmem', 'cf-events', 'cf-topology'],
           childrenOrder: ['cf-shared', 'cf-agmem', 'cf-events', 'cf-topology'],
-          layout: { kind: 'flow', direction: 'top-down', gap: 0.025 },
+          layout: { kind: 'flow', direction: 'top-down', gap: '2.5%' },
         },
         {
           id: 'cf-intel',
           parentId: 'cf-categories',
           nodeIds: ['cf-patterns', 'cf-perf'],
           childrenOrder: ['cf-patterns', 'cf-perf'],
-          layout: { kind: 'flow', direction: 'top-down', gap: 0.025 },
+          layout: { kind: 'flow', direction: 'top-down', gap: '2.5%' },
         },
         {
           id: 'cf-recov',
           parentId: 'cf-categories',
           nodeIds: ['cf-workflow', 'cf-consensus'],
           childrenOrder: ['cf-workflow', 'cf-consensus'],
-          layout: { kind: 'flow', direction: 'top-down', gap: 0.025 },
+          layout: { kind: 'flow', direction: 'top-down', gap: '2.5%' },
         },
       ],
     };
@@ -363,7 +363,7 @@ describe('compileDiagram', () => {
         defaultKind: 'hierarchical',
         hierarchical: {
           ...darkGlassTheme.layout?.hierarchical,
-          spacing: [4, 4],
+          spacing: ['400%', '400%'],
         },
       },
     };
@@ -385,8 +385,8 @@ describe('compileDiagram', () => {
       id: 'diagram',
       layout: { kind: 'grid' },
       nodes: [
-        makeNode('a', { position: [0, 0, 0] }),
-        makeNode('b', { position: [4, 0, 0] }),
+        makeNode('a', { position: ['0%', '0%', '0%'] }),
+        makeNode('b', { position: ['400%', '0%', '0%'] }),
       ],
       edges: [],
       groups: [
@@ -409,7 +409,7 @@ describe('compileDiagram', () => {
       id: 'diagram',
       layout: { kind: 'grid' },
       nodes: [
-        makeNode('a', { position: [0, 0, 0], size: [4, 2] }),
+        makeNode('a', { position: ['0%', '0%', '0%'], size: ['400%', '200%'] }),
       ],
       edges: [],
       groups: [
@@ -419,8 +419,8 @@ describe('compileDiagram', () => {
           nodeIds: ['a'],
           layout: {
             kind: 'grid',
-            groupPadding: [4, 0, 0, 0],
-            titleGap: 2,
+            groupPadding: ['400%', 0, 0, 0],
+            titleGap: '200%',
           },
         },
       ],
@@ -476,7 +476,7 @@ describe('compileDiagram', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      nodes: [makeNode('a', { position: [0, 0, 0] })],
+      nodes: [makeNode('a', { position: ['0%', '0%', '0%'] })],
       edges: [],
       groups: [{
         id: 'g1',
@@ -502,7 +502,7 @@ describe('compileDiagram', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      nodes: [makeNode('a', { position: [0, 0, 0] })],
+      nodes: [makeNode('a', { position: ['0%', '0%', '0%'] })],
       edges: [],
       groups: [{
         id: 'g1',
@@ -538,8 +538,8 @@ describe('compileDiagram', () => {
       id: 'diagram',
       layout: { kind: 'manual' },
       nodes: [
-        makeNode('src', { position: [-0.5, 0, 0], size: [0.08, 0.08] }),
-        makeNode('a', { position: [0, 0, 0], size: [0.15, 0.08] }),
+        makeNode('src', { position: ['-50%', '0%', '0%'], size: ['8%', '8%'] }),
+        makeNode('a', { position: ['0%', '0%', '0%'], size: ['15%', '8%'] }),
       ],
       edges: [makeEdge('src', 'g1')],
       groups: [{ id: 'g1', nodeIds: ['a'] }],
@@ -598,11 +598,11 @@ describe('viewportBounds', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      x: 0.1,
-      y: 0.2,
-      w: 0.5,
-      h: 0.4,
-      nodes: [makeNode('a', { position: [0.5, 0.5, 0] })],
+      x: '10%',
+      y: '20%',
+      w: '50%',
+      h: '40%',
+      nodes: [makeNode('a', { position: ['50%', '50%', '0%'] })],
       edges: [],
       groups: [],
     };
@@ -629,7 +629,7 @@ describe('viewportBounds', () => {
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
-      tilt: -0.3,
+      tilt: '-0.3rad',
     };
     const state = compileDiagram(dsl);
     expect(state.tiltRotation[0]).toBeCloseTo(-0.3);
@@ -710,7 +710,7 @@ describe('viewportBounds', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      nodes: [makeNode('a', { position: [0.25, 0.75, 0] })],
+      nodes: [makeNode('a', { position: ['25%', '75%', '0%'] })],
       edges: [],
       groups: [],
     };
@@ -792,7 +792,7 @@ describe('scale-to-fit integration', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid', columns: 10 },
-      nodes: Array.from({ length: 10 }, (_, i) => makeNode(`n${i}`, { thickness: 0.075 })),
+      nodes: Array.from({ length: 10 }, (_, i) => makeNode(`n${i}`, { thickness: '7.5%' })),
       edges: [],
       groups: [],
     };
@@ -827,8 +827,8 @@ describe('DiagramState NVS fields', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      tilt: 0.1,
-      nodes: [makeNode('a', { position: [0.5, 0.5, 0] })],
+      tilt: '0.1rad',
+      nodes: [makeNode('a', { position: ['50%', '50%', '0%'] })],
       edges: [],
       groups: [],
     };
@@ -905,8 +905,8 @@ describe('compileDiagram — thickness normalization', () => {
       id: 'd',
       layout: { kind: 'grid' },
       nodes: [
-        makeNode('a', { thickness: 0.150 }),
-        makeNode('b', { thickness: 0.150 }),
+        makeNode('a', { thickness: '15%' }),
+        makeNode('b', { thickness: '15%' }),
       ],
       edges: [],
       groups: [],
@@ -923,7 +923,7 @@ describe('compileDiagram — thickness normalization', () => {
       id: 'd',
       layout: { kind: 'grid' },
       nodes: [makeNode('a'), makeNode('b')],
-      edges: [makeEdge('a', 'b', { thickness: 0.009 })],
+      edges: [makeEdge('a', 'b', { thickness: '0.9%' })],
       groups: [],
     };
     const state = compileDiagram(dsl);
@@ -951,7 +951,7 @@ describe('compileDiagram — thickness normalization', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'manual' },
-      nodes: [makeNode('a', { position: [0.5, 0.5, 0], size: [0.15, 0.08], thickness: 0.075 })],
+      nodes: [makeNode('a', { position: ['50%', '50%', '0%'], size: ['15%', '8%'], thickness: '7.5%' })],
       edges: [],
       groups: [],
     };
@@ -966,10 +966,10 @@ describe('compileDiagram — thickness normalization', () => {
       id: 'd',
       layout: { kind: 'manual' },
       nodes: [
-        makeNode('a', { position: [0.2, 0.5, 0], size: [0.15, 0.08] }),
-        makeNode('b', { position: [0.8, 0.5, 0], size: [0.15, 0.08] }),
+        makeNode('a', { position: ['20%', '50%', '0%'], size: ['15%', '8%'] }),
+        makeNode('b', { position: ['80%', '50%', '0%'], size: ['15%', '8%'] }),
       ],
-      edges: [makeEdge('a', 'b', { thickness: 0.009 })],
+      edges: [makeEdge('a', 'b', { thickness: '0.9%' })],
       groups: [],
     };
     const state = compileDiagram(dsl);

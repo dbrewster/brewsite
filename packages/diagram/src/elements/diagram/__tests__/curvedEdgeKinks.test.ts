@@ -57,16 +57,16 @@ const overviewDsl: DiagramDSL = {
   childrenOrder: [],
   nodes: [
     // Left column (Y=0.5)
-    makeNode('scene', { position: [0.12, 0.5, 0], size: [0.16, 0.14] }),
+    makeNode('scene', { position: ['12%', '50%', '0%'], size: ['16%', '14%'] }),
     // Second column (Y=0.35 and Y=0.65)
-    makeNode('frames', { position: [0.37, 0.35, 0], size: [0.16, 0.14] }),
-    makeNode('track', { position: [0.37, 0.65, 0], size: [0.16, 0.14] }),
+    makeNode('frames', { position: ['37%', '35%', '0%'], size: ['16%', '14%'] }),
+    makeNode('track', { position: ['37%', '65%', '0%'], size: ['16%', '14%'] }),
     // Third column (Y=0.35 and Y=0.65)
-    makeNode('driver', { position: [0.62, 0.35, 0], size: [0.16, 0.14] }),
-    makeNode('registry', { position: [0.62, 0.65, 0], size: [0.16, 0.14] }),
+    makeNode('driver', { position: ['62%', '35%', '0%'], size: ['16%', '14%'] }),
+    makeNode('registry', { position: ['62%', '65%', '0%'], size: ['16%', '14%'] }),
     // Fourth column (Y=0.35 and Y=0.65)
-    makeNode('canvas', { position: [0.88, 0.35, 0], size: [0.16, 0.14] }),
-    makeNode('overlay', { position: [0.88, 0.65, 0], size: [0.16, 0.14] }),
+    makeNode('canvas', { position: ['88%', '35%', '0%'], size: ['16%', '14%'] }),
+    makeNode('overlay', { position: ['88%', '65%', '0%'], size: ['16%', '14%'] }),
   ],
   edges: [
     // Horizontal edges with vertical offset (the ones that kink)

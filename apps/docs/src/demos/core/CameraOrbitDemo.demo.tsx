@@ -52,7 +52,7 @@ export default function CameraOrbitDemo(): JSX.Element {
           mode="orbit"
           target={[0, 0, 0]}
           azimuth={0.0}
-          polar={1.2}
+          polar={"1.2rad"}
           distance={8}
         />
         <Lighting>
@@ -68,8 +68,8 @@ export default function CameraOrbitDemo(): JSX.Element {
         <Camera
           mode="orbit"
           target={[0, 0, 0]}
-          azimuth={1.5}
-          polar={1.0}
+          azimuth={"1.5rad"}
+          polar={"1rad"}
           distance={6}
         />
         <Lighting>
@@ -85,8 +85,8 @@ export default function CameraOrbitDemo(): JSX.Element {
         <Camera
           mode="orbit"
           target={[0, 0, 0]}
-          azimuth={3.0}
-          polar={0.8}
+          azimuth={"3rad"}
+          polar={"0.8rad"}
           distance={8}
         />
         <Lighting>

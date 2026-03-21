@@ -3,7 +3,7 @@ title: Camera Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-21
 ---
 
 ## Camera Overview
@@ -17,6 +17,12 @@ Import from `@brewsite/core`:
 ```tsx
 import { Camera } from '@brewsite/core';
 ```
+
+Camera props use the scene unit system for angles and NVS-spatial values:
+- `SceneAngle` — angle with explicit unit: `"45deg"`, `"0.3rad"`, or bare `0`. Imported from `@brewsite/core`.
+- `SceneLength` — spatial value with explicit unit: `"50%"`, `"10u"`, `"50vw"`, `"50vh"`, or bare `0`. Imported from `@brewsite/core`.
+
+World-space values (`position`, `target`, `distance`, `up`, `near`, `far`, `minDistance`, `maxDistance`, `exposure`) remain bare `number` or `Vec3`.
 
 The camera integrates with `<InputController>` actions (`camera.orbit`, `camera.zoom`, `camera.pan`, `camera.reset`). Default bindings provide Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, and R key reset with no DSL required. Custom bindings can be added via `<InputController>` in merge mode.
 
@@ -36,7 +42,7 @@ Explicit world-space position and target. Most common for model and diagram scen
   position={[0, 1.2, 4.5]}   // [x, y, z] world-space camera position
   target={[0, 1.0, 0]}        // world-space look-at point
   up={[0, 1, 0]}              // optional up vector, default [0, 1, 0]
-  fov={45}
+  fov={"45deg"}
 />
 ```
 
@@ -46,7 +52,7 @@ Explicit world-space position and target. Most common for model and diagram scen
 | `position` | `Vec3` | yes | Camera position in world space |
 | `target` | `Vec3` | yes | Point camera looks at |
 | `up` | `Vec3` | no | Up vector. Default `[0, 1, 0]` |
-| `nvsTarget` | `readonly [number, number]` | no | NVS-space look-at point override. Pins the camera's look-at X,Y to an NVS location; target Z is still taken from `target[2]` |
+| `nvsTarget` | `readonly [SceneLength, SceneLength]` | no | NVS-space look-at point override (e.g. `["50%", "50%"]`). Pins the camera's look-at X,Y to an NVS location; target Z is still taken from `target[2]` |
 
 ---
 
@@ -57,11 +63,11 @@ Spherical coordinates around a target. Good for turntable views and rotate-aroun
 ```tsx
 <Camera
   mode="orbit"
-  target={[0, 0, 0]}    // orbit center in world space
-  azimuth={0.3}          // horizontal angle in radians (0 = +Z facing)
-  polar={1.1}            // vertical angle from equator (0 = level, PI/2 = top-down)
-  distance={7}           // distance from target in world units
-  fov={50}
+  target={[0, 0, 0]}        // orbit center in world space
+  azimuth={"0.3rad"}         // horizontal angle (0 = +Z facing). SceneAngle: "Xrad" or "Xdeg"
+  polar={"63deg"}            // vertical angle from equator (0 = level, 90deg = top-down)
+  distance={7}               // distance from target in world units
+  fov={"50deg"}
 />
 ```
 
@@ -69,11 +75,11 @@ Spherical coordinates around a target. Good for turntable views and rotate-aroun
 |---|---|---|---|
 | `mode` | `'orbit'` | yes | |
 | `target` | `Vec3` | yes | Orbit center in world space |
-| `azimuth` | `number` | yes | Horizontal angle in radians. 0 = +Z axis facing. Positive = counter-clockwise |
-| `polar` | `number` | yes | Vertical angle from horizontal plane. 0 = equator, PI/2 = top-down |
+| `azimuth` | `SceneAngle` | yes | Horizontal angle. 0 = +Z axis facing. Positive = counter-clockwise. E.g. `"0.3rad"`, `"17deg"` |
+| `polar` | `SceneAngle` | yes | Vertical angle from horizontal plane. 0 = equator, `"90deg"` = top-down. E.g. `"1.1rad"`, `"63deg"` |
 | `distance` | `number` | yes | Distance from target in world units |
 | `up` | `Vec3` | no | Up vector. Default `[0, 1, 0]` |
-| `nvsTarget` | `readonly [number, number]` | no | NVS-space look-at point override. Pins the orbit center X,Y to an NVS location; target Z is still taken from `target[2]` |
+| `nvsTarget` | `readonly [SceneLength, SceneLength]` | no | NVS-space look-at point override (e.g. `["50%", "50%"]`). Pins the orbit center X,Y to an NVS location; target Z is still taken from `target[2]` |
 
 ---
 
@@ -152,7 +158,7 @@ All modes accept these optional lens props (flat, map to `CameraLens`):
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `fov` | `number` | 45 | Vertical field of view in degrees |
+| `fov` | `SceneAngle` | `"45deg"` | Vertical field of view. E.g. `"45deg"`, `"50deg"` |
 | `focalLength` | `number` | — | Focal length in mm relative to `filmGauge`. Overrides `fov` when set. 50mm on 35mm film ≈ 39.6° FOV |
 | `filmGauge` | `number` | 35 | Film gauge in mm. Affects `focalLength` computation |
 | `near` | `number` | 0.1 | Near clip plane in world units |
@@ -176,8 +182,8 @@ All modes accept these optional lens props (flat, map to `CameraLens`):
 <Camera
   mode="orbit"
   target={[0, 0, 0]}
-  azimuth={0.5}
-  polar={0.8}
+  azimuth={"0.5rad"}
+  polar={"0.8rad"}
   distance={6}
   interaction={{
     enabled: true,
@@ -188,8 +194,8 @@ All modes accept these optional lens props (flat, map to `CameraLens`):
     damping: 0.25,                     // inertia in seconds. false = instant
     minDistance: 0.1,                  // minimum orbit radius
     maxDistance: 20,                   // maximum orbit radius
-    minPolarAngle: 0,                  // radians from top
-    maxPolarAngle: Math.PI,            // radians from top
+    minPolarAngle: 0,                  // 0 is valid without unit string
+    maxPolarAngle: "180deg",           // SceneAngle from top
     reset: { key: 'r' },              // keyboard shortcut to reset camera
     resetOnSceneChange: true,          // smooth reset when scene changes
   }}
@@ -206,8 +212,8 @@ All modes accept these optional lens props (flat, map to `CameraLens`):
 | `damping` | `number \| false` | 0.25 | Inertia in seconds. `false` = instant response |
 | `minDistance` | `number` | 0.1 | Minimum camera distance from orbit target |
 | `maxDistance` | `number` | 50 | Maximum camera distance |
-| `minPolarAngle` | `number` | 0 | Minimum polar angle (radians from top) |
-| `maxPolarAngle` | `number` | Math.PI | Maximum polar angle |
+| `minPolarAngle` | `SceneAngle` | 0 | Minimum polar angle from top. E.g. `0`, `"10deg"`, `"0.2rad"` |
+| `maxPolarAngle` | `SceneAngle` | `"180deg"` | Maximum polar angle from top. E.g. `"180deg"`, `"3.14rad"` |
 | `wheelLockIdleMs` | `number` | 160 | Wheel sticky-lock idle timeout in milliseconds. After this duration of no wheel events, the axis lock resets |
 | `wheelAxisDominance` | `number` | 1.2 | Axis dominance ratio for sticky wheel locking. The dominant axis delta must exceed the other by this ratio to lock |
 | `wheelAxisActivationThreshold` | `number` | 10 | Total cumulative wheel delta threshold before committing to an axis lock |
@@ -245,29 +251,29 @@ For `mode: 'world'`, position the camera by reasoning in 3D world units. BrewSit
 
 ```tsx
 // Front view — straight on, slightly above center
-<Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={45} />
+<Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={"45deg"} />
 
 // 3/4 view — offset left, looking across
-<Camera mode="world" position={[-1.5, 1.5, 4.0]} target={[0, 1.0, 0]} fov={45} />
+<Camera mode="world" position={[-1.5, 1.5, 4.0]} target={[0, 1.0, 0]} fov={"45deg"} />
 
 // Top-down — high Y, looking straight down
-<Camera mode="world" position={[0, 8, 0.01]} target={[0, 0, 0]} fov={50} />
+<Camera mode="world" position={[0, 8, 0.01]} target={[0, 0, 0]} fov={"50deg"} />
 
 // Close-up portrait — tight FOV
-<Camera mode="world" position={[0, 1.6, 2.5]} target={[0, 1.4, 0]} fov={30} />
+<Camera mode="world" position={[0, 1.6, 2.5]} target={[0, 1.4, 0]} fov={"30deg"} />
 
 // Wide establishing shot
-<Camera mode="world" position={[0, 2.0, 10.0]} target={[0, 0.5, 0]} fov={55} />
+<Camera mode="world" position={[0, 2.0, 10.0]} target={[0, 0.5, 0]} fov={"55deg"} />
 ```
 
 For `mode: 'orbit'`:
-- `azimuth=0` → camera is on the +Z side, facing -Z
-- `azimuth=Math.PI/2` → camera is on the +X side, facing -X
-- `polar=0` → equator-level
-- `polar=0.3` → slightly above equator (good for slight elevated hero)
-- `polar=Math.PI/4` → 45° above equator
+- `azimuth={0}` → camera is on the +Z side, facing -Z
+- `azimuth={"90deg"}` → camera is on the +X side, facing -X
+- `polar={0}` → equator-level
+- `polar={"17deg"}` → slightly above equator (good for slight elevated hero)
+- `polar={"45deg"}` → 45° above equator
 
-Both `WorldSpaceCamera` and `OrbitCamera` accept an optional `nvsTarget?: [x, y]` prop to override the world-space target's X,Y coordinates with an NVS-space look-at point. This pins the camera's look-at to an NVS location regardless of the world-space target value — useful for aligning the camera to the visual center of an NVS region. The target Z is always taken from `target[2]`.
+Both `WorldSpaceCamera` and `OrbitCamera` accept an optional `nvsTarget?: [SceneLength, SceneLength]` prop (e.g. `["50%", "50%"]`) to override the world-space target's X,Y coordinates with an NVS-space look-at point. This pins the camera's look-at to an NVS location regardless of the world-space target value — useful for aligning the camera to the visual center of an NVS region. The target Z is always taken from `target[2]`.
 
 ---
 
@@ -283,7 +289,7 @@ The `transitionIn` prop on the destination scene's `<Camera>` controls the inter
   mode="world"
   position={[2.5, 2.0, 5.0]}
   target={[0, 1.0, 0]}
-  fov={40}
+  fov={"40deg"}
   transitionIn={{ type: 'eased', ease: 'easeInOut' }}
 />
 ```
@@ -315,7 +321,7 @@ transitionIn={{ type: 'path', waypoints: [[0, 3, 8], [2, 2, 6]] }}
 export function SceneA() {
   return (
     <Scene id="hero">
-      <Camera mode="world" position={[0, 2.0, 8.0]} target={[0, 1.0, 0]} fov={50} />
+      <Camera mode="world" position={[0, 2.0, 8.0]} target={[0, 1.0, 0]} fov={"50deg"} />
     </Scene>
   );
 }
@@ -328,7 +334,7 @@ export function SceneB() {
         mode="world"
         position={[1.5, 1.5, 4.0]}
         target={[0.5, 1.2, 0]}
-        fov={38}
+        fov={"38deg"}
         transitionIn={{ type: 'eased', ease: 'easeInOut' }}
       />
     </Scene>
@@ -352,7 +358,7 @@ import { Camera, InputController, Action, PointerMap, KeyMap } from '@brewsite/c
 export function InteractiveScene() {
   return (
     <Scene id="interactive">
-      <Camera mode="world" position={[0, 1.5, 7]} target={[0, 0, 0]} fov={48} />
+      <Camera mode="world" position={[0, 1.5, 7]} target={[0, 0, 0]} fov={"48deg"} />
 
       {/* Merge mode (default) — add left-drag orbit on top of all defaults */}
       <InputController scope="canvas">
@@ -386,21 +392,21 @@ The `camera` widget ID is the default — this prop is usually omitted.
 ### Static camera for a hero shot
 
 ```tsx
-<Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={45} />
+<Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={"45deg"} />
 ```
 
 ### Camera that pushes in on scene change
 
 ```tsx
 // Scene 1 — back, wide
-<Camera mode="world" position={[0, 1.5, 7.0]} target={[0, 1.0, 0]} fov={50} />
+<Camera mode="world" position={[0, 1.5, 7.0]} target={[0, 1.0, 0]} fov={"50deg"} />
 
 // Scene 2 — forward, tighter, eased in
 <Camera
   mode="world"
   position={[0, 1.3, 3.5]}
   target={[0, 1.0, 0]}
-  fov={38}
+  fov={"38deg"}
   transitionIn={{ type: 'eased', ease: 'easeInOut' }}
 />
 ```
@@ -411,10 +417,10 @@ The `camera` widget ID is the default — this prop is usually omitted.
 <Camera
   mode="orbit"
   target={[0, 0.5, 0]}
-  azimuth={0.4}
-  polar={0.6}
+  azimuth={"0.4rad"}
+  polar={"34deg"}
   distance={5}
-  fov={45}
+  fov={"45deg"}
   interaction={{
     enabled: true,
     damping: 0.2,

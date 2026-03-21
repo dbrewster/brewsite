@@ -9,6 +9,7 @@ import type {
   DiagramExitConfig,
   DiagramEnterConfig,
 } from '../types';
+import { resolveToNVS } from '@brewsite/core';
 
 export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderConfig {
   const labelScale   = theme.sceneTheme?.fontSize.label   ?? 1.0;
@@ -22,7 +23,7 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     nodeEnvMapIntensity: theme.node.nodeEnvMapIntensity ?? 0.15,
     nodeGlowIntensity: theme.node.glowIntensity,
     nodeGlowSpread:    theme.node.glowSpread,
-    nodeCornerRadius:  theme.node.cornerRadius,
+    nodeCornerRadius:  resolveToNVS(theme.node.cornerRadius),
     use3DArrows:       theme.edge.use3DArrows,
     edgeSmoothness:    theme.edge.smoothness,
     edgeMetalness:     theme.edge.defaultMetalness,
@@ -53,7 +54,7 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
 export function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitConfig | undefined {
   if (!dsl) return undefined;
   return {
-    to: dsl.to,
+    to: dsl.to ? [resolveToNVS(dsl.to[0]), resolveToNVS(dsl.to[1]), resolveToNVS(dsl.to[2])] : undefined,
     fade: dsl.fade ?? true,
     easing: dsl.easing ?? 'ease',
   };
@@ -62,7 +63,7 @@ export function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitC
 export function compileEnterConfig(dsl: DiagramEnterDSL | undefined): DiagramEnterConfig | undefined {
   if (!dsl) return undefined;
   return {
-    from: dsl.from,
+    from: dsl.from ? [resolveToNVS(dsl.from[0]), resolveToNVS(dsl.from[1]), resolveToNVS(dsl.from[2])] : undefined,
     fade: dsl.fade ?? true,
     easing: dsl.easing ?? 'ease',
   };

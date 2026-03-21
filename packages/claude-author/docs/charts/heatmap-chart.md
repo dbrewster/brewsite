@@ -3,7 +3,7 @@ title: "@brewsite/charts — Heatmap Chart"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## When to Use HeatMapChart
@@ -54,7 +54,7 @@ The renderer displays week=1 at scene entry and advances to week=2, week=3, etc.
 <HeatMapChart
   id="weekly-activity"
   data={activityData}
-  x={0.10} y={0.20} w={0.80} h={0.55}
+  x={"10%"} y={"20%"} w={"80%"} h={"55%"}
   timeField="week"
   colorInterpolator="viridis"
 >
@@ -105,7 +105,7 @@ export function SceneCoverageMap() {
       <HeatMapChart
         id="test-coverage"
         data={coverageData}
-        x={0.15} y={0.20} w={0.70} h={0.55}
+        x={"15%"} y={"20%"} w={"70%"} h={"55%"}
         depth={0.5}
         heightField="riskScore"
         colorInterpolator="reds"

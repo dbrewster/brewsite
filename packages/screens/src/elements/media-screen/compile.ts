@@ -2,7 +2,7 @@
 // No Three.js. No React. No side effects.
 import type { MediaScreenDSL, MediaScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } from '@brewsite/core';
+import { blendNumber, blendOpacity, blendVec3, copyVec3, resolveToNVS, isUniformUnit, resolveAngle } from '@brewsite/core';
 
 /**
  * Compiles a MediaScreenDSL into a fully resolved MediaScreenState by applying defaults.
@@ -21,18 +21,15 @@ export function compileMediaScreen(dsl: MediaScreenDSL): MediaScreenState {
   }
 
   const sourceKind = hasSrc ? 'video' : 'stream';
-  const nvsX = dsl.x ?? 0.5;
-  const nvsY = dsl.y ?? 0.5;
-  const nvsWidth = dsl.width ?? 0.625;
-  const nvsHeight = dsl.height;
+  const nvsX = dsl.x !== undefined ? resolveToNVS(dsl.x) : 0.5;
+  const nvsY = dsl.y !== undefined ? resolveToNVS(dsl.y) : 0.5;
+  const nvsWidth = dsl.width !== undefined ? resolveToNVS(dsl.width) : 0.625;
+  const nvsHeight = dsl.height !== undefined ? resolveToNVS(dsl.height) : undefined;
+  const uniformSizing = dsl.width !== undefined ? isUniformUnit(dsl.width) : false;
 
-  if (process.env.NODE_ENV !== 'production') {
-    validateNVSScalar(nvsX, 'nvsX', `<MediaScreen id="${dsl.id}">`);
-    validateNVSScalar(nvsY, 'nvsY', `<MediaScreen id="${dsl.id}">`);
-    validateNVSScalar(nvsWidth, 'nvsWidth', `<MediaScreen id="${dsl.id}">`);
-    if (nvsHeight !== undefined)
-      validateNVSScalar(nvsHeight, 'nvsHeight', `<MediaScreen id="${dsl.id}">`);
-  }
+  const rotation: readonly [number, number, number] = dsl.rotation !== undefined
+    ? [resolveAngle(dsl.rotation[0]), resolveAngle(dsl.rotation[1]), resolveAngle(dsl.rotation[2])]
+    : [0, 0, 0];
 
   return {
     id: dsl.id,
@@ -45,7 +42,7 @@ export function compileMediaScreen(dsl: MediaScreenDSL): MediaScreenState {
     nvsX, nvsY,
     z: dsl.z ?? 0,
     nvsWidth, nvsHeight,
-    rotation: dsl.rotation ?? [0, 0, 0],
+    rotation,
     scale: dsl.scale ?? 1,
     bezel: dsl.bezel ?? 'dark',
     bezelThickness: dsl.bezelThickness ?? 0.3,
@@ -58,6 +55,7 @@ export function compileMediaScreen(dsl: MediaScreenDSL): MediaScreenState {
     glowScale: dsl.glowScale ?? 1.4,
     glowOpacity: dsl.glowOpacity ?? 0.35,
     enabled: dsl.enabled ?? true,
+    uniformSizing,
   };
 }
 

@@ -3,12 +3,138 @@ title: Embedding 3D Content in Slides
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-21
 ---
 
-## The sceneDsl Prop
+## Smart Layout Routing (Recommended)
 
-The `sceneDsl` prop on `<Slide>` injects 3D elements directly into the compiled `Scene` for that slide. Elements render as Three.js geometry in the WebGL canvas, behind the HTML overlay layer.
+The simplest way to add 3D content to a slide is to pass 3D DSL elements directly as layout slot children. The deck compiler automatically detects 3D elements (via `getNodeHandler()`) and routes them to `<View>` regions in the WebGL canvas, while HTML content goes to `<TextBox>` overlay regions.
+
+```tsx
+import { Slide, TwoColumnSlide, Body } from '@brewsite/slides';
+import { Diagram, DiagramNode, DiagramEdge, FlowLayout } from '@brewsite/diagram';
+
+<Slide key="architecture">
+  <TwoColumnSlide
+    title="Architecture"
+    left={<Body>Our system uses a simple API + database pattern.</Body>}
+    right={
+      <Diagram id="arch" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
+        <FlowLayout direction="left-right" gap={"8u"} />
+        <DiagramNode id="api" label="API" size={["15u", "8u"]} />
+        <DiagramNode id="db" label="Database" size={["15u", "8u"]} />
+        <DiagramEdge from="api" to="db" />
+      </Diagram>
+    }
+  />
+</Slide>
+```
+
+The compiler classifies each layout region's children into three categories:
+
+- **`html`** — All children are HTML. Region emits a `<TextBox>` (default behavior).
+- **`3d`** — All children are 3D DSL elements. Region emits a `<View>` at the region's NVS coordinates.
+- **`mixed`** — Both HTML and 3D children. Region emits both a `<View>` (for 3D elements) and a `<TextBox>` (for HTML elements) at the same NVS coordinates, layered.
+
+When any region emits a routed 3D `<View>`, the compiler injects a default `<Camera>` (mode `world`, position `[0, 1.5, 5]`, fov 42) and default `<Lighting>` (ambient, intensity 1) unless the author provides their own via `sceneDsl`.
+
+### Which Layouts Support Smart Routing
+
+Smart routing applies to **classifiable** layout regions — regions whose content comes from author-provided children rather than structured data:
+
+| Layout | Routable Regions |
+|---|---|
+| `ContentSlide` | `body` |
+| `TwoColumnSlide` | `left`, `right` |
+| `ImageSlide` | `body` |
+| `FullBleedSlide` | `overlay` |
+| `BlankSlide` | `body` |
+
+Title regions, structured-data layouts (`TitleSlide`, `SectionSlide`, `BigNumberSlide`, `MetricGridSlide`, `ComparisonSlide`, `QuoteSlide`, `AgendaSlide`), and the `title` region of any layout are **not classifiable** — they always emit `<TextBox>`.
+
+### Known Limitation: Direct Children Only
+
+3D elements must be **direct children** of the layout slot. The compiler inspects the top-level element type via `getNodeHandler()`. If a 3D element is wrapped inside a custom React component, the compiler cannot see through the wrapper and treats it as HTML.
+
+Fragment children (`<>...</>`) are expanded one level, so wrapping in a fragment is fine.
+
+**Wrong — wrapped in a custom component:**
+```tsx
+function MyDiagram() {
+  return <Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>...</Diagram>;
+}
+
+<ContentSlide title="Arch">
+  <MyDiagram />  {/* Compiler sees MyDiagram, not Diagram — routed as HTML */}
+</ContentSlide>
+```
+
+**Correct — direct child or inside a fragment:**
+```tsx
+<ContentSlide title="Arch">
+  <Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>...</Diagram>
+</ContentSlide>
+
+{/* Fragment is also fine: */}
+<ContentSlide title="Arch">
+  <>
+    <Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>...</Diagram>
+  </>
+</ContentSlide>
+```
+
+### Before/After: Smart Routing vs sceneDsl
+
+**Before (manual sceneDsl + NVS coordinates):**
+```tsx
+import { Camera, Lighting, Ambient, View } from '@brewsite/core';
+import { Slide, TwoColumnSlide, Body } from '@brewsite/slides';
+import { BarChart } from '@brewsite/charts';
+
+<Slide key="revenue" sceneDsl={
+  <>
+    <Camera mode="world" position={[0, 2, 6]} target={[0, 1, 0]} />
+    <Lighting><Ambient intensity={0.8} /></Lighting>
+    <View id="chart-view" x={"52%"} y={"15%"} w={"45%"} h={"80%"}>
+      <BarChart id="rev" x={"0%"} y={"0%"} w={"100%"} h={"100%"}
+        data={[{ label: 'Q1', value: 2.1 }, { label: 'Q2', value: 3.4 }]}
+      />
+    </View>
+  </>
+}>
+  <TwoColumnSlide
+    title="Revenue"
+    left={<Body>Revenue grew 176% year-over-year.</Body>}
+    right={<></>}  {/* empty — 3D content placed manually via sceneDsl */}
+  />
+</Slide>
+```
+
+**After (smart layout routing):**
+```tsx
+import { Slide, TwoColumnSlide, Body } from '@brewsite/slides';
+import { BarChart } from '@brewsite/charts';
+
+<Slide key="revenue">
+  <TwoColumnSlide
+    title="Revenue"
+    left={<Body>Revenue grew 176% year-over-year.</Body>}
+    right={
+      <BarChart id="rev" x={"0%"} y={"0%"} w={"100%"} h={"100%"}
+        data={[{ label: 'Q1', value: 2.1 }, { label: 'Q2', value: 3.4 }]}
+      />
+    }
+  />
+</Slide>
+```
+
+The compiler auto-routes the `BarChart` to a `<View>`, injects a default camera and lighting, and positions the view at the right column's NVS coordinates. No `sceneDsl`, no manual `<View>`, no NVS math.
+
+---
+
+## The sceneDsl Prop (Escape Hatch)
+
+The `sceneDsl` prop on `<Slide>` injects 3D elements directly into the compiled `Scene` for that slide. Use `sceneDsl` when you need custom camera positioning, custom lighting, background models, or other scene-level 3D elements that don't belong inside a layout region.
 
 ```tsx
 import { Camera, Lighting, Ambient, Directional } from '@brewsite/core';
@@ -19,10 +145,10 @@ import { Diagram, DiagramNode, DiagramEdge, FlowLayout } from '@brewsite/diagram
   <>
     <Camera mode="world" position={[0, 1.5, 5]} target={[0, 0.5, 0]} />
     <Lighting><Ambient intensity={0.8} /><Directional intensity={0.6} position={[5, 5, 5]} /></Lighting>
-    <Diagram id="arch" x={0.1} y={0.1} w={0.8} h={0.8}>
-      <FlowLayout direction="left-right" gap={0.08} />
-      <DiagramNode id="api" label="API" size={[0.15, 0.08]} />
-      <DiagramNode id="db" label="Database" size={[0.15, 0.08]} />
+    <Diagram id="arch" x={"10%"} y={"10%"} w={"80%"} h={"80%"}>
+      <FlowLayout direction="left-right" gap={"8u"} />
+      <DiagramNode id="api" label="API" size={["15u", "8u"]} />
+      <DiagramNode id="db" label="Database" size={["15u", "8u"]} />
       <DiagramEdge from="api" to="db" />
     </Diagram>
   </>
@@ -34,6 +160,8 @@ import { Diagram, DiagramNode, DiagramEdge, FlowLayout } from '@brewsite/diagram
 ```
 
 The `sceneDsl` ReactNode is stored in the compiled `SlideSpec.sceneDsl` field and injected as sibling elements alongside the auto-generated TextBox and environment elements in the Scene.
+
+`sceneDsl` and smart layout routing can be combined. Use `sceneDsl` for scene-level elements (custom camera, custom lighting, background models) and smart routing for content that belongs in a layout region.
 
 ---
 
@@ -73,7 +201,7 @@ import { BarChart } from '@brewsite/charts';
     <Background color="#0a0a1a" />
     <BarChart
       id="revenue-chart"
-      x={0.15} y={0.1} w={0.7} h={0.7}
+      x={"15%"} y={"10%"} w={"70%"} h={"70%"}
       data={[
         { label: 'Q1', value: 2.1 },
         { label: 'Q2', value: 3.4 },
@@ -92,11 +220,13 @@ import { BarChart } from '@brewsite/charts';
 
 ---
 
-## Camera and Lighting Are Required
+## Camera and Lighting
 
-`sceneDsl` content needs explicit `Camera` and `Lighting` elements. `SlidePlayer` does not provide default 3D camera or lighting -- it only manages the HTML overlay layer and slide transitions. Without these elements, 3D content will not be visible.
+**With smart layout routing:** When 3D elements are routed from layout slots, the compiler injects a default `<Camera>` (mode `world`, position `[0, 1.5, 5]`, fov 42) and default `<Lighting>` (ambient white, intensity 1) automatically. You only need to provide explicit camera/lighting via `sceneDsl` if you want custom positioning or multi-light setups.
 
-Minimal required 3D setup:
+**With sceneDsl:** `sceneDsl` content needs explicit `Camera` and `Lighting` elements. SlidePlayer does not provide default 3D camera or lighting for `sceneDsl`-only slides. Without these elements, 3D content will not be visible.
+
+Minimal required 3D setup for `sceneDsl`:
 
 ```tsx
 <Slide key="diagram-slide" sceneDsl={
@@ -166,7 +296,7 @@ To make 3D content visible alongside text, use one of these strategies:
   <>
     <Camera mode="world" position={[2, 1.5, 4]} target={[2, 0.5, 0]} />
     <Lighting><Ambient intensity={0.8} /><Directional intensity={0.6} position={[5, 5, 5]} /></Lighting>
-    <Model id="product" src="/product.glb" x={0.5} y={0.1} w={0.45} h={0.8} />
+    <Model id="product" src="/product.glb" x={"50%"} y={"10%"} w={"45%"} h={"80%"} />
   </>
 }>
   <TwoColumnSlide
@@ -184,7 +314,7 @@ To make 3D content visible alongside text, use one of these strategies:
   <>
     <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} />
     <Lighting><Ambient intensity={0.9} /><Directional intensity={0.7} position={[5, 5, 5]} /></Lighting>
-    <Model id="hero-model" src="/hero.glb" x={0.1} y={0.1} w={0.8} h={0.8} />
+    <Model id="hero-model" src="/hero.glb" x={"10%"} y={"10%"} w={"80%"} h={"80%"} />
   </>
 }>
   <FullBleedSlide overlayPosition="bottom-left">

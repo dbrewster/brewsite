@@ -63,8 +63,8 @@ const productEpsilonData = [
 function LinearCarouselViews(): JSX.Element {
   return (
     <>
-      <View id="lc-is-1" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-1" data={productAlphaData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc-is-1" w={"40%"} h={"50%"}>
+        <BarChart id="is-lin-chart-1" data={productAlphaData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Alpha Sales" />
@@ -72,8 +72,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc-is-2" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-2" data={productBetaData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc-is-2" w={"40%"} h={"50%"}>
+        <BarChart id="is-lin-chart-2" data={productBetaData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Beta Sales" />
@@ -81,8 +81,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc-is-3" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-3" data={productGammaData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc-is-3" w={"40%"} h={"50%"}>
+        <BarChart id="is-lin-chart-3" data={productGammaData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Gamma Sales" />
@@ -90,8 +90,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc-is-4" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-4" data={productDeltaData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc-is-4" w={"40%"} h={"50%"}>
+        <BarChart id="is-lin-chart-4" data={productDeltaData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Delta Sales" />
@@ -99,8 +99,8 @@ function LinearCarouselViews(): JSX.Element {
         </BarChart>
       </View>
 
-      <View id="lc-is-5" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-5" data={productEpsilonData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="lc-is-5" w={"40%"} h={"50%"}>
+        <BarChart id="is-lin-chart-5" data={productEpsilonData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Epsilon Sales" />
@@ -117,7 +117,7 @@ export const LinearCarouselScene = (): JSX.Element => {
   return (
     <Scene id="input-linear-carousel" primaryCarouselId={'linear-carousel-layout'}>
       <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
@@ -147,7 +147,7 @@ export const LinearCarouselScene = (): JSX.Element => {
       </ViewLayout>
 
       {/* Info banner */}
-      <TextBox id="lin-info" x={0.3} y={0.06} w={0.4} h={0.14} layer={3}>
+      <TextBox id="lin-info" x={"30%"} y={"6%"} w={"40%"} h={"14%"} layer={3}>
         <div
           style={{
             height: '100%',

@@ -15,7 +15,7 @@ export function SceneCustomWidgetPanel(): JSX.Element {
     <>
       {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-custom-widget-base">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.3} polar={1.0} distance={10} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.3rad"} polar={"1rad"} distance={10} />
         <Background color="#10080e" />
         <Lighting>
           <Ambient color="#cc44ff" intensity={0.4} />
@@ -26,7 +26,7 @@ export function SceneCustomWidgetPanel(): JSX.Element {
       {/* Arrived state: reading position — end of panel scroll window */}
       <Scene id="scene-custom-widget">
         <ProgressManager fn={DWELL_FN} />
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.3} polar={1.0} distance={8} />
+        <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.3rad"} polar={"1rad"} distance={8} />
         <Background color="#10080e" />
         <Lighting>
           <Ambient color="#cc44ff" intensity={0.4} />

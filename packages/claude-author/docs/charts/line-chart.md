@@ -3,7 +3,7 @@ title: "@brewsite/charts — Line Chart"
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-21
 ---
 
 ## When to Use LineChart
@@ -79,7 +79,7 @@ export function SceneTrends() {
       <LineChart
         id="traffic-trends"
         data={monthlyData}
-        x={0.10} y={0.25} w={0.80} h={0.45}
+        x={"10%"} y={"25%"} w={"80%"} h={"45%"}
         depth={0.3}
         lineShape="circle"
         lineSmoothness={0.4}

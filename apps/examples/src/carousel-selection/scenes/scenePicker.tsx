@@ -21,7 +21,7 @@ type PickerSceneProps = {
 export const PickerScene = ({ onSelect }: PickerSceneProps): JSX.Element => (
   <Scene id="picker" primaryCarouselId="showcase">
     <ProgressManager scrollUnits={800} />
-    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
+    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"42deg"} />
     <Lighting intensityScale={1.2}>
       <Ambient intensity={2.5} color="#d7e5ff" />
       <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]} />
@@ -45,12 +45,12 @@ export const PickerScene = ({ onSelect }: PickerSceneProps): JSX.Element => (
       zStep={12}
       fadeMin={0.2}
       spread={0.65}
-      x={0.05} w={0.9}
+      x={"5%"} w={"90%"}
       onSelect={onSelect}
     >
       {/* View 0: Chart preview */}
-      <View id="chart-view" w={0.42} h={0.52}>
-        <BarChart id="picker-chart" data={revenueData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="chart-view" w={"42%"} h={"52%"}>
+        <BarChart id="picker-chart" data={revenueData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
@@ -60,25 +60,25 @@ export const PickerScene = ({ onSelect }: PickerSceneProps): JSX.Element => (
       </View>
 
       {/* View 1: Diagram preview */}
-      <View id="diagram-view" w={0.42} h={0.52}>
-        <Diagram id="picker-diagram" x={0} y={0} w={1} h={1} scale={1.2}>
-          <FlowLayout direction="top-down" gap={0.06} />
-          <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC" size={[0.22, 0.10]} />
+      <View id="diagram-view" w={"42%"} h={"52%"}>
+        <Diagram id="picker-diagram" x={0} y={0} w={"100%"} h={"100%"} scale={1.2}>
+          <FlowLayout direction="top-down" gap={"6%"} />
+          <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC" size={["0.22u", "0.1u"]} />
           <DiagramGroup id="services" label="Services" variant="cluster">
-            <FlowLayout direction="left-right" gap={0.05} />
+            <FlowLayout direction="left-right" gap={"5%"} />
             <DiagramNode id="auth" label="Auth" />
             <DiagramNode id="billing" label="Billing" />
             <DiagramNode id="notify" label="Notify" />
           </DiagramGroup>
-          <DiagramNode id="db" label="Database" sublabel="PostgreSQL" size={[0.22, 0.10]} />
+          <DiagramNode id="db" label="Database" sublabel="PostgreSQL" size={["0.22u", "0.1u"]} />
           <DiagramEdge from="api" to="services" routing="flow" flow="forward" />
           <DiagramEdge from="services" to="db" routing="flow" flow="forward" />
         </Diagram>
       </View>
 
       {/* View 2: Explorer preview (static card — full content is in overlay) */}
-      <View id="explorer-view" w={0.42} h={0.52}>
-        <BarChart id="picker-explorer-preview" data={revenueData} x={0} y={0} w={1} h={1} depth={0.3}>
+      <View id="explorer-view" w={"42%"} h={"52%"}>
+        <BarChart id="picker-explorer-preview" data={revenueData} x={0} y={0} w={"100%"} h={"100%"} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
@@ -93,7 +93,7 @@ export const PickerScene = ({ onSelect }: PickerSceneProps): JSX.Element => (
     </ViewLayout>
 
     {/* Title overlay */}
-    <TextBox id="picker-title" x={0.02} y={0.04} w={0.35} h={0.10} layer={3}>
+    <TextBox id="picker-title" x={"2%"} y={"4%"} w={"35%"} h={"10%"} layer={3}>
       <div style={{
         height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center',
         padding: '0 14px', background: 'rgba(4,12,28,0.85)', backdropFilter: 'blur(14px)',

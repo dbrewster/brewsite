@@ -27,8 +27,11 @@ export function resolveInputTargets(
   }
 
   // scope === 'canvas' (default)
+  // Prefer stageContainer for keyboard events (focus-gated scroll stage),
+  // then canvasContainer (multi-engine: each canvas receives its own keyboard
+  // events when focused), then document as last resort.
   return {
     pointerTarget: canvasContainer ?? window,
-    keyboardTarget: stageContainer ?? document,
+    keyboardTarget: stageContainer ?? canvasContainer ?? document,
   };
 }

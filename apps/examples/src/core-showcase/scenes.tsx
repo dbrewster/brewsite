@@ -3,7 +3,7 @@
 // Every scene wraps its renderable content in a <View> so the stage occupies a
 // known sub-region of the viewport, keeping things from feeling oversized on
 // ultra-wide monitors while staying proportional on phones.
-import type { JSX } from 'react';
+import type {JSX} from 'react';
 import {
   Action,
   Ambient,
@@ -22,30 +22,16 @@ import {
   View,
   WheelMap,
 } from '@brewsite/core';
-import {
-  Diagram,
-  DiagramEdge,
-  DiagramGroup,
-  DiagramNode, FlowLayout,
-  ManualLayout,
-} from '@brewsite/diagram';
-import { darkGlassBundle } from '@brewsite/themes';
-
-const darkGlassTheme = darkGlassBundle.diagram.dark;
-import {
-  BarChart,
-  ChartAxis,
-  ChartData,
-  ChartSeries,
-} from '@brewsite/charts';
-import { frameworkDataA, frameworkDataB } from './data';
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {BarChart, ChartAxis, ChartData, ChartSeries,} from '@brewsite/charts';
+import {frameworkDataA, frameworkDataB} from './data';
 
 // ─── Standard stage View bounds ─────────────────────────────────────────────
 // Every scene places its renderable content inside a View with these bounds.
 // Children use local NVS coords (x=0..1, y=0..1) within the stage.
 // The 6% horizontal margin + 10%/12% vertical margin keeps content
 // comfortably inset from the fixed top/bottom chrome overlays.
-const V = { x: 0.15, y: 0.10, w: 0.7, h: 0.78 } as const;
+export const V = { x: "15%", y: "10%", w: "70%", h: "78%" } as const;
 
 // ─── Shared lighting presets ────────────────────────────────────────────────
 
@@ -70,13 +56,13 @@ const HeroLighting = (): JSX.Element => (
 export const HeroScene = (): JSX.Element => (
   <Scene id="cs-hero">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={[0, 3, 10]} target={[0, 0, 0]} fov={48} />
+    <Camera mode="world" position={[0, 3, 10]} target={[0, 0, 0]} fov={"48deg"} />
     <HeroLighting />
     <Background />
     <Floor variant="grid" negativeZExtent={24} />
 
     <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
-      <TextBox id="hero-title" x={0.02} y={0.12} w={0.96} h={0.76}>
+      <TextBox id="hero-title" x={"2%"} y={"12%"} w={"96%"} h={"76%"}>
         <div
           style={{
             height: '100%',
@@ -146,131 +132,12 @@ export const HeroScene = (): JSX.Element => (
 
 // ─── SCENE 2: Architecture Overview ─────────────────────────────────────────
 
-export const OverviewScene = (): JSX.Element => (
-  <Scene id="cs-overview">
-    <ProgressManager scrollUnits={1800} />
-    <Camera mode="world" position={[0, 8, 38]} target={[0, 0, 0]} fov={50} />
-    <Lighting intensityScale={1}>
-      <Ambient intensity={1.0} color="#ffffff" />
-      <Directional intensity={0.5} color="#aaccff" position={[0, 20, 25]} />
-      <Directional intensity={0.3} color="#6677ff" position={[-12, 5, 10]} />
-    </Lighting>
-    <Background />
-
-    <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
-      <Diagram
-        id="cs-overview-diagram"
-        x={0}
-        y={0}
-        w={1}
-        h={1}
-        tilt={-Math.PI / 12}
-        scale={1.0}
-      >
-        <FlowLayout direction='left-right' gap={.1}/>
-
-        <DiagramGroup
-          id="layer-author"
-          label="Author (DSL) — pure JSX, no Three.js"
-          variant="boundary"
-        >
-          <DiagramNode
-            id="ov-scene"
-            label="<Scene>"
-            sublabel="key/id · easing · overlay children"
-                       icon="ui:document-text"
-            position={[0.12, 0.5, 0]}
-            size={[0.16, 0.14]}
-          />
-        </DiagramGroup>
-
-        <DiagramGroup
-          id="layer-compiler"
-          label="Compile (compiler/) — pure functions, zero Three.js"
-          variant="swimlane"
-        >
-          <DiagramNode
-            id="ov-frames"
-            label="SceneFrame[]"
-            sublabel="one snapshot per scene · accumulated from JSX"
-                       icon="ui:squares-2x2"
-            position={[0.37, 0.35, 0]}
-            size={[0.16, 0.14]}
-          />
-          <DiagramNode
-            id="ov-track"
-            label="SceneTrack"
-            sublabel="flat tick[] · pre-baked · O(1) sampling"
-                       icon="ui:circle-stack"
-            position={[0.37, 0.65, 0]}
-            size={[0.16, 0.14]}
-                       glow={{ intensity: 0.2 }}
-          />
-        </DiagramGroup>
-
-        <DiagramGroup
-          id="layer-runtime"
-          label="Execute (runtime/) — rAF loop, O(1) per frame"
-          variant="cluster"
-        >
-          <DiagramNode
-            id="ov-driver"
-            label="RuntimeDriverImpl"
-            sublabel="sample SceneTrack → WidgetState dispatch"
-                       icon="ui:cpu-chip"
-            position={[0.62, 0.35, 0]}
-            size={[0.16, 0.14]}
-          />
-          <DiagramNode
-            id="ov-registry"
-            label="WidgetRegistry"
-            sublabel="routes state by id → IWidget.apply()"
-                       icon="ui:puzzle-piece"
-            position={[0.62, 0.65, 0]}
-            size={[0.16, 0.14]}
-          />
-        </DiagramGroup>
-
-        <DiagramGroup
-          id="layer-output"
-          label="Output (player/) — React integration surface"
-          variant="boundary"
-        >
-          <DiagramNode
-            id="ov-canvas"
-            label="SceneCanvas"
-            sublabel="WebGLRenderer · Three.js scene root"
-                       icon="ui:photo"
-            position={[0.88, 0.35, 0]}
-            size={[0.16, 0.14]}
-          />
-          <DiagramNode
-            id="ov-overlay"
-            label="EngineOverlayHost"
-            sublabel="React HUD over canvas"
-                       icon="ui:chat-bubble-left-right"
-            position={[0.88, 0.65, 0]}
-            size={[0.16, 0.14]}
-          />
-        </DiagramGroup>
-
-        <DiagramEdge from="ov-scene" to="ov-frames" label="JSX tree" flow="forward" />
-        <DiagramEdge from="ov-frames" to="ov-track" label="bake tick[]" flow="forward" />
-        <DiagramEdge from="ov-track" to="ov-driver" label="sample(progress)" flow="forward" />
-        <DiagramEdge from="ov-driver" to="ov-registry" label="dispatch" flow="forward" />
-        <DiagramEdge from="ov-overlay" to="ov-canvas" label="apply()" flow="forward" />
-        <DiagramEdge from="ov-registry" to="ov-overlay" style="dashed" arrowEnd="open" />
-      </Diagram>
-    </View>
-  </Scene>
-);
-
 // ─── SCENE 3: Scene DSL — Snapshots ─────────────────────────────────────────
 
 export const SceneDslScene = (): JSX.Element => (
   <Scene id="cs-scene-dsl">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={50} />
+    <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={"50deg"} />
     <SoftLighting />
     <Background />
 
@@ -278,10 +145,10 @@ export const SceneDslScene = (): JSX.Element => (
       <Diagram
         id="cs-scene-dsl-diagram"
         x={0}
-        y={0.18}
-        w={1}
-        h={0.82}
-        tilt={-Math.PI / 14}
+        y={"18%"}
+        w={"100%"}
+        h={"82%"}
+        tilt={"-0.2243994753rad"}
         scale={0.9}
       >
         <ManualLayout />
@@ -296,16 +163,16 @@ export const SceneDslScene = (): JSX.Element => (
             label="Scene A"
             sublabel="Camera: [0, 2, 8] · Lighting: soft · Background: #111"
                        icon="ui:document-text"
-            position={[0.22, 0.5, 0]}
-            size={[0.22, 0.14]}
+            position={["22%", "50%", 0]}
+            size={["0.22u", "0.14u"]}
           />
           <DiagramNode
             id="snap-b"
             label="Scene B"
             sublabel="Camera: [-4, 3, 6] · Lighting: dramatic · (inherits)"
                        icon="ui:document-text"
-            position={[0.78, 0.5, 0]}
-            size={[0.22, 0.14]}
+            position={["78%", "50%", 0]}
+            size={["0.22u", "0.14u"]}
                        glow={{ intensity: 0.15 }}
           />
         </DiagramGroup>
@@ -315,15 +182,15 @@ export const SceneDslScene = (): JSX.Element => (
           label="Auto-transition"
           sublabel="Compiler bakes interpolation into SceneTrack."
                    icon="ui:arrows-right-left"
-          position={[0.5, 0.5, 0]}
-          size={[0.18, 0.14]}
+          position={["50%", "50%", 0]}
+          size={["0.18u", "0.14u"]}
         />
 
         <DiagramEdge from="snap-a" to="snap-transition" label="declare" flow="forward" />
         <DiagramEdge from="snap-transition" to="snap-b" label="declare" flow="forward" />
       </Diagram>
 
-      <TextBox id="cs-scene-dsl-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+      <TextBox id="cs-scene-dsl-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 640 }}>
             Each <code style={{ color: 'var(--ex-accent-text)', fontFamily: 'monospace' }}>&lt;Scene&gt;</code> is a complete world snapshot. Elements not re-declared carry forward. Declare only what changes.
@@ -339,16 +206,16 @@ export const SceneDslScene = (): JSX.Element => (
 export const SceneTransitionScene = (): JSX.Element => (
   <Scene id="cs-scene-transition">
     <ProgressManager scrollUnits={1400} />
-    <Camera mode="world" position={[0, 4, 22]} target={[0, 0, 0]} fov={50} />
+    <Camera mode="world" position={[0, 4, 22]} target={[0, 0, 0]} fov={"50deg"} />
 
     <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
       <Diagram
         id="cs-scene-dsl-diagram"
         x={0}
-        y={0.18}
-        w={1}
-        h={0.82}
-        tilt={-Math.PI / 32}
+        y={"18%"}
+        w={"100%"}
+        h={"82%"}
+        tilt={"-0.09817477042rad"}
         scale={1.1}
       >
         <ManualLayout />
@@ -363,16 +230,16 @@ export const SceneTransitionScene = (): JSX.Element => (
             label="Scene A"
             sublabel="Camera: [0, 2, 8] · Lighting: soft"
                        icon="ui:document-text"
-            position={[0.15, 0.5, 0]}
-            size={[0.22, 0.14]}
+            position={["15%", "50%", 0]}
+            size={["0.22u", "0.14u"]}
           />
           <DiagramNode
             id="snap-b"
             label="Scene B"
             sublabel="Camera: [-4, 3, 6] · Lighting: dramatic"
                        icon="ui:document-text"
-            position={[0.5, 0.5, 0]}
-            size={[0.22, 0.14]}
+            position={["50%", "50%", 0]}
+            size={["0.22u", "0.14u"]}
                        glow={{ intensity: 0.2 }}
           />
           <DiagramNode
@@ -380,8 +247,8 @@ export const SceneTransitionScene = (): JSX.Element => (
             label="Scene C"
             sublabel="Camera: [3, 1.5, 5] · (inherits lighting)"
                        icon="ui:document-text"
-            position={[0.85, 0.5, 0]}
-            size={[0.22, 0.14]}
+            position={["85%", "50%", 0]}
+            size={["0.22u", "0.14u"]}
                        glow={{ intensity: 0.1 }}
           />
         </DiagramGroup>
@@ -390,7 +257,7 @@ export const SceneTransitionScene = (): JSX.Element => (
         <DiagramEdge from="snap-b" to="snap-c" label="morph" flow="forward" />
       </Diagram>
 
-      <TextBox id="cs-transition-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+      <TextBox id="cs-transition-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 640 }}>
             The diagram above morphed from the previous scene — same <code style={{ color: 'var(--ex-accent-text)', fontFamily: 'monospace' }}>id</code>, different props. A third node appeared — added only in this scene.
@@ -406,7 +273,7 @@ export const SceneTransitionScene = (): JSX.Element => (
 export const CompilerScene = (): JSX.Element => (
   <Scene id="cs-compiler">
     <ProgressManager scrollUnits={1600} />
-    <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={52} />
+    <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={"52deg"} />
     <Lighting intensityScale={1}>
       <Ambient intensity={0.9} color="#ffffff" />
       <Directional intensity={0.6} color="#99bbff" position={[0, 18, 22]} />
@@ -418,19 +285,19 @@ export const CompilerScene = (): JSX.Element => (
       <Diagram
         id="cs-compiler-diagram"
         x={0}
-        y={0.18}
-        w={1}
-        h={0.82}
-        tilt={-Math.PI / 14}
+        y={"18%"}
+        w={"100%"}
+        h={"82%"}
+        tilt={"-0.2243994753rad"}
         scale={1.0}
       >
         <ManualLayout />
 
-        <DiagramNode id="cmp-jsx" label="Scene JSX" sublabel="<Scene> children: Camera, Lighting, Charts…" icon="ui:code-bracket-square" position={[0.1, 0.5, 0]} size={[0.14, 0.14]} />
-        <DiagramNode id="cmp-dsl" label="sceneDslCompiler" sublabel="JSX tree → NodeHandler dispatch" icon="ui:arrows-right-left" position={[0.3, 0.5, 0]} size={[0.14, 0.14]} />
-        <DiagramNode id="cmp-frames" label="SceneFrame[]" sublabel="one per scene · widget states" icon="ui:squares-2x2" position={[0.5, 0.5, 0]} size={[0.14, 0.14]} />
-        <DiagramNode id="cmp-baker" label="sceneTrackCompiler" sublabel="bakes tick[] · transitions pre-interpolated" icon="ui:cpu-chip" position={[0.7, 0.5, 0]} size={[0.14, 0.14]} />
-        <DiagramNode id="cmp-track" label="SceneTrack" sublabel="flat tick[] · O(1) lookup" icon="ui:circle-stack" position={[0.9, 0.5, 0]} size={[0.14, 0.14]} glow={{ intensity: 0.25 }} />
+        <DiagramNode id="cmp-jsx" label="Scene JSX" sublabel="<Scene> children: Camera, Lighting, Charts…" icon="ui:code-bracket-square" position={["10%", "50%", 0]} size={["0.14u", "0.14u"]} />
+        <DiagramNode id="cmp-dsl" label="sceneDslCompiler" sublabel="JSX tree → NodeHandler dispatch" icon="ui:arrows-right-left" position={["30%", "50%", 0]} size={["0.14u", "0.14u"]} />
+        <DiagramNode id="cmp-frames" label="SceneFrame[]" sublabel="one per scene · widget states" icon="ui:squares-2x2" position={["50%", "50%", 0]} size={["0.14u", "0.14u"]} />
+        <DiagramNode id="cmp-baker" label="sceneTrackCompiler" sublabel="bakes tick[] · transitions pre-interpolated" icon="ui:cpu-chip" position={["70%", "50%", 0]} size={["0.14u", "0.14u"]} />
+        <DiagramNode id="cmp-track" label="SceneTrack" sublabel="flat tick[] · O(1) lookup" icon="ui:circle-stack" position={["90%", "50%", 0]} size={["0.14u", "0.14u"]} glow={{ intensity: 0.25 }} />
 
         <DiagramEdge from="cmp-jsx" to="cmp-dsl" label="JSX tree" flow="forward" />
         <DiagramEdge from="cmp-dsl" to="cmp-frames" label="SceneState" flow="forward" />
@@ -438,7 +305,7 @@ export const CompilerScene = (): JSX.Element => (
         <DiagramEdge from="cmp-baker" to="cmp-track" label="tick[]" flow="forward" />
       </Diagram>
 
-      <TextBox id="cs-compiler-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+      <TextBox id="cs-compiler-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 14px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 660 }}>
             Pure compiler pipeline — zero Three.js, zero React. Runs once at mount. The runtime calls{' '}
@@ -455,13 +322,13 @@ export const CompilerScene = (): JSX.Element => (
 export const CameraWorldScene = (): JSX.Element => (
   <Scene id="cs-camera-world">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={[3, 2.5, 9]} target={[0, 0.5, 0]} fov={45} />
+    <Camera mode="world" position={[3, 2.5, 9]} target={[0, 0.5, 0]} fov={"45deg"} />
     <SoftLighting />
     <Background />
     <Floor variant="grid" negativeZExtent={18} />
 
     <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
-      <TextBox id="cs-cam-world-card" x={0.02} y={0.04} w={0.5} h={0.92}>
+      <TextBox id="cs-cam-world-card" x={"2%"} y={"4%"} w={"50%"} h={"92%"}>
         <div
           style={{
             height: '100%',
@@ -502,13 +369,13 @@ export const CameraWorldScene = (): JSX.Element => (
 export const CameraOrbitScene = (): JSX.Element => (
   <Scene id="cs-camera-orbit">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.5} polar={1.1} distance={8} fov={50} />
+    <Camera mode="orbit" target={[0, 0, 0]} azimuth={"0.5rad"} polar={"1.1rad"} distance={8} fov={"50deg"} />
     <SoftLighting />
     <Background />
     <Floor variant="grid" negativeZExtent={18} />
 
     <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
-      <TextBox id="cs-cam-orbit-card" x={0.48} y={0.04} w={0.5} h={0.92}>
+      <TextBox id="cs-cam-orbit-card" x={"48%"} y={"4%"} w={"50%"} h={"92%"}>
         <div
           style={{
             height: '100%',
@@ -550,7 +417,7 @@ export const CameraOrbitScene = (): JSX.Element => (
 export const LightingSoftScene = (): JSX.Element => (
   <Scene id="cs-lighting-soft">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={[0, 8, 32]} target={[0, 0, 0]} fov={50} />
+    <Camera mode="world" position={[0, 8, 32]} target={[0, 0, 0]} fov={"50deg"} />
     <SoftLighting />
     <Background />
 
@@ -558,23 +425,23 @@ export const LightingSoftScene = (): JSX.Element => (
       <Diagram
         id="cs-lighting-diagram"
         x={0}
-        y={0.18}
-        w={1}
-        h={0.82}
-        tilt={-Math.PI / 12}
+        y={"18%"}
+        w={"100%"}
+        h={"82%"}
+        tilt={"-0.2617993878rad"}
         scale={1.0}
       >
         <ManualLayout />
-        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.14]} />
-        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="0.9 intensity · #ffffff · [4, 10, 6]" icon="ui:bolt" position={[0.5, 0.35, 0]} size={[0.16, 0.14]} />
-        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.4 intensity · #b0ccff · [-6, 4, 8]" icon="ui:bolt" position={[0.8, 0.35, 0]} size={[0.16, 0.14]} />
-        <DiagramNode id="lt-result" label="Soft Result" sublabel="Professional presentation lighting" icon="ui:light-bulb" position={[0.5, 0.72, 0]} size={[0.22, 0.14]} glow={{ intensity: 0.1 }} />
+        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" icon="ui:light-bulb" position={["20%", "35%", 0]} size={["0.16u", "0.14u"]} />
+        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="0.9 intensity · #ffffff · [4, 10, 6]" icon="ui:bolt" position={["50%", "35%", 0]} size={["0.16u", "0.14u"]} />
+        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.4 intensity · #b0ccff · [-6, 4, 8]" icon="ui:bolt" position={["80%", "35%", 0]} size={["0.16u", "0.14u"]} />
+        <DiagramNode id="lt-result" label="Soft Result" sublabel="Professional presentation lighting" icon="ui:light-bulb" position={["50%", "72%", 0]} size={["0.22u", "0.14u"]} glow={{ intensity: 0.1 }} />
         <DiagramEdge from="lt-ambient" to="lt-result" flow="forward" style="dashed" />
         <DiagramEdge from="lt-directional-1" to="lt-result" flow="forward" />
         <DiagramEdge from="lt-directional-2" to="lt-result" flow="forward" style="dashed" />
       </Diagram>
 
-      <TextBox id="cs-lighting-soft-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+      <TextBox id="cs-lighting-soft-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 640 }}>
             Soft professional lighting — high ambient fill, two directionals. Scroll to see the same diagram under dramatic lighting.
@@ -590,7 +457,7 @@ export const LightingSoftScene = (): JSX.Element => (
 export const LightingDramaticScene = (): JSX.Element => (
   <Scene id="cs-lighting-dramatic">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={[0, 8, 32]} target={[0, 0, 0]} fov={50} />
+    <Camera mode="world" position={[0, 8, 32]} target={[0, 0, 0]} fov={"50deg"} />
     <Lighting intensityScale={1.2}>
       <Ambient intensity={0.15} color="#0a0a20" />
       <Directional intensity={2.0} color="#ff6030" position={[8, 12, 4]} />
@@ -604,23 +471,23 @@ export const LightingDramaticScene = (): JSX.Element => (
       <Diagram
         id="cs-lighting-diagram"
         x={0}
-        y={0.18}
-        w={1}
-        h={0.82}
-        tilt={-Math.PI / 12}
+        y={"18%"}
+        w={"100%"}
+        h={"82%"}
+        tilt={"-0.2617993878rad"}
         scale={1.0}
       >
         <ManualLayout />
-        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.14]} />
-        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="2.0 intensity · #ff6030 · warm key" sublabelColor="#ffccaa" icon="ui:bolt" position={[0.5, 0.35, 0]} size={[0.16, 0.14]} color="#3a1808" />
-        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.8 intensity · #3060ff · cool fill" sublabelColor="#aac8ff" icon="ui:bolt" position={[0.8, 0.35, 0]} size={[0.16, 0.14]} color="#0a1840" />
-        <DiagramNode id="lt-result" label="Dramatic Result" sublabel="Cinematic warm/cool bi-tone + GlowPoint sprites" sublabelColor="#ffccaa" icon="ui:light-bulb" position={[0.5, 0.72, 0]} size={[0.22, 0.14]} color="#301020" glow={{ intensity: 0.3 }} />
+        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={["20%", "35%", 0]} size={["0.16u", "0.14u"]} />
+        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="2.0 intensity · #ff6030 · warm key" sublabelColor="#ffccaa" icon="ui:bolt" position={["50%", "35%", 0]} size={["0.16u", "0.14u"]} color="#3a1808" />
+        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.8 intensity · #3060ff · cool fill" sublabelColor="#aac8ff" icon="ui:bolt" position={["80%", "35%", 0]} size={["0.16u", "0.14u"]} color="#0a1840" />
+        <DiagramNode id="lt-result" label="Dramatic Result" sublabel="Cinematic warm/cool bi-tone + GlowPoint sprites" sublabelColor="#ffccaa" icon="ui:light-bulb" position={["50%", "72%", 0]} size={["0.22u", "0.14u"]} color="#301020" glow={{ intensity: 0.3 }} />
         <DiagramEdge from="lt-ambient" to="lt-result" flow="forward" style="dashed" />
         <DiagramEdge from="lt-directional-1" to="lt-result" flow="forward" />
         <DiagramEdge from="lt-directional-2" to="lt-result" flow="forward" />
       </Diagram>
 
-      <TextBox id="cs-lighting-dramatic-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+      <TextBox id="cs-lighting-dramatic-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'rgba(255, 200, 170, 0.85)', lineHeight: 1.6, margin: 0, maxWidth: 640 }}>
             Same diagram, different <code style={{ color: 'rgba(255, 180, 140, 0.9)', fontFamily: 'monospace' }}>&lt;Lighting&gt;</code>. Warm key + cool fill + <code style={{ fontFamily: 'monospace' }}>GlowPoint</code> sprites. The auto-transition morphed between lighting states.
@@ -637,7 +504,7 @@ export const ChartAScene = (): JSX.Element => {
   return (
     <Scene id="cs-chart-a">
       <ProgressManager scrollUnits={1200} />
-      <Camera mode="world" position={[0, 1.5, 6.6]} target={[0, 0.08, 0]} fov={42} />
+      <Camera mode="world" position={[0, 1.5, 6.6]} target={[0, 0.08, 0]} fov={"42deg"} />
       <Lighting intensityScale={1.3}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.1} color="#edf4ff" position={[0, 2, 10]} />
@@ -650,10 +517,10 @@ export const ChartAScene = (): JSX.Element => {
         <BarChart
           id="framework-adoption"
           data={frameworkDataA}
-          x={0.10}
-          y={0.18}
-          w={0.80}
-          h={0.72}
+          x={"10%"}
+          y={"18%"}
+          w={"80%"}
+          h={"72%"}
           depth={0.4}
           interactive
         >
@@ -664,7 +531,7 @@ export const ChartAScene = (): JSX.Element => {
           <ChartSeries field="satisfaction" label="Satisfaction" />
         </BarChart>
 
-        <TextBox id="cs-chart-a-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+        <TextBox id="cs-chart-a-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
             <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 620 }}>
               <code style={{ color: 'var(--ex-accent-text)', fontFamily: 'monospace' }}>&lt;BarChart&gt;</code> with <code style={{ fontFamily: 'monospace' }}>id="framework-adoption"</code> — 2024 survey data. Scroll to see it morph.
@@ -682,7 +549,7 @@ export const ChartBScene = (): JSX.Element => {
   return (
     <Scene id="cs-chart-b">
       <ProgressManager scrollUnits={1200} />
-      <Camera mode="world" position={[0, 1.5, 6.6]} target={[0, 0.08, 0]} fov={42} />
+      <Camera mode="world" position={[0, 1.5, 6.6]} target={[0, 0.08, 0]} fov={"42deg"} />
       <Background />
       <Floor variant="grid" negativeZExtent={16} />
 
@@ -690,10 +557,10 @@ export const ChartBScene = (): JSX.Element => {
         <BarChart
           id="framework-adoption"
           data={frameworkDataB}
-          x={0.10}
-          y={0.18}
-          w={0.80}
-          h={0.72}
+          x={"10%"}
+          y={"18%"}
+          w={"80%"}
+          h={"72%"}
           depth={0.4}
         >
           <ChartData keyField="framework" />
@@ -703,7 +570,7 @@ export const ChartBScene = (): JSX.Element => {
           <ChartSeries field="satisfaction" label="Satisfaction" />
         </BarChart>
 
-        <TextBox id="cs-chart-b-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+        <TextBox id="cs-chart-b-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
             <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 620 }}>
               Same chart ID, different data → <strong>datum-level bar morphing</strong>. No animation code. The compiler matched <code style={{ fontFamily: 'monospace' }}>keyField="framework"</code> across scenes.
@@ -724,9 +591,9 @@ export const InputScene = (): JSX.Element => (
       mode="orbit"
       target={[0, 0, 0]}
       azimuth={0}
-      polar={1.0}
+      polar={"1rad"}
       distance={7}
-      fov={50}
+      fov={"50deg"}
     />
     <SoftLighting />
     <Background />
@@ -753,25 +620,25 @@ export const InputScene = (): JSX.Element => (
       <Diagram
         id="cs-input-diagram"
         x={0}
-        y={0.18}
-        w={1}
-        h={0.82}
-        tilt={-Math.PI / 8}
+        y={"18%"}
+        w={"100%"}
+        h={"82%"}
+        tilt={"-0.3926990817rad"}
         scale={1.0}
       >
         <ManualLayout />
         <DiagramGroup id="input-group" label="InputController + Action — gesture-to-action mapping" variant="swimlane">
-          <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" icon="ui:arrow-path" position={[0.2, 0.4, 0]} size={[0.18, 0.15]} />
-          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" icon="ui:arrows-pointing-out" position={[0.5, 0.4, 0]} size={[0.18, 0.15]} />
-          <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" icon="ui:arrow-path" position={[0.8, 0.4, 0]} size={[0.18, 0.15]} />
+          <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" icon="ui:arrow-path" position={["20%", "40%", 0]} size={["0.18u", "0.15u"]} />
+          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" icon="ui:arrows-pointing-out" position={["50%", "40%", 0]} size={["0.18u", "0.15u"]} />
+          <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" icon="ui:arrow-path" position={["80%", "40%", 0]} size={["0.18u", "0.15u"]} />
         </DiagramGroup>
-        <DiagramNode id="inp-camera" label="CameraWidget" sublabel="receives dispatched actions" icon="ui:eye" position={[0.5, 0.75, 0]} size={[0.22, 0.14]} glow={{ intensity: 0.15 }} />
+        <DiagramNode id="inp-camera" label="CameraWidget" sublabel="receives dispatched actions" icon="ui:eye" position={["50%", "75%", 0]} size={["0.22u", "0.14u"]} glow={{ intensity: 0.15 }} />
         <DiagramEdge from="inp-drag" to="inp-camera" flow="forward" />
         <DiagramEdge from="inp-wheel" to="inp-camera" flow="forward" />
         <DiagramEdge from="inp-key" to="inp-camera" flow="forward" />
       </Diagram>
 
-      <TextBox id="cs-input-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
+      <TextBox id="cs-input-caption" x={"2%"} y={0.0} w={"96%"} h={"16%"}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'var(--ex-text)', lineHeight: 1.6, margin: 0, maxWidth: 620 }}>
             Try it: <strong>drag to orbit in y only</strong>, <strong>control + scroll to zoom</strong>, <strong>shift + scroll to move camera</strong>, <strong>Cmd + scroll to orbit</strong>, <strong>press R to reset</strong>. This scene uses <code style={{ fontFamily: 'monospace' }}>mode="replace"</code> to override all defaults. Merge mode (the default) preserves standard bindings automatically.
@@ -787,31 +654,31 @@ export const InputScene = (): JSX.Element => (
 export const ThemingScene = (): JSX.Element => (
   <Scene id="cs-theming">
     <ProgressManager scrollUnits={1400} />
-    <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={50} />
+    <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={"50deg"} />
     <SoftLighting />
     <Background />
 
     <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
       <Diagram
         id="cs-theming-diagram"
-        x={0.5}
+        x={"50%"}
         y={0.0}
-        w={0.5}
-        h={1}
-        tilt={-Math.PI / 14}
+        w={"50%"}
+        h={"100%"}
+        tilt={"-0.2243994753rad"}
       >
         <ManualLayout />
-        <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" icon="ui:cpu-chip" position={[0.5, 0.2, 0]} size={[0.35, 0.14]} glow={{ intensity: 0.15 }} />
-        <DiagramNode id="thm-core" label="@brewsite/core" sublabel="CSS vars · EngineOverlayHost" icon="ui:swatch" position={[0.25, 0.55, 0]} size={[0.28, 0.14]} />
-        <DiagramNode id="thm-diagram" label="@brewsite/diagram" sublabel="node/edge/group materials" icon="ui:squares-2x2" position={[0.75, 0.55, 0]} size={[0.28, 0.14]} />
-        <DiagramNode id="thm-charts" label="@brewsite/charts" sublabel="palette · axis · grid colors" icon="ui:chart-bar" position={[0.5, 0.85, 0]} size={[0.28, 0.14]} />
+        <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" icon="ui:cpu-chip" position={["50%", "20%", 0]} size={["0.35u", "0.14u"]} glow={{ intensity: 0.15 }} />
+        <DiagramNode id="thm-core" label="@brewsite/core" sublabel="CSS vars · EngineOverlayHost" icon="ui:swatch" position={["25%", "55%", 0]} size={["0.28u", "0.14u"]} />
+        <DiagramNode id="thm-diagram" label="@brewsite/diagram" sublabel="node/edge/group materials" icon="ui:squares-2x2" position={["75%", "55%", 0]} size={["0.28u", "0.14u"]} />
+        <DiagramNode id="thm-charts" label="@brewsite/charts" sublabel="palette · axis · grid colors" icon="ui:chart-bar" position={["50%", "85%", 0]} size={["0.28u", "0.14u"]} />
         <DiagramEdge from="thm-engine" to="thm-core" flow="forward" />
         <DiagramEdge from="thm-engine" to="thm-diagram" flow="forward" />
         <DiagramEdge from="thm-core" to="thm-charts" style="dashed" />
         <DiagramEdge from="thm-diagram" to="thm-charts" style="dashed" />
       </Diagram>
 
-      <TextBox id="cs-theming-card" x={0.02} y={0.04} w={0.44} h={0.92}>
+      <TextBox id="cs-theming-card" x={"2%"} y={"4%"} w={"44%"} h={"92%"}>
         <div
           style={{
             height: '100%',
@@ -850,13 +717,13 @@ export const ThemingScene = (): JSX.Element => (
 export const SummaryScene = (): JSX.Element => (
   <Scene id="cs-summary">
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={[0, 3, 10]} target={[0, 0, 0]} fov={48} />
+    <Camera mode="world" position={[0, 3, 10]} target={[0, 0, 0]} fov={"48deg"} />
     <HeroLighting />
     <Background />
     <Floor variant="grid" negativeZExtent={24} />
 
     <View id="cs-stage" x={V.x} y={V.y} w={V.w} h={V.h}>
-      <TextBox id="summary-title" x={0.02} y={0.1} w={0.96} h={0.8}>
+      <TextBox id="summary-title" x={"2%"} y={"10%"} w={"96%"} h={"80%"}>
         <div
           style={{
             height: '100%',

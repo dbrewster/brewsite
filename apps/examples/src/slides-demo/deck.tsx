@@ -1,205 +1,156 @@
 // apps/examples/src/slides-demo/deck.tsx
-// Enterprise slide deck: "Nexus Platform — Q3 2026 Strategy & Product Update"
-// Showcases all new Phase 1B layout DSL components, graphics components,
-// entrance animations, section dividers, and 3D sceneDsl content.
+// "Nexus Platform — Q3 2026 Strategy & Product Update"
+//
+// Corporate deck following McKinsey action-title convention and SCR narrative:
+//   Situation → Complication → Resolution → Evidence → Ask → Close
+//
+// Design principles applied:
+//   • Action titles: every title is a complete sentence stating the takeaway
+//   • One insight per slide: no information overload
+//   • Diagrams placed alongside text in split layouts, not full-bleed
+//   • Purpose-driven animation: only where it aids comprehension
+//   • Section dividers for chapter structure with directional transitions
 
-import type { ReactElement } from 'react';
+import type {ReactElement} from 'react';
 import {
-  Slide,
-  // Phase 1B Layout DSL
-  TitleSlide,
-  SectionSlide,
-  ContentSlide,
-  TwoColumnSlide,
-  FullBleedSlide,
-  BlankSlide,
-  BigNumberSlide,
-  ComparisonSlide,
-  QuoteSlide,
   AgendaSlide,
-  // Text Primitives
-  Heading,
-  Body,
-  BulletList,
-  NumberedList,
-  // Graphics Components
-  StatCard,
-  Timeline,
-  ProcessSteps,
   Badge,
-  Divider,
+  BigNumberSlide,
+  BulletList,
   CalloutBox,
-  QuoteBlock,
+  ComparisonSlide,
+  ContentSlide,
+  Divider,
+  Heading,
   MetricRow,
+  NumberedList,
+  ProcessSteps,
+  QuoteBlock,
+  QuoteSlide,
+  SectionSlide,
+  Slide,
+  Timeline,
+  TitleSlide,
+  TwoColumnSlide,
 } from '@brewsite/slides';
-import type { ComparisonCellValue } from '@brewsite/slides';
-import { Ambient, Camera, Directional, Floor, Lighting, View } from '@brewsite/core';
-import {
-  Diagram,
-  DiagramEdge,
-  DiagramGroup,
-  DiagramNode,
-  FlowLayout,
-  GridLayout,
-} from '@brewsite/diagram';
-import {
-  BarChart,
-  ChartAxis,
-  ChartData,
-  ChartLegend,
-  ChartSeries,
-} from '@brewsite/charts';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramGroup, DiagramNode, FlowLayout, GridLayout,} from '@brewsite/diagram';
+import {BarChart, ChartAxis, ChartData, ChartLegend, ChartSeries,} from '@brewsite/charts';
 
-// ─── 3D scene boilerplate — shared by slides with sceneDsl ──────────────────
-
-const sceneLighting = (
-  <>
-    <Lighting>
-      <Ambient intensity={2.5} color="#d7e5ff" />
-      <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]} />
-    </Lighting>
-    <Floor variant="grid" />
-  </>
-);
-
-const sceneCamera = (
-  <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36} />
-);
-
-const sceneCameraFlat = (
-  <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={36} />
-);
-
-// ─── Slide 1: Title ─────────────────────────────────────────────────────────
+// ─── 1. TITLE ───────────────────────────────────────────────────────────────
 
 const titleSlide = (
   <Slide
     key="title"
     title="Nexus Platform"
     scrollUnits={100}
-    notes="Welcome everyone. Today we're covering Q3 strategy, product milestones, and the go-to-market plan for Nexus Platform."
+    notes="Welcome. Today: Q3 strategy, product milestones, go-to-market, and resource asks."
   >
     <TitleSlide
       title="Nexus Platform"
       subtitle="Q3 2026 Strategy & Product Update"
-      tagline="Confidential"
+      tagline="Confidential · Board Presentation"
       alignment="center"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.12 }}
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.15}}
     />
   </Slide>
 );
 
-// ─── Slide 2: Agenda ────────────────────────────────────────────────────────
+// ─── 2. AGENDA ──────────────────────────────────────────────────────────────
 
 const agendaSlide = (
   <Slide key="agenda" title="Agenda" scrollUnits={200}>
     <AgendaSlide
       title="Today's Agenda"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.08 }}
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.06}}
       items={[
-        { label: 'Market Context', description: 'Competitive landscape & industry trends' },
-        { label: 'Product Vision', description: 'Architecture & platform strategy' },
-        { label: 'Platform Metrics', description: 'KPIs, traction & growth' },
-        { label: 'Go-to-Market', description: 'Land, expand & revenue targets' },
-        { label: 'Engineering Roadmap', description: 'Milestones through Q1 2027' },
-        { label: 'Customer Case Study', description: 'Meridian Health migration' },
-        { label: 'Q3 Priorities', description: 'Resource asks & next steps' },
+        {label: 'Market Context', description: 'Why the window is now'},
+        {label: 'Product & Architecture', description: 'What we built'},
+        {label: 'Traction & Metrics', description: 'How it is performing'},
+        {label: 'Go-to-Market', description: 'How we grow'},
+        {label: 'Case Study', description: 'Meridian Health migration'},
+        {label: 'Resource Ask', description: 'What we need'},
       ]}
     />
   </Slide>
 );
 
-// ─── Slide 3: Section Divider — Market ──────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SECTION 1: SITUATION — Market Context
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const marketSectionSlide = (
-  <Slide key="section-market" title="Market Context" transition="push-left">
-    <SectionSlide
-      title="Market Context"
-      subtitle="The data infrastructure inflection point"
-      entrance={{ title: 'fadeIn', body: 'slideUp' }}
-    />
+const sectionMarket = (
+  <Slide key="section-market" transition="push-left">
+    <SectionSlide title="Market Context" subtitle="The data infrastructure inflection point"/>
   </Slide>
 );
 
-// ─── Slide 4: Market Context ────────────────────────────────────────────────
-
 const marketSlide = (
-  <Slide key="market" title="Market Context" scrollUnits={500}>
+  <Slide
+    key="market"
+    title="The $47B data market is consolidating around platforms"
+    scrollUnits={500}
+  >
     <ContentSlide
-      title="The Data Infrastructure Inflection Point"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.1 }}
+      title="The $47B data market is consolidating around platforms"
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.08}}
     >
       <BulletList
         animateEntrance
         bulletStyle="arrow"
         items={[
-          'Enterprise data volumes growing 28% YoY — legacy ETL pipelines cannot keep pace',
-          'Real-time analytics is now table stakes: 73% of Fortune 500 list it as a top-3 priority',
-          'Multi-cloud adoption is accelerating — 67% of enterprises operate across 2+ providers',
-          'The $47B data infrastructure market is consolidating around platforms, not point solutions',
-          'Regulatory pressure (EU AI Act, DORA) demands full data lineage and auditability',
+          'Enterprise data volumes growing 28% YoY — legacy ETL cannot keep pace',
+          'Real-time analytics is table stakes: 73% of Fortune 500 rank it top-3',
+          'Multi-cloud adoption accelerating — 67% of enterprises span 2+ providers',
+          'Regulatory pressure (EU AI Act, DORA) demands full data lineage',
         ]}
       />
+      <CalloutBox variant="info" title="Key Insight">
+        Buyers want one platform, not five integrations. The consolidation window is 18–24 months.
+      </CalloutBox>
     </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 5: Competitive Landscape ─────────────────────────────────────────
+// ─── Competitive landscape ──────────────────────────────────────────────────
 
-const competitiveLandscapeSlide = (
-  <Slide key="competitive" title="Competitive Landscape" scrollUnits={400}>
+const competitiveSlide = (
+  <Slide
+    key="competitive"
+    title="Legacy vendors solve one problem; Nexus solves the platform"
+    scrollUnits={400}
+  >
     <ComparisonSlide
-      title="Competitive Landscape"
-      headers={['Legacy Platforms', 'Nexus Advantage']}
+      title="Legacy vendors solve one problem; Nexus solves the platform"
+      headers={['Legacy Platforms', 'Nexus']}
       highlightColumn={1}
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.1 }}
+      entrance={{title: 'fadeIn', body: 'slideUp'}}
       rows={[
-        {
-          feature: 'Batch + Streaming',
-          values: [
-            { kind: 'text', value: 'Separate systems' },
-            { kind: 'text', value: 'Unified engine' },
-          ],
-        },
-        {
-          feature: 'Multi-Cloud',
-          values: [
-            { kind: 'check', value: false },
-            { kind: 'text', value: 'Zero-copy data mesh' },
-          ],
-        },
-        {
-          feature: 'Governance & Lineage',
-          values: [
-            { kind: 'text', value: 'Bolt-on' },
-            { kind: 'text', value: 'Built-in from day one' },
-          ],
-        },
-        {
-          feature: 'Query Latency',
-          values: [
-            { kind: 'text', value: '2-5 seconds' },
-            { kind: 'text', value: 'Sub-second at PB scale' },
-          ],
-        },
-        {
-          feature: 'ML Pipeline',
-          values: [
-            { kind: 'text', value: 'External tooling' },
-            { kind: 'text', value: 'Native inference' },
-          ],
-        },
+        {feature: 'Batch + Streaming', values: [{kind: 'text', value: 'Separate systems'}, {kind: 'text', value: 'Unified engine'}]},
+        {feature: 'Multi-Cloud', values: [{kind: 'check', value: false}, {kind: 'text', value: 'Zero-copy mesh'}]},
+        {feature: 'Governance', values: [{kind: 'text', value: 'Bolt-on'}, {kind: 'text', value: 'Built-in'}]},
+        {feature: 'Query Latency', values: [{kind: 'text', value: '2–5 s'}, {kind: 'text', value: 'Sub-second'}]},
+        {feature: 'ML Pipeline', values: [{kind: 'text', value: 'External'}, {kind: 'text', value: 'Native inference'}]},
       ]}
     />
   </Slide>
 );
 
-// ─── Slide 6: Product Vision (Full-bleed) ───────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SECTION 2: RESOLUTION — Product & Architecture
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const sectionProduct = (
+  <Slide key="section-product" transition="push-left">
+    <SectionSlide title="Product & Architecture" subtitle="One platform from ingestion to insight"/>
+  </Slide>
+);
+
+// ─── Vision (quote) ─────────────────────────────────────────────────────────
 
 const visionSlide = (
   <Slide
     key="vision"
-    title="Product Vision"
+    title="One platform for every data workload"
     scrollUnits={200}
     transition="zoom-in"
     notes="This is our north star. Every feature decision ladders up to this vision."
@@ -208,229 +159,187 @@ const visionSlide = (
       quote="One platform for every data workload — from ingestion to insight."
       attribution="Nexus Platform"
       role="Product Vision"
-      entrance={{ title: 'fadeIn' }}
+      entrance={{title: 'fadeIn'}}
     />
   </Slide>
 );
 
-// ─── Slide 7: Section Divider — Product ─────────────────────────────────────
-
-const productSectionSlide = (
-  <Slide key="section-product" title="Product & Architecture" transition="push-left">
-    <SectionSlide
-      title="Product & Architecture"
-      subtitle="Platform design and technical depth"
-    />
-  </Slide>
-);
-
-// ─── Slide 8: Architecture (3D Diagram) ─────────────────────────────────────
+// ─── Architecture diagram — right half, text on left ────────────────────────
 
 const architectureSlide = (
   <Slide
     key="architecture"
-    title="Platform Architecture"
-    scrollUnits={300}
-    sceneDsl={
-      <>
-        {sceneCamera}
-        {sceneLighting}
-        <Diagram id="arch-layers" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
-          <FlowLayout direction="top-down" gap={0.06} />
+    title="Five layers decouple applications from infrastructure"
+    scrollUnits={400}
+  >
+    <TwoColumnSlide
+      title="Five layers decouple applications from infrastructure"
+      entrance={{left: 'slideLeft', right: 'fadeIn', stagger: 0.1}}
+      left={
+      <div style={{height: '100%', paddingTop: '20%'}}>
+        <BulletList
+          bulletStyle="arrow"
+          items={[
+            'Applications → API Gateway → Processing → Storage → Infrastructure',
+            'Stream, batch, and ML run in a single engine — no external orchestration',
+            'Storage layer abstracts columnar, object lake, and KV behind one API',
+            'Infrastructure auto-scales across AWS, GCP, and Azure',
+          ]}
+        />
+      </div>
+      }
+      right={
+        <Diagram id="arch" tilt={"-0.22rad"}>
+          <FlowLayout direction="top-down" gap={"7%"}/>
+          <DiagramEnter fade/>
 
-          <DiagramNode
-            id="apps"
-            label="Applications"
-            sublabel="Analytics · Catalog · Lineage"
-            shape="rectangle"
-            icon="ui:squares-2x2"
-            size={[0.15, 0.12]}
-            thickness={0.030}
-          />
+          <DiagramNode id="apps" label="Applications" sublabel="Analytics · Catalog · Lineage"
+                       shape="square" icon="ui:squares-2x2" size={["0.15u", "0.15u"]} thickness={"0.025u"}/>
 
-          <DiagramNode
-            id="api"
-            label="API Gateway"
-            sublabel="REST · gRPC · WebSocket"
-            shape="hexagon"
-            icon="net:internet"
-            size={[0.18, 0.13]}
-            thickness={0.030}
-          />
+          <DiagramNode id="api" label="API Gateway" sublabel="REST · gRPC · WS"
+                       shape="hexagon" icon="net:internet" size={["0.15u", "0.15u"]} thickness={"0.025u"}/>
 
           <DiagramGroup id="engine" label="Processing Engine" variant="container">
-            <GridLayout columns={3} spacing={[0.04, 0.03]} />
-            <DiagramNode
-              id="stream"
-              label="Stream"
-              sublabel="Real-time"
-              icon="data:stream"
-              shape="circle"
-              size={[0.13, 0.13]}
-              thickness={0.030}
-            />
-            <DiagramNode
-              id="batch"
-              label="Batch"
-              sublabel="Scheduled"
-              icon="data:warehouse"
-              shape="circle"
-              size={[0.13, 0.13]}
-              thickness={0.030}
-            />
-            <DiagramNode
-              id="ml"
-              label="ML Pipeline"
-              sublabel="Inference"
-              icon="ui:cpu-chip"
-              shape="circle"
-              size={[0.13, 0.13]}
-              thickness={0.030}
-            />
+            <GridLayout columns={3} spacing={["15%", "0.5%"]}/>
+            <DiagramNode id="stream" label="Stream" icon="data:stream" shape="circle" size={["0.14u", "0.14u"]} thickness={"0.025u"}/>
+            <DiagramNode id="batch" label="Batch" icon="data:warehouse" shape="circle" size={["0.14u", "0.14u"]} thickness={"0.025u"}/>
+            <DiagramNode id="ml" label="ML" icon="ui:cpu-chip" shape="circle" size={["0.14u", "0.14u"]} thickness={"0.025u"}/>
           </DiagramGroup>
 
-          <DiagramNode
-            id="storage"
-            label="Storage Layer"
-            sublabel="Columnar · Object Lake · KV"
-            shape="octagon"
-            icon="data:warehouse"
-            size={[0.18, 0.13]}
-            thickness={0.030}
-          />
+          <DiagramNode id="storage" label="Storage" sublabel="Columnar · Object · KV"
+                       shape="octagon" icon="data:warehouse" size={["0.15u", "0.15u"]} thickness={"0.025u"}/>
 
-          <DiagramNode
-            id="infra"
-            label="Infrastructure"
-            sublabel="Multi-Cloud · Auto-Scale"
-            shape="rectangle"
-            icon="security:shield"
-            size={[0.15, 0.12]}
-            thickness={0.030}
-          />
+          <DiagramNode id="infra" label="Infrastructure" sublabel="Multi-Cloud"
+                       shape="rectangle" icon="security:shield" size={["0.2u", "0.1u"]} thickness={"0.025u"}/>
 
-          <DiagramEdge from="apps" to="api" routing="flow" flow="forward" />
-          <DiagramEdge from="api" to="stream" routing="flow" flow="forward" />
-          <DiagramEdge from="api" to="batch" routing="flow" flow="forward" />
-          <DiagramEdge from="api" to="ml" routing="flow" flow="forward" />
-          <DiagramEdge from="stream" to="storage" routing="flow" flow="forward" thickness={0.0105} />
-          <DiagramEdge from="batch" to="storage" routing="flow" flow="forward" />
-          <DiagramEdge from="ml" to="storage" routing="flow" flow="forward" />
-          <DiagramEdge from="storage" to="infra" routing="flow" flow="forward" />
+          <DiagramEdge from="apps" to="api" routing="flow" flow="forward"/>
+          <DiagramEdge from="api" to="stream" routing="flow" flow="forward"/>
+          <DiagramEdge from="api" to="batch" routing="flow" flow="forward"/>
+          <DiagramEdge from="api" to="ml" routing="flow" flow="forward"/>
+          <DiagramEdge from="stream" to="storage" routing="flow" flow="forward"/>
+          <DiagramEdge from="batch" to="storage" routing="flow" flow="forward"/>
+          <DiagramEdge from="ml" to="storage" routing="flow" flow="forward"/>
+          <DiagramEdge from="storage" to="infra" routing="flow" flow="forward"/>
         </Diagram>
-      </>
-    }
-  >
-    <BlankSlide />
-  </Slide>
-);
-
-// ─── Slide 9: Section Divider — Metrics ─────────────────────────────────────
-
-const metricsSectionSlide = (
-  <Slide key="section-metrics" title="Platform Metrics" transition="push-left">
-    <SectionSlide
-      title="Platform Metrics"
-      subtitle="Traction, growth, and key performance indicators"
+      }
     />
   </Slide>
 );
 
-// ─── Slide 10: Big Number KPIs ──────────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SECTION 3: EVIDENCE — Traction & Metrics
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const sectionMetrics = (
+  <Slide key="section-metrics" transition="push-left">
+    <SectionSlide title="Traction & Metrics" subtitle="Proof points through Q2 2026"/>
+  </Slide>
+);
+
+// ─── KPI Big Numbers ────────────────────────────────────────────────────────
 
 const kpiSlide = (
-  <Slide key="kpis" title="Key Metrics" scrollUnits={200}>
+  <Slide
+    key="kpis"
+    title="Nexus crossed $68M ARR with 99.997% uptime"
+    scrollUnits={200}
+  >
     <BigNumberSlide
-      title="Q2 2026 Performance"
-      entrance={{ title: 'fadeIn', body: 'grow', stagger: 0.1 }}
+      title="Nexus crossed $68M ARR with 99.997% uptime"
+      entrance={{title: 'fadeIn', body: 'grow', stagger: 0.1}}
       stats={[
-        { value: '2.4M', label: 'Events / second', trend: '+34% QoQ', trendDirection: 'up' },
-        { value: '847', label: 'Enterprise customers', trend: '+127 this quarter', trendDirection: 'up' },
-        { value: '$68M', label: 'ARR', trend: '+42% YoY', trendDirection: 'up' },
-        { value: '99.997%', label: 'Uptime (12mo)', trend: '5-nines target', trendDirection: 'up' },
+        {value: '$68M', label: 'ARR', trend: '+42% YoY', trendDirection: 'up'},
+        {value: '847', label: 'Enterprise Customers', trend: '+127 QoQ', trendDirection: 'up'},
+        {value: '2.4M', label: 'Events / sec', trend: '+34% QoQ', trendDirection: 'up'},
+        {value: '99.997%', label: 'Uptime (12 mo)', trend: 'Five-nines', trendDirection: 'up'},
       ]}
     />
   </Slide>
 );
 
-// ─── Slide 11: Platform Metrics with 3D Chart ──────────────────────────────
+// ─── Revenue chart with text on left ────────────────────────────────────────
 
-const metricsChartSlide = (
+const revenueChartSlide = (
   <Slide
-    key="metrics-chart"
-    title="Revenue Growth"
+    key="revenue-chart"
+    title="ARR grew 79% in four quarters driven by enterprise expansion"
     scrollUnits={300}
-    sceneDsl={
-      <>
-        {sceneCamera}
-        {sceneLighting}
-        <View id="c1" x={0.52} y={0.1} w={0.44} h={0.8}>
-          <BarChart
-            id="metrics-chart"
-            data={[
-              { quarter: 'Q1', events: 1.2, customers: 580, arr: 38 },
-              { quarter: 'Q2', events: 1.8, customers: 720, arr: 48 },
-              { quarter: 'Q3', events: 2.1, customers: 790, arr: 58 },
-              { quarter: 'Q4', events: 2.4, customers: 847, arr: 68 },
-            ]}
-            x={0.52}
-            y={0.1}
-            w={0.44}
-            h={0.8}
-            depth={0.4}
-            animateEntry
-          >
-            <ChartData keyField="quarter" />
-            <ChartAxis axis="x" field="quarter" label="Quarter" />
-            <ChartAxis axis="y" field="arr" label="ARR ($M)" />
-            <ChartSeries field="arr" label="ARR" />
-            <ChartSeries field="events" label="Events/s (M)" />
-            <ChartLegend visible position="right" />
-          </BarChart>
-        </View>
-      </>
-    }
   >
-    <ContentSlide title="Revenue Trajectory">
-      <Body>Key performance indicators through Q2 2026</Body>
-      <Divider variant="gradient" />
-      <MetricRow
-        items={[
-          { value: '$68M', label: 'ARR' },
-          { value: '2.4M', label: 'Events/s' },
-          { value: '847', label: 'Customers' },
-        ]}
-      />
-    </ContentSlide>
+    <TwoColumnSlide
+      title="ARR grew 79% in four quarters driven by enterprise expansion"
+      entrance={{left: 'slideLeft', right: 'fadeIn', stagger: 0.1}}
+      left={
+        <>
+          <MetricRow
+            items={[
+              {value: '$38M', label: 'Q1'},
+              {value: '$48M', label: 'Q2'},
+              {value: '$58M', label: 'Q3'},
+              {value: '$68M', label: 'Q4'},
+            ]}
+          />
+          <Divider variant="gradient"/>
+          <BulletList
+            bulletStyle="arrow"
+            items={[
+              'Net new enterprise logos: 127 in Q2 alone',
+              'Average deal size up 34% to $82K',
+              'Net revenue retention: 138%',
+            ]}
+          />
+        </>
+      }
+      right={
+        <BarChart
+          id="arr-chart"
+          data={[
+            {quarter: 'Q1', arr: 38},
+            {quarter: 'Q2', arr: 48},
+            {quarter: 'Q3', arr: 58},
+            {quarter: 'Q4', arr: 68},
+          ]}
+          depth={0.35}
+          animateEntry
+        >
+          <ChartData keyField="quarter"/>
+          <ChartAxis axis="x" field="quarter" label="Quarter"/>
+          <ChartAxis axis="y" field="arr" label="ARR ($M)"/>
+          <ChartSeries field="arr" label="ARR ($M)"/>
+          <ChartLegend visible={false}/>
+        </BarChart>
+      }
+    />
   </Slide>
 );
 
-// ─── Slide 12: Performance Improvements ─────────────────────────────────────
+// ─── Performance gains ──────────────────────────────────────────────────────
 
 const performanceSlide = (
-  <Slide key="performance" title="Performance Gains" scrollUnits={300}>
+  <Slide
+    key="performance"
+    title="v2.4 delivered 7× cold-start improvement and 40% memory reduction"
+    scrollUnits={400}
+  >
     <ContentSlide
-      title="v2.4 Performance Gains"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.08 }}
+      title="v2.4 delivered 7× cold-start improvement and 40% memory reduction"
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.06}}
     >
-      <Badge label="SHIPPED" variant="success" />
-      <Divider variant="gradient" />
+      <Badge label="SHIPPED" variant="success"/>
       <BulletList
         animateEntrance
         bulletStyle="checkmark"
         items={[
-          'Cold query startup: 320ms → 45ms (∼7x improvement)',
-          'Stream ingestion throughput: 1.8M → 2.4M events/s',
-          'Cross-region replication lag: 850ms → 120ms',
-          'Batch job P99 completion: 47 min → 12 min',
-          'Concurrent query capacity: 2,400 → 8,100',
-          'Memory footprint per node: 64 GB → 38 GB',
-          'Time to first query (new tenant): 14 min → 90 sec',
+          'Cold query startup: 320 ms → 45 ms (7× faster)',
+          'Stream ingestion: 1.8 M → 2.4 M events/s (+33%)',
+          'Cross-region replication lag: 850 ms → 120 ms',
+          'Memory per node: 64 GB → 38 GB (−40%)',
+          'Concurrent queries: 2,400 → 8,100 (3.4×)',
+          'New-tenant first query: 14 min → 90 sec',
         ]}
       />
-      <Divider variant="gradient" />
+      <Divider variant="gradient"/>
       <QuoteBlock
-        quote="The v2.4 cold start improvement alone saved us $1.2M in compute costs last month."
+        quote="The cold-start improvement alone saved us $1.2M in compute last month."
         attribution="Sarah Chen"
         role="VP Platform Engineering, Meridian Health"
       />
@@ -438,24 +347,27 @@ const performanceSlide = (
   </Slide>
 );
 
-// ─── Slide 13: Section Divider — GTM ────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SECTION 4: GROWTH — Go-to-Market & Roadmap
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const gtmSectionSlide = (
-  <Slide key="section-gtm" title="Go-to-Market" transition="push-left">
-    <SectionSlide
-      title="Go-to-Market Strategy"
-      subtitle="Land, expand, and revenue targets"
-    />
+const sectionGrowth = (
+  <Slide key="section-growth" transition="push-left">
+    <SectionSlide title="Go-to-Market" subtitle="Land, expand, and revenue targets"/>
   </Slide>
 );
 
-// ─── Slide 14: Go-to-Market Strategy ────────────────────────────────────────
+// ─── GTM Strategy ───────────────────────────────────────────────────────────
 
 const gtmSlide = (
-  <Slide key="gtm" title="Go-to-Market" scrollUnits={500}>
+  <Slide
+    key="gtm"
+    title="Free-tier onboarding converts to $110K average enterprise deals"
+    scrollUnits={500}
+  >
     <TwoColumnSlide
-      title="Go-to-Market Strategy"
-      entrance={{ left: 'slideLeft', right: 'slideRight', stagger: 0.15 }}
+      title="Free-tier onboarding converts to $110K average enterprise deals"
+      entrance={{left: 'slideLeft', right: 'slideRight', stagger: 0.12}}
       left={
         <>
           <Heading level={3}>Land</Heading>
@@ -463,43 +375,42 @@ const gtmSlide = (
             animateEntrance
             bulletStyle="arrow"
             items={[
-              'Free tier: 100GB storage, 1M events/day',
-              'Self-serve onboarding under 5 minutes',
-              'Pre-built connectors for top 20 data sources',
-              'Developer advocate content: tutorials, templates, SDKs',
+              'Free tier: 100 GB, 1 M events/day',
+              'Self-serve onboarding in under 5 min',
+              'Top-20 data source connectors included',
             ]}
           />
-          <Divider variant="gradient" />
+          <Divider variant="gradient"/>
           <Heading level={3}>Expand</Heading>
           <BulletList
             bulletStyle="arrow"
             items={[
-              'Usage-based pricing with volume discounts',
-              'Team features unlock at 3+ seats',
-              'Enterprise SSO and RBAC at $5K/mo tier',
+              'Usage-based pricing, volume discounts',
+              'Team features at 3+ seats',
+              'Enterprise SSO/RBAC at $5 K/mo',
             ]}
           />
         </>
       }
       right={
         <>
-          <Heading level={3}>Revenue Targets</Heading>
+          <Heading level={3}>Revenue Targets (Q4)</Heading>
           <NumberedList
             items={[
-              '$68M ARR → $95M by end of Q4',
-              'Net new logos: 200 enterprise accounts',
-              'Land-to-expand conversion: 35% → 48%',
-              'Average deal size: $82K → $110K',
+              'ARR: $68 M → $95 M',
+              'New logos: 200 enterprise accounts',
+              'L2E conversion: 35% → 48%',
+              'Avg deal size: $82 K → $110 K',
             ]}
           />
-          <Divider variant="gradient" />
+          <Divider variant="gradient"/>
           <Heading level={3}>Key Bets</Heading>
           <BulletList
             bulletStyle="checkmark"
             items={[
-              'AI-powered query optimization (new in Q3)',
-              'Marketplace for pre-built pipelines',
-              'SOC 2 Type II + HIPAA certification',
+              'AI query optimizer (Q3 ship)',
+              'Pipeline marketplace',
+              'SOC 2 II + HIPAA cert',
             ]}
           />
         </>
@@ -508,151 +419,167 @@ const gtmSlide = (
   </Slide>
 );
 
-// ─── Slide 15: Roadmap Timeline (3D Diagram) ───────────────────────────────
+// ─── Roadmap timeline — diagram right, text left ────────────────────────────
 
 const roadmapSlide = (
   <Slide
     key="roadmap"
-    title="Engineering Roadmap"
+    title="Four releases take us from performance to real-time ML"
     scrollUnits={300}
-    sceneDsl={
-      <>
-        {sceneCameraFlat}
-        {sceneLighting}
-        <Diagram id="roadmap-timeline" x={0.05} y={0.02} w={0.9} h={0.96} tilt={-0.25}>
-          <FlowLayout direction="top-down" gap={0.08} />
-
-          <DiagramNode
-            id="q2"
-            label="Q2 — v2.4"
-            sublabel="Performance Release"
-            shape="hexagon"
-            icon="ui:cpu-chip"
-            size={[0.40, 0.30]}
-            glow={{ intensity: 0.2 }}
-          />
-          <DiagramNode
-            id="q3"
-            label="Q3 — v2.5"
-            sublabel="Intelligence Layer"
-            shape="hexagon"
-            icon="ui:cpu-chip"
-            size={[0.40, 0.30]}
-          />
-          <DiagramNode
-            id="q4"
-            label="Q4 — v3.0"
-            sublabel="Data Mesh GA"
-            shape="hexagon"
-            icon="data:warehouse"
-            size={[0.40, 0.30]}
-          />
-          <DiagramNode
-            id="q1-27"
-            label="Q1 '27 — v3.1"
-            sublabel="Real-Time ML"
-            shape="hexagon"
-            icon="data:stream"
-            size={[0.40, 0.30]}
-          />
-
-          <DiagramEdge from="q2" to="q3" routing="flow" flow="forward" />
-          <DiagramEdge from="q3" to="q4" routing="flow" flow="forward" />
-          <DiagramEdge from="q4" to="q1-27" routing="flow" flow="forward" />
-        </Diagram>
-      </>
-    }
   >
-    <BlankSlide />
+    <TwoColumnSlide
+      title="Four releases take us from performance to real-time ML"
+      entrance={{left: 'slideLeft', right: 'fadeIn', stagger: 0.1}}
+      left={
+        <Timeline
+          orientation="vertical"
+          items={[
+            {label: 'v2.4', date: 'Q2 2026', description: 'Performance release — shipped', active: true},
+            {label: 'v2.5', date: 'Q3 2026', description: 'AI query optimizer, anomaly detection'},
+            {label: 'v3.0', date: 'Q4 2026', description: 'Data mesh GA, marketplace launch'},
+            {label: 'v3.1', date: 'Q1 2027', description: 'Real-time ML inference pipeline'},
+          ]}
+        />
+      }
+      right={
+        <Diagram id="roadmap" tilt={"-0.22rad"}>
+          <FlowLayout direction="top-down" gap={"6%"}/>
+          <DiagramEnter fade/>
+
+          <DiagramNode id="q2" label="Q2 — v2.4" sublabel="Performance"
+                       shape="hexagon" icon="ui:cpu-chip" size={["0.35u", "0.2u"]}
+                       glow={{intensity: 0.15}}/>
+          <DiagramNode id="q3" label="Q3 — v2.5" sublabel="Intelligence"
+                       shape="hexagon" icon="ui:cpu-chip" size={["0.35u", "0.2u"]}/>
+          <DiagramNode id="q4" label="Q4 — v3.0" sublabel="Data Mesh GA"
+                       shape="hexagon" icon="data:warehouse" size={["0.35u", "0.2u"]}/>
+          <DiagramNode id="q1-27" label="Q1 '27 — v3.1" sublabel="Real-Time ML"
+                       shape="hexagon" icon="data:stream" size={["0.35u", "0.2u"]}/>
+
+          <DiagramEdge from="q2" to="q3" routing="flow" flow="forward"/>
+          <DiagramEdge from="q3" to="q4" routing="flow" flow="forward"/>
+          <DiagramEdge from="q4" to="q1-27" routing="flow" flow="forward"/>
+        </Diagram>
+      }
+    />
   </Slide>
 );
 
-// ─── Slide 16: Case Study (3D Diagram + Content) ───────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SECTION 5: SOCIAL PROOF — Case Study
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const sectionCaseStudy = (
+  <Slide key="section-case" transition="push-left">
+    <SectionSlide title="Case Study" subtitle="Meridian Health — from three systems to one"/>
+  </Slide>
+);
+
+// ─── Case study with migration diagram on right ─────────────────────────────
 
 const caseStudySlide = (
   <Slide
     key="case-study"
-    title="Case Study: Meridian Health"
-    scrollUnits={500}
-    notes="Meridian is our largest healthcare customer. They migrated from a Snowflake + Kafka + Airflow stack to Nexus in 4 months."
-    sceneDsl={
-      <>
-        {sceneCamera}
-        {sceneLighting}
-        <Diagram id="case-study-migration" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
-          <FlowLayout direction="top-down" gap={0.12} />
+    title="Meridian replaced three systems with Nexus in four months"
+    scrollUnits={400}
+    notes="Meridian is our largest healthcare customer. Snowflake + Kafka + Airflow → Nexus in 4 months."
+  >
+    <TwoColumnSlide
+      title="Meridian replaced three systems with Nexus in four months"
+      entrance={{left: 'slideLeft', right: 'fadeIn', stagger: 0.1}}
+      left={
+        <>
+          <BulletList
+            bulletStyle="checkmark"
+            items={[
+              'Consolidated Snowflake + Kafka + Airflow into one platform',
+              'Migration completed in 16 weeks with zero downtime',
+              'Reduced infrastructure cost by $1.2 M/month',
+              'Achieved real-time visibility for the first time',
+            ]}
+          />
+          <Divider variant="gradient"/>
+          <MetricRow
+            items={[
+              {value: '4 mo', label: 'Migration'},
+              {value: '$1.2M', label: 'Monthly Savings'},
+              {value: '3 → 1', label: 'Systems'},
+            ]}
+          />
+        </>
+      }
+      right={
+        <Diagram id="migration" tilt={"-0.22rad"}>
+          <FlowLayout direction="top-down" gap={"10%"}/>
+          <DiagramEnter fade/>
 
-          <DiagramGroup id="before" label="Before: 3 Separate Systems" variant="container">
-            <GridLayout columns={3} spacing={[0.04, 0.02]} />
-            <DiagramNode
-              id="snowflake"
-              label="Snowflake"
-              sublabel="Analytics"
-              icon="data:warehouse"
-              shape="diamond"
-              size={[0.15, 0.15]}
-              thickness={0.030}
-            />
-            <DiagramNode
-              id="kafka"
-              label="Kafka"
-              sublabel="Streaming"
-              icon="data:stream"
-              shape="diamond"
-              size={[0.15, 0.15]}
-              thickness={0.030}
-            />
-            <DiagramNode
-              id="airflow"
-              label="Airflow"
-              sublabel="Orchestration"
-              icon="ui:arrow-path"
-              shape="diamond"
-              size={[0.15, 0.15]}
-              thickness={0.030}
-            />
+          <DiagramGroup id="before" label="Before" variant="container">
+            <GridLayout columns={3} spacing={["3%", "2%"]}/>
+            <DiagramNode id="sf" label="Snowflake" sublabel="Analytics"
+                         icon="data:warehouse" shape="diamond" size={["0.12u", "0.12u"]} thickness={"0.025u"}/>
+            <DiagramNode id="kafka" label="Kafka" sublabel="Streaming"
+                         icon="data:stream" shape="diamond" size={["0.12u", "0.12u"]} thickness={"0.025u"}/>
+            <DiagramNode id="airflow" label="Airflow" sublabel="Orchestration"
+                         icon="ui:arrow-path" shape="diamond" size={["0.12u", "0.12u"]} thickness={"0.025u"}/>
           </DiagramGroup>
 
-          <DiagramNode
-            id="nexus"
-            label="Nexus Platform"
-            sublabel="Unified Infrastructure"
-            icon="ui:cpu-chip"
-            shape="hexagon"
-            size={[0.18, 0.18]}
-            thickness={0.045}
-            glow={{ intensity: 0.2 }}
-          />
+          <DiagramNode id="nexus" label="Nexus" sublabel="Unified Platform"
+                       icon="ui:cpu-chip" shape="hexagon" size={["0.16u", "0.16u"]} thickness={"0.04u"}
+                       glow={{intensity: 0.15}}/>
 
-          <DiagramEdge from="snowflake" to="nexus" routing="flow" flow="forward" />
-          <DiagramEdge from="kafka" to="nexus" routing="flow" flow="forward" />
-          <DiagramEdge from="airflow" to="nexus" routing="flow" flow="forward" />
+          <DiagramEdge from="sf" to="nexus" routing="flow" flow="forward"/>
+          <DiagramEdge from="kafka" to="nexus" routing="flow" flow="forward"/>
+          <DiagramEdge from="airflow" to="nexus" routing="flow" flow="forward"/>
         </Diagram>
-      </>
-    }
-  >
-    <BlankSlide />
+      }
+    />
   </Slide>
 );
 
-// ─── Slide 17: Security & Compliance ────────────────────────────────────────
+// ─── Customer testimonial ───────────────────────────────────────────────────
+
+const testimonialSlide = (
+  <Slide key="testimonial" transition="zoom-in">
+    <QuoteSlide
+      quote="Nexus eliminated three separate data systems and gave us real-time visibility we never had. The migration paid for itself in the first quarter."
+      attribution="Sarah Chen"
+      role="VP Platform Engineering, Meridian Health"
+      entrance={{title: 'fadeIn'}}
+    />
+  </Slide>
+);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SECTION 6: ASK — Security, Priorities, Resources
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const sectionAsk = (
+  <Slide key="section-ask" transition="push-left">
+    <SectionSlide title="Q3 Priorities & Ask" subtitle="What we need to capture the window"/>
+  </Slide>
+);
+
+// ─── Security & Compliance ──────────────────────────────────────────────────
 
 const securitySlide = (
-  <Slide key="security" title="Security & Compliance" scrollUnits={400}>
+  <Slide
+    key="security"
+    title="Enterprise-grade security is already in place"
+    scrollUnits={300}
+  >
     <TwoColumnSlide
-      title="Security & Compliance"
-      entrance={{ left: 'slideLeft', right: 'slideRight', stagger: 0.12 }}
+      title="Enterprise-grade security is already in place"
+      entrance={{left: 'slideLeft', right: 'slideRight', stagger: 0.1}}
       left={
         <>
           <Heading level={3}>Certifications</Heading>
           <BulletList
-            animateEntrance
             bulletStyle="checkmark"
             items={[
               'SOC 2 Type II (since 2024)',
               'ISO 27001 certified',
               'HIPAA BAA available',
-              'GDPR data residency controls',
+              'GDPR data residency',
               'FedRAMP Moderate (in progress)',
             ]}
           />
@@ -660,16 +587,15 @@ const securitySlide = (
       }
       right={
         <>
-          <Heading level={3}>Architecture Principles</Heading>
+          <Heading level={3}>Architecture</Heading>
           <BulletList
-            animateEntrance
             bulletStyle="arrow"
             items={[
-              'Encryption at rest (AES-256) & in transit (TLS 1.3)',
-              'Customer-managed keys via AWS KMS / GCP KMS',
-              'Row-level security with attribute-based policies',
-              'Full audit log with 7-year retention',
-              'Zero-trust network: mTLS service mesh',
+              'AES-256 at rest, TLS 1.3 in transit',
+              'Customer-managed KMS keys',
+              'Row-level security with ABAC',
+              'Full audit log, 7-year retention',
+              'Zero-trust mTLS service mesh',
             ]}
           />
         </>
@@ -678,106 +604,80 @@ const securitySlide = (
   </Slide>
 );
 
-// ─── Slide 18: Section Divider — Priorities ─────────────────────────────────
+// ─── Q3 Priorities ──────────────────────────────────────────────────────────
 
-const prioritiesSectionSlide = (
-  <Slide key="section-priorities" title="Q3 Priorities" transition="push-left">
-    <SectionSlide
-      title="Q3 Priorities"
-      subtitle="What we need to deliver and what we need to get there"
-    />
+const prioritiesSlide = (
+  <Slide
+    key="priorities"
+    title="Six priorities define Q3 success"
+    scrollUnits={500}
+  >
+    <ContentSlide
+      title="Six priorities define Q3 success"
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.06}}
+    >
+      <NumberedList
+        animateEntrance
+        items={[
+          'Ship v2.5 Intelligence Layer: AI query optimizer, anomaly detection, auto-schema',
+          'Close 50+ enterprise deals in healthcare and finserv verticals',
+          'Launch self-serve pipeline marketplace with 20 pre-built connectors',
+          'Complete SOC 2 re-cert and submit FedRAMP Moderate application',
+          'Hire 22 engineers: 8 ML/AI, 6 query engine, 4 platform, 4 DevEx',
+          'Cut median time-to-value from 14 days to 5 days',
+        ]}
+      />
+    </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 19: Q3 Priorities ────────────────────────────────────────────────
+// ─── Resource Ask ───────────────────────────────────────────────────────────
 
-const prioritiesSlide = (
-  <Slide key="priorities" title="Q3 Priorities" scrollUnits={500}>
+const resourceAskSlide = (
+  <Slide
+    key="resources"
+    title="$10.1M investment unlocks $95M ARR by Q4"
+    scrollUnits={300}
+  >
     <ContentSlide
-      title="Q3 2026 Priorities"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.08 }}
+      title="$10.1M investment unlocks $95M ARR by Q4"
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.08}}
     >
-      <BulletList
-        animateEntrance
-        bulletStyle="arrow"
-        items={[
-          'Ship v2.5 Intelligence Layer: AI query optimizer, anomaly detection, auto-schema evolution',
-          'Close 50+ enterprise deals in healthcare and financial services verticals',
-          'Launch self-serve marketplace for pre-built data pipelines and connectors',
-          'Achieve SOC 2 Type II re-certification and submit FedRAMP Moderate application',
-          'Hire 22 engineers: 8 ML/AI, 6 query engine, 4 platform, 4 DevEx',
-          'Reduce customer median time-to-value from 14 days to 5 days',
+      <ProcessSteps
+        activeStep={0}
+        steps={[
+          {title: '01 — Headcount (+22 engineers)', description: 'ML/AI 8, query engine 6, platform 4, DevEx 4. $4.8M fully loaded.'},
+          {title: '02 — GPU Cluster', description: 'Dedicated A100s for AI query optimization. 3-year reserved. $2.1M.'},
+          {title: '03 — Sales Expansion', description: '6 AEs for healthcare + finserv. $800K dev marketing. $3.2M total.'},
         ]}
       />
-      <CalloutBox variant="info" title="Key Dependency">
-        GPU cluster approval required by June 15 to hit Q3 ML inference targets.
+      <Divider variant="gradient"/>
+      <MetricRow
+        items={[
+          {value: '$10.1M', label: 'Total Ask'},
+          {value: '$95M', label: 'Q4 ARR Target'},
+          {value: '+40%', label: 'YoY Growth'},
+        ]}
+      />
+      <CalloutBox variant="warning" title="Timeline">
+        GPU cluster approval needed by June 15 to meet Q3 ML inference milestones.
       </CalloutBox>
     </ContentSlide>
   </Slide>
 );
 
-// ─── Slide 20: Resource Asks ────────────────────────────────────────────────
-
-const resourceAskSlide = (
-  <Slide key="resources" title="Resource Asks" scrollUnits={300}>
-    <ContentSlide
-      title="Resource Asks"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.1 }}
-    >
-      <Body>To hit our Q3 targets, we need approval on three investments.</Body>
-      <Divider variant="gradient" />
-      <ProcessSteps
-        activeStep={0}
-        steps={[
-          {
-            title: 'Headcount: +22 Engineers',
-            description: 'ML/AI (8), query engine (6), platform (4), DevEx (4). $4.8M fully loaded.',
-          },
-          {
-            title: 'Infrastructure: GPU Cluster',
-            description: 'Dedicated A100 cluster for AI query optimization. 3-year reserved. $2.1M.',
-          },
-          {
-            title: 'GTM: Sales Expansion',
-            description: '6 AEs for healthcare + finserv. $800K developer marketing. $3.2M total.',
-          },
-        ]}
-      />
-      <Divider variant="gradient" />
-      <MetricRow
-        items={[
-          { value: '$10.1M', label: 'Total Investment' },
-          { value: '$95M', label: 'Projected Q4 ARR' },
-          { value: '+40%', label: 'YoY Growth' },
-        ]}
-      />
-    </ContentSlide>
-  </Slide>
-);
-
-// ─── Slide 21: Customer Testimonial ─────────────────────────────────────────
-
-const testimonialSlide = (
-  <Slide key="testimonial" title="Customer Voice" transition="zoom-in">
-    <QuoteSlide
-      quote="Nexus eliminated three separate data systems and gave us real-time visibility we never had before. The migration paid for itself in the first quarter."
-      attribution="Sarah Chen"
-      role="VP Platform Engineering, Meridian Health"
-      entrance={{ title: 'fadeIn' }}
-    />
-  </Slide>
-);
-
-// ─── Slide 22: Closing ──────────────────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  CLOSE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const closingSlide = (
-  <Slide key="closing" title="Thank You" scrollUnits={100} transition="zoom-in">
+  <Slide key="closing" scrollUnits={100} transition="zoom-in">
     <TitleSlide
       title="Thank you."
-      subtitle="Questions? Reach the Nexus team at platform@nexus.dev"
+      subtitle="Questions? platform@nexus.dev"
       tagline="Nexus Platform · Q3 2026 Strategy · Confidential"
       alignment="center"
-      entrance={{ title: 'fadeIn', body: 'slideUp', stagger: 0.15 }}
+      entrance={{title: 'fadeIn', body: 'slideUp', stagger: 0.15}}
     />
   </Slide>
 );
@@ -785,31 +685,42 @@ const closingSlide = (
 // ─── Exported slide array ───────────────────────────────────────────────────
 
 export const demoSlides: ReactElement[] = [
+  // Opening
   titleSlide,
   agendaSlide,
-  // Section 1: Market
-  marketSectionSlide,
+
+  // Section 1: Situation — Market
+  sectionMarket,
   marketSlide,
-  competitiveLandscapeSlide,
+  competitiveSlide,
+
+  // Section 2: Resolution — Product
+  sectionProduct,
   visionSlide,
-  // Section 2: Product
-  productSectionSlide,
   architectureSlide,
-  // Section 3: Metrics
-  metricsSectionSlide,
+
+  // Section 3: Evidence — Metrics
+  sectionMetrics,
   kpiSlide,
-  metricsChartSlide,
+  revenueChartSlide,
   performanceSlide,
-  // Section 4: GTM
-  gtmSectionSlide,
+
+  // Section 4: Growth — GTM & Roadmap
+  sectionGrowth,
   gtmSlide,
   roadmapSlide,
+
+  // Section 5: Social Proof
+  sectionCaseStudy,
   caseStudySlide,
+  testimonialSlide,
+
+  // Section 6: Ask
+  sectionAsk,
   securitySlide,
-  // Section 5: Priorities
-  prioritiesSectionSlide,
   prioritiesSlide,
   resourceAskSlide,
-  testimonialSlide,
+
+  // Close
   closingSlide,
 ];

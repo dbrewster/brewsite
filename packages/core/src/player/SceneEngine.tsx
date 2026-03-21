@@ -33,6 +33,7 @@ import {
   unregisterCanvasBinding,
 } from './ScenePlayerRegistry';
 import { PluginInheritanceContext } from './PluginInheritanceContext';
+import { SceneLoadStateContext } from './useSceneLoadState';
 import type {
   CameraInteractionDefaults,
   EngineTimingProfile,
@@ -109,6 +110,17 @@ export interface SceneEngineProps {
    * Default: cubic ease-in-out.
    */
   defaultTransitionEasing?: import('../input/transitionAnimator').TransitionEasing;
+
+  /**
+   * Scene-level lazy loading policy. When provided, assets are loaded
+   * per-scene instead of all-at-once.
+   *
+   * When omitted, all ILoadable widgets load upfront (backward compat).
+   *
+   * @example
+   * <SceneEngine loadPolicy={{ eager: [0, 1], preloadAhead: 1 }} ...>
+   */
+  loadPolicy?: import('../runtime/types').SceneLoadPolicy;
 
   onReady?: () => void;
   onError?: (error: Error) => void;
@@ -275,6 +287,7 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     activeTheme: resolvedActiveTheme,
     timingProfile: props.timingProfile,
     maxAnimBoostPerFrame: props.maxAnimBoostPerFrame,
+    loadPolicy: props.loadPolicy,
     invalidateCacheToken: props.invalidateCacheToken,
     primaryCameraId: props.primaryCameraId,
     primaryCanvasActionTargetId: props.primaryCanvasActionTargetId,
@@ -354,6 +367,12 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     };
   }, [resolvedPlugins, widgetRegistry]);
 
+  // ─── Scene load state context ──────────────────────────────────────────────
+  const sceneLoadContextValue = useMemo(
+    () => ({ driver: engine.driverRef?.current ?? null }),
+    [engine.driverRef],
+  );
+
   // ─── Engine state memo ──────────────────────────────────────────────────────
   const engineState = useMemo(() => ({
     tickIndex: engine.frameState.tickIndex,
@@ -366,13 +385,15 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // ─── Plugin wrapProvider chain ──────────────────────────────────────────────
   // Applied in reverse plugin order so the first plugin is outermost.
   let innerContent: ReactNode = (
-    <ActionInputExtensionContext.Provider value={mergedActionInputExtension}>
-      <EngineStateContext.Provider value={engineState}>
-        <EngineContext.Provider value={engine}>
-          {props.children}
-        </EngineContext.Provider>
-      </EngineStateContext.Provider>
-    </ActionInputExtensionContext.Provider>
+    <SceneLoadStateContext.Provider value={sceneLoadContextValue}>
+      <ActionInputExtensionContext.Provider value={mergedActionInputExtension}>
+        <EngineStateContext.Provider value={engineState}>
+          <EngineContext.Provider value={engine}>
+            {props.children}
+          </EngineContext.Provider>
+        </EngineStateContext.Provider>
+      </ActionInputExtensionContext.Provider>
+    </SceneLoadStateContext.Provider>
   );
   for (let i = resolvedPlugins.length - 1; i >= 0; i--) {
     const plugin = resolvedPlugins[i]!;

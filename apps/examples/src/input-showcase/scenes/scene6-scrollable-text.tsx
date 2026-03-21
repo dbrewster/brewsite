@@ -96,18 +96,18 @@ export const ScrollableTextScene = (): JSX.Element => {
   return (
     <Scene id="input-scrollable-text">
       <ProgressManager scrollUnits={900} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={50} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"50deg"} />
       <Lighting intensityScale={1}>
         <Ambient intensity={0.5} color="#d7e8ff" />
         <Directional intensity={1.2} color="#b0ccff" position={[-4, 10, 8]} />
       </Lighting>
 
       {/* Left: line chart */}
-      <View id="st-chart-view" x={0.02} y={0.06} w={0.45} h={0.86}>
+      <View id="st-chart-view" x={"2%"} y={"6%"} w={"45%"} h={"86%"}>
         <LineChart
           id="is-monthly-interactions"
           data={monthlyData}
-          x={0} y={0} w={1} h={1}
+          x={0} y={0} w={"100%"} h={"100%"}
           lineShape="circle"
           lineSmoothness={0.5}
           showPoints
@@ -124,7 +124,7 @@ export const ScrollableTextScene = (): JSX.Element => {
            pointerEvents:'auto' opts this content back in so the native scroll
            gesture reaches the DOM (the overlay container is pointer-events:none
            via passthroughPointerEvents on EngineOverlayHost). */}
-      <TextBox id="st-docs" x={0.49} y={0.06} w={0.49} h={0.88} overflow="hidden" layer={2}>
+      <TextBox id="st-docs" x={"49%"} y={"6%"} w={"49%"} h={"88%"} overflow="hidden" layer={2}>
         <div
           style={{
             height: '100%',

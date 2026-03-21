@@ -2,6 +2,7 @@
 
 import type { SlideTheme, ResolvedSlideConfig } from '../types';
 import { defaultSlideTheme } from '../theme';
+import { resolveToNVS } from '@brewsite/core';
 
 /**
  * Resolves a SlideTheme (with potential missing fields) into a
@@ -29,8 +30,8 @@ export function resolveSlideConfig(
     // Density
     '--slide-content-padding':           resolved.density.contentPadding,
     '--slide-content-gap':               resolved.density.contentGap,
-    '--slide-title-height':              String(resolved.density.titleHeight),
-    '--slide-gutter':                    String(resolved.density.gutter),
+    '--slide-title-height':              String(resolveToNVS(resolved.density.titleHeight)),
+    '--slide-gutter':                    String(resolveToNVS(resolved.density.gutter)),
     // Typography scale
     '--slide-heading-scale':             String(resolved.typography.headingScale),
     '--slide-body-scale':                String(resolved.typography.bodyScale),

@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Nodes, Edges, and Groups"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-19
+updated: 2026-03-21
 ---
 
 ## Diagram Element Overview
@@ -13,8 +13,8 @@ updated: 2026-03-19
 The full DSL structure:
 
 ```tsx
-<Diagram id="my-diagram" x={0} y={0} w={1} h={1}>
-  <GridLayout columns={3} spacing={[0.06, 0.06]} />     {/* one layout element */}
+<Diagram id="my-diagram" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
+  <GridLayout columns={3} spacing={["6u", "6u"]} />     {/* one layout element */}
   <DiagramEnter fade />                            {/* optional enter transition */}
   <DiagramExit fade />                             {/* optional exit transition */}
 
@@ -34,30 +34,30 @@ Nodes inside a `<DiagramGroup>` belong to that group. Nodes outside any group ar
 
 ```tsx
 interface DiagramProps {
-  id: string;        // Required. Unique across all scenes. Must be stable.
-  x?: number;        // NVS left edge [0..1]. Default: 0
-  y?: number;        // NVS top edge [0..1]. Default: 0
-  w?: number;        // NVS width [0..1]. Default: 1
-  h?: number;        // NVS height [0..1]. Default: 1
-  tilt?: number;     // Pitch tilt in radians. Default: 0. Use negative for angled view.
-  z?: number;        // World-space Z depth of diagram plane. Default: 0
-  scale?: number;    // World-space geometry scale. Default: 1
+  id: string;              // Required. Unique across all scenes. Must be stable.
+  x?: SceneLength;         // NVS left edge. Default: "0%"
+  y?: SceneLength;         // NVS top edge. Default: "0%"
+  w?: SceneLength;         // NVS width. Default: "100%"
+  h?: SceneLength;         // NVS height. Default: "100%"
+  tilt?: SceneAngle;       // Pitch tilt. Default: 0. Use negative for angled view.
+  z?: number;              // World-space Z depth of diagram plane. Default: 0
+  scale?: number;          // World-space geometry scale. Default: 1
   children?: ReactNode;
 }
 ```
 
-NVS coordinates: `x=0` is the left edge of the viewport, `x=1` is the right edge. `y=0` is the top, `y=1` is the bottom.
+NVS coordinates: `x={"0%"}` is the left edge of the viewport, `x={"100%"}` is the right edge. `y={"0%"}` is the top, `y={"100%"}` is the bottom.
 
 To position a diagram in the left half of the screen:
 
 ```tsx
-<Diagram id="left-diagram" x={0} y={0} w={0.5} h={1}>
+<Diagram id="left-diagram" x={"0%"} y={"0%"} w={"50%"} h={"100%"}>
 ```
 
 To tilt the diagram plane for a dramatic angled view (common in architecture showcases):
 
 ```tsx
-<Diagram id="angled" tilt={-Math.PI / 4} scale={1.1}>
+<Diagram id="angled" tilt={"-45deg"} scale={1.1}>
 ```
 
 When `<Diagram>` is nested inside a `<View>`, its NVS coordinates are relative to the view bounds — the compiler composes parent NVS context automatically.
@@ -73,9 +73,9 @@ interface DiagramNodeProps {
   sublabel?: string;                     // Secondary label below primary
   shape?: DiagramNodeShape;             // Geometry shape. Default: 'rectangle'
   icon?: DiagramIconVariant;            // SVG icon on the front face
-  position?: [number, number, number];  // [x, y, z] in NVS (ManualLayout only)
-  size?: [number, number];              // [width, height] as NVS fractions [0..1]. Default: [0.15, 0.08] from theme
-  thickness?: number;                   // 3D prism Z-depth as NVS fraction of viewport width. Default: from theme. Omit to use theme default.
+  position?: ScenePosition3;            // [x, y, z] as SceneLength (ManualLayout only)
+  size?: SceneSize2;                    // [width, height] as SceneLength. Default: ["15u", "8u"] from theme
+  thickness?: SceneLength;              // 3D prism Z-depth. Default: from theme. Omit to use theme default.
   color?: string;                       // Front-face CSS hex. Default: '#2a2d3e'
   boxColor?: string;                    // Side/top/bottom/back face CSS hex
   sideColor?: string;                   // Legacy alias for boxColor
@@ -83,16 +83,16 @@ interface DiagramNodeProps {
   metalness?: number;                   // PBR metalness [0–1]. Default: from theme (~0.40)
   roughness?: number;                   // PBR roughness [0–1]. Default: from theme (~0.30)
   glow?: boolean | DiagramNodeGlowConfig;  // Glow config (see below)
-  cornerRadius?: number;                // Corner radius as NVS fraction of viewport width. Default: from theme
+  cornerRadius?: SceneLength;           // Corner radius. Default: from theme
   labelColor?: string;                  // Label text CSS hex
   sublabelColor?: string;               // Sublabel text CSS hex. Default: '#a0a8c0'
-  labelPadding?: number;                // Vertical label offset fraction [0–1]
+  labelPadding?: number;                // Vertical label offset fraction [0–1] (dimensionless)
   opacity?: number;                     // [0–1]. Default: 1
   clickable?: boolean;                  // Enable click/raycast. Default: false
   enabled?: boolean;                    // Whether rendered. Default: true
-  iconScale?: number;                   // Icon scale relative to face [0–1]. Auto-scaled down by fit-to-content layout when node is small.
+  iconScale?: number;                   // Icon scale relative to face [0–1] (dimensionless). Auto-scaled down by fit-to-content layout when node is small.
   iconStyle?: SvgIcon3DStyle;           // 'flat' | 'extruded' | 'layered' | 'embossed'
-  iconDepth?: number;                   // Icon extrusion depth in NVS units. Default: from theme (0.15)
+  iconDepth?: SceneLength;              // Icon extrusion depth. Default: from theme ("15%")
   surfaceMaterial?: string;              // Named material preset to apply
   materialApplication?: MaterialApplication; // How the material is applied
   onMouseEnter?: DiagramNodeMouseHandler;
@@ -135,16 +135,16 @@ All icon values are namespaced strings. Main namespaces:
 
 ### Sizing Guide
 
-Node `size` is always **NVS fractions [width, height]** where each value is in [0..1] — a fraction of the diagram viewport. This applies to all layout modes (GridLayout, HierarchicalLayout, FlowLayout, and ManualLayout). The theme provides a default of `[0.15, 0.08]` when `size` is omitted.
+Node `size` uses `SceneSize2` (two `SceneLength` values). Use `u` units for aspect-ratio-preserving sizes that look consistent across viewports. The theme provides a default of `["15u", "8u"]` when `size` is omitted.
 
 | Recipe | Size | Use Case |
 |---|---|---|
-| Standard | `[0.15, 0.08]` | Default. 6-12 node diagrams. |
-| Compact | `[0.10, 0.06]` | Dense diagrams (13+ nodes). |
-| Hero | `[0.25, 0.14]` | Title/header nodes. |
-| Wide | `[0.22, 0.10]` | Nodes with long labels. |
-| Square | `[0.12, 0.12]` | Icon-heavy nodes, circle shapes. |
-| Banner | `[0.35, 0.10]` | Full-width title bars. |
+| Standard | `["15u", "8u"]` | Default. 6-12 node diagrams. |
+| Compact | `["10u", "6u"]` | Dense diagrams (13+ nodes). |
+| Hero | `["25u", "14u"]` | Title/header nodes. |
+| Wide | `["22u", "10u"]` | Nodes with long labels. |
+| Square | `["12u", "12u"]` | Icon-heavy nodes, circle shapes. |
+| Banner | `["35u", "10u"]` | Full-width title bars. |
 
 Nodes that are too small will have their icon automatically scaled down by the fit-to-content layout. Text uses shrink-to-fit. Very small nodes produce unreadable results — use the recipes above as a floor.
 
@@ -178,17 +178,17 @@ Usage:
 
 **Position and size for ManualLayout:**
 
-With `<ManualLayout>`, positions are NVS fractions `[0..1]` where `[0.5, 0.5, 0]` is the center of the diagram viewport. Size is also NVS — `[0.15, 0.08]` is 15% wide by 8% tall.
+With `<ManualLayout>`, positions use `ScenePosition3` where `["50%", "50%", "0%"]` is the center of the diagram viewport. Size also uses `SceneSize2` — `["15u", "8u"]` is 15% wide by 8% tall (uniform sizing).
 
 ```tsx
-<Diagram id="d1" x={0} y={0} w={1} h={1}>
+<Diagram id="d1" x={"0%"} y={"0%"} w={"100%"} h={"100%"}>
   <ManualLayout />
-  <DiagramNode id="node-a" label="Service A" position={[0.2, 0.4, 0]} size={[0.15, 0.08]} />
-  <DiagramNode id="node-b" label="Service B" position={[0.6, 0.4, 0]} size={[0.15, 0.08]} />
+  <DiagramNode id="node-a" label="Service A" position={["20%", "40%", "0%"]} size={["15u", "8u"]} />
+  <DiagramNode id="node-b" label="Service B" position={["60%", "40%", "0%"]} size={["15u", "8u"]} />
 </Diagram>
 ```
 
-With auto-layout (GridLayout, HierarchicalLayout, FlowLayout), do not specify `position`. The `size` is in NVS fractions (default `[0.15, 0.08]` from theme). Position is auto-assigned and normalized.
+With auto-layout (GridLayout, HierarchicalLayout, FlowLayout), do not specify `position`. The `size` uses `SceneSize2` (default `["15u", "8u"]` from theme). Position is auto-assigned and normalized.
 
 ## Edge DSL
 
@@ -206,13 +206,13 @@ interface DiagramEdgeProps {
   flow?: DiagramEdgeFlow;              // 'none' | 'forward' | 'backward' | 'bidirectional'
   flowColor?: string;                  // CSS hex for flow pulse. Default: edge color
   color?: string;                      // Edge tube CSS hex. Default: from theme
-  thickness?: number;                  // Tube radius as NVS fraction of viewport width. Default: from theme. Omit to use theme default.
+  thickness?: SceneLength;             // Tube radius. Default: from theme. Omit to use theme default.
   opacity?: number;                    // [0–1]. Default: 1
   routing?: EdgeRoutingAlgorithm;      // 'curved' | 'straight' | 'organic' | 'flow'
-  flowTurnRadius?: number;             // Per-edge override for flow routing turn radius
-  flowFaceStub?: number;               // Per-edge override for flow face stub length
-  flowBundleStrength?: number;         // Per-edge override for flow bundle trunk length
-  flowTargetApproachBias?: number;     // Per-edge override for flow target ingress bias
+  flowTurnRadius?: SceneLength;        // Per-edge override for flow routing turn radius
+  flowFaceStub?: SceneLength;          // Per-edge override for flow face stub length
+  flowBundleStrength?: number;         // Per-edge override for flow bundle trunk length (dimensionless)
+  flowTargetApproachBias?: number;     // Per-edge override for flow target ingress bias (dimensionless)
   allowUnderpass?: boolean;            // Enable Z underpass escape hatch in flow routing
   fromPort?: DiagramEdgePort;          // 'top' | 'bottom' | 'left' | 'right' | 'front' | 'back'
   toPort?: DiagramEdgePort;            // Explicit attachment port at destination
@@ -297,10 +297,10 @@ Declare exactly one layout element as a direct child of `<Diagram>` (or inside a
 ```tsx
 interface GridLayoutProps {
   columns?: number | 'auto'; // Number of columns. Default: 4
-  spacing?: [number, number]; // [colGap, rowGap] as NVS fractions. Default: [0.06, 0.06]
-  margin?: number | [number, number]; // Per-node margin expanding footprint (NVS fractions)
-  groupPadding?: LayoutPadding; // Padding inside group boxes (NVS fraction). Default: 0.035
-  titleGap?: number;            // Gap between group title and content (NVS fraction). Default: 0.025
+  spacing?: SceneSize2;       // [colGap, rowGap] as SceneLength. Default: ["6u", "6u"]
+  margin?: SceneLength | SceneSize2; // Per-node margin expanding footprint
+  groupPadding?: ScenePadding; // Padding inside group boxes. Default: "3.5u"
+  titleGap?: SceneLength;      // Gap between group title and content. Default: "2.5u"
   alignment?: LayoutAlignment;  // 'left' | 'center' | 'right'. Default: 'left'
   disconnected?: LayoutDisconnected; // Placement for disconnected nodes. Default: 'next-to'
 }
@@ -308,7 +308,7 @@ interface GridLayoutProps {
 
 ```tsx
 <Diagram id="services">
-  <GridLayout columns={3} spacing={[0.06, 0.06]} />
+  <GridLayout columns={3} spacing={["6u", "6u"]} />
   <DiagramNode id="svc-a" label="Auth" icon="security:lock" />
   <DiagramNode id="svc-b" label="Users" icon="ui:users" />
   <DiagramNode id="svc-c" label="Billing" icon="ui:credit-card" />
@@ -320,10 +320,10 @@ interface GridLayoutProps {
 ```tsx
 interface HierarchicalLayoutProps {
   direction?: 'top-down' | 'left-right'; // Layout axis. Default: 'top-down'
-  spacing?: [number, number];             // [colGap, rowGap] as NVS fractions. Default: [0.045, 0.045]
-  margin?: number | [number, number];     // Per-node margin (NVS fractions)
-  groupPadding?: LayoutPadding;           // Padding inside group boxes (NVS fraction). Default: 0.035
-  titleGap?: number;                      // Gap between group title and content (NVS fraction). Default: 0.025
+  spacing?: SceneSize2;                   // [colGap, rowGap] as SceneLength. Default: ["4.5u", "4.5u"]
+  margin?: SceneLength | SceneSize2;      // Per-node margin
+  groupPadding?: ScenePadding;            // Padding inside group boxes. Default: "3.5u"
+  titleGap?: SceneLength;                 // Gap between group title and content. Default: "2.5u"
   alignment?: LayoutAlignment;           // Default: 'center'
   disconnected?: LayoutDisconnected;
 }
@@ -331,7 +331,7 @@ interface HierarchicalLayoutProps {
 
 ```tsx
 <Diagram id="hierarchy">
-  <HierarchicalLayout direction="top-down" spacing={[0.045, 0.06]} />
+  <HierarchicalLayout direction="top-down" spacing={["4.5u", "6u"]} />
   <DiagramNode id="ceo" label="CEO" />
   <DiagramNode id="cto" label="CTO" />
   <DiagramNode id="eng" label="Engineering" />
@@ -345,15 +345,15 @@ interface HierarchicalLayoutProps {
 ```tsx
 interface FlowLayoutProps {
   direction?: 'top-down' | 'left-right'; // Default: 'top-down'
-  gap?: number;                           // Edge-to-edge gap as NVS fraction. Default: 0.06
-  groupPadding?: LayoutPadding;           // Padding inside group boxes (NVS fraction). Default: 0.035
-  titleGap?: number;                      // Gap between group title and content (NVS fraction). Default: 0.025
+  gap?: SceneLength;                      // Edge-to-edge gap. Default: "6u"
+  groupPadding?: ScenePadding;            // Padding inside group boxes. Default: "3.5u"
+  titleGap?: SceneLength;                 // Gap between group title and content. Default: "2.5u"
 }
 ```
 
 ```tsx
 <Diagram id="pipeline">
-  <FlowLayout direction="left-right" gap={0.05} />
+  <FlowLayout direction="left-right" gap={"5u"} />
   <DiagramNode id="ingest" label="Ingest" icon="data:stream" />
   <DiagramNode id="transform" label="Transform" icon="data:etl" />
   <DiagramNode id="load" label="Load" icon="data:warehouse" />
@@ -371,17 +371,17 @@ interface ManualLayoutProps {
 }
 ```
 
-With `<ManualLayout>`, node `position` is `[x, y, z]` where `x=0` is left edge, `x=1` is right edge of the diagram viewport, `y=0` is top, `y=1` is bottom. Node `size` is NVS fractions `[width, height]`. Always provide explicit `size` with ManualLayout to avoid relying on the theme default.
+With `<ManualLayout>`, node `position` is `ScenePosition3` where `"0%"` is left/top edge, `"100%"` is right/bottom edge. Node `size` uses `SceneSize2`. Always provide explicit `size` with ManualLayout to avoid relying on the theme default.
 
 ```tsx
 <Diagram id="manual-arch">
   <ManualLayout />
   <DiagramNode id="lb" label="Load Balancer" icon="aws:alb"
-    position={[0.5, 0.15, 0]} size={[0.15, 0.07]} />
+    position={["50%", "15%", "0%"]} size={["15u", "7u"]} />
   <DiagramNode id="app-a" label="App A" icon="tech:nodejs"
-    position={[0.3, 0.45, 0]} size={[0.13, 0.07]} />
+    position={["30%", "45%", "0%"]} size={["13u", "7u"]} />
   <DiagramNode id="app-b" label="App B" icon="tech:nodejs"
-    position={[0.7, 0.45, 0]} size={[0.13, 0.07]} />
+    position={["70%", "45%", "0%"]} size={["13u", "7u"]} />
   <DiagramEdge from="lb" to="app-a" routing="flow" />
   <DiagramEdge from="lb" to="app-b" routing="flow" />
 </Diagram>
@@ -444,9 +444,9 @@ Diagrams transition between scenes by interpolating all per-element state (posit
 ```tsx
 <Diagram id="d1">
   <DiagramEnter
-    from={[0.5, -0.5, 0]}  // Start position in NVS (off-screen above)
-    fade={true}             // Fade node/edge opacities from 0. Default: true
-    easing="ease"           // 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'spring'
+    from={["50%", "-50%", "0%"]}  // Start position (off-screen above)
+    fade={true}                    // Fade node/edge opacities from 0. Default: true
+    easing="ease"                  // 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'spring'
   />
   {/* nodes, edges, groups */}
 </Diagram>
@@ -459,15 +459,15 @@ If `from` is omitted, the diagram fades in from its declared viewport bounds (no
 ```tsx
 <Diagram id="d1">
   <DiagramExit
-    to={[0.5, 1.5, 0]}    // End position in NVS (off-screen below)
-    fade={true}             // Fade to 0. Default: true
-    easing="spring"         // 'spring' adds a slight overshoot feel
+    to={["50%", "150%", "0%"]}   // End position (off-screen below)
+    fade={true}                    // Fade to 0. Default: true
+    easing="spring"                // 'spring' adds a slight overshoot feel
   />
   {/* nodes, edges, groups */}
 </Diagram>
 ```
 
-NVS values outside `[0..1]` are off-screen. `to={[-1, 0.5, 0]}` exits one full viewport width to the left. `to={[0.5, 2, 0]}` exits one full viewport height below center.
+Values outside `0%-100%` are off-screen. `to={["-100%", "50%", "0%"]}` exits one full viewport width to the left. `to={["50%", "200%", "0%"]}` exits one full viewport height below center.
 
 Both `<DiagramEnter>` and `<DiagramExit>` must be direct children of `<Diagram>`. Placing them inside a `<DiagramGroup>` is a compile-time warning and they will be ignored.
 
@@ -521,8 +521,8 @@ export const SceneCloudArchitecture = (): JSX.Element => (
     </Lighting>
     <Background color="#080b14" />
 
-    <Diagram id="cloud-arch-diagram" x={0.05} y={0.05} w={0.9} h={0.85}>
-      <HierarchicalLayout direction="top-down" spacing={[0.045, 0.045]} />
+    <Diagram id="cloud-arch-diagram" x={"5%"} y={"5%"} w={"90%"} h={"85%"}>
+      <HierarchicalLayout direction="top-down" spacing={["4.5u", "4.5u"]} />
       <DiagramEnter fade />
 
       {/* Entry point */}
@@ -532,7 +532,7 @@ export const SceneCloudArchitecture = (): JSX.Element => (
         icon="ui:users"
         shape="circle"
         color="#1a2040"
-        size={[0.12, 0.12]}
+        size={["12u", "12u"]}
       />
 
       {/* Frontend group */}
@@ -575,7 +575,7 @@ export const SceneCloudArchitecture = (): JSX.Element => (
         icon="aws:aurora"
         shape="rectangle"
         color="#1a1020"
-        size={[0.22, 0.10]}
+        size={["22u", "10u"]}
       />
 
       {/* Edges */}

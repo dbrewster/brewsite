@@ -3,7 +3,7 @@
 
 import type { ScreenDSL, ScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } from '@brewsite/core';
+import { blendNumber, blendOpacity, blendVec3, copyVec3, resolveToNVS, isUniformUnit, resolveAngle } from '@brewsite/core';
 
 /**
  * Compiles a ScreenDSL into a fully resolved ScreenState by applying defaults.
@@ -15,21 +15,15 @@ import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } fro
  * Full 3D rotation is supported via CSS3DRenderer. No rotation warnings are emitted.
  */
 export function compileScreen(dsl: ScreenDSL): ScreenState {
-  const rotation = dsl.rotation ?? [0, 0, 0];
+  const nvsX = dsl.x !== undefined ? resolveToNVS(dsl.x) : 0.5;
+  const nvsY = dsl.y !== undefined ? resolveToNVS(dsl.y) : 0.5;
+  const nvsWidth = dsl.width !== undefined ? resolveToNVS(dsl.width) : 0.625;
+  const nvsHeight = dsl.height !== undefined ? resolveToNVS(dsl.height) : undefined;
+  const uniformSizing = dsl.width !== undefined ? isUniformUnit(dsl.width) : false;
 
-  const nvsX = dsl.x ?? 0.5;
-  const nvsY = dsl.y ?? 0.5;
-  const nvsWidth = dsl.width ?? 0.625;
-  const nvsHeight = dsl.height;
-
-  if (process.env.NODE_ENV !== 'production') {
-    validateNVSScalar(nvsX, 'nvsX', `<Screen id="${dsl.id}">`);
-    validateNVSScalar(nvsY, 'nvsY', `<Screen id="${dsl.id}">`);
-    validateNVSScalar(nvsWidth, 'nvsWidth', `<Screen id="${dsl.id}">`);
-    if (nvsHeight !== undefined) {
-      validateNVSScalar(nvsHeight, 'nvsHeight', `<Screen id="${dsl.id}">`);
-    }
-  }
+  const rotation: readonly [number, number, number] = dsl.rotation !== undefined
+    ? [resolveAngle(dsl.rotation[0]), resolveAngle(dsl.rotation[1]), resolveAngle(dsl.rotation[2])]
+    : [0, 0, 0];
 
   return {
     id: dsl.id,
@@ -49,6 +43,7 @@ export function compileScreen(dsl: ScreenDSL): ScreenState {
     glowScale: dsl.glowScale ?? 1.4,
     glowOpacity: dsl.glowOpacity ?? 0.35,
     enabled: dsl.enabled ?? true,
+    uniformSizing,
   };
 }
 

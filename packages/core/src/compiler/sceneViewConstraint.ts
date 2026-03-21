@@ -141,8 +141,8 @@ export function enforceSceneChildConstraint(
         id: IMPLICIT_SCENE_ROOT_VIEW_ID,
         x: 0,
         y: 0,
-        w: 1,
-        h: 1,
+        w: '100%',
+        h: '100%',
       } as ViewProps,
       spatialChild,
     );

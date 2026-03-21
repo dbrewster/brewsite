@@ -10,7 +10,8 @@ import type {
   SceneSnapshotContext,
   NVSRect,
 } from '@brewsite/core';
-import { validateNVSScalar, validateNVSRect } from '@brewsite/core';
+import { validateNVSScalar, validateNVSRect, resolveAngle } from '@brewsite/core';
+import type { SceneAngle } from '@brewsite/core';
 import type {
   AxisRotation,
   AxisTranslation,
@@ -432,8 +433,11 @@ export function buildModelNodeHandler(config: ModelNodeHandlerConfig): NodeHandl
     const props = helpers.resolveObjectValues(rawProps, ctx);
     const sceneMetalnessMultiplier = api.state.materialMetalnessMultiplier;
     const sceneRoughnessMultiplier = api.state.materialRoughnessMultiplier;
-    const resolvedRotation = props.rotation !== undefined
-      ? (props.rotation as Vec3)
+    const rawRotation = props.rotation !== undefined
+      ? (props.rotation as [SceneAngle, SceneAngle, SceneAngle])
+      : undefined;
+    const resolvedRotation: Vec3 | undefined = rawRotation !== undefined
+      ? [resolveAngle(rawRotation[0]), resolveAngle(rawRotation[1]), resolveAngle(rawRotation[2])]
       : undefined;
     const base =
       (api.state.widgets[widgetId] as SceneModelInstanceState | undefined) ??

@@ -4,7 +4,7 @@
 // For a live interactive website, use <Screen> instead.
 
 import type { BezelVariant } from '../_shared/bezelGeometry';
-import type { MaterialApplication } from '@brewsite/core';
+import type { MaterialApplication, SceneLength, SceneAngle } from '@brewsite/core';
 
 /** Bezel frame style for ImagePanel. */
 export type ImagePanelBezelVariant = BezelVariant;
@@ -119,6 +119,13 @@ export interface ImagePanelState {
   /** Whether the panel is rendered. Allows hide/show via scene transitions. Default: true */
   readonly enabled: boolean;
 
+  /**
+   * When true, all size-like fields (nvsWidth, nvsHeight) use vmin (uniform) scaling
+   * at render time instead of per-axis scaling. Set by compile when DSL uses `u` units.
+   * Default: false (preserves existing per-axis behavior).
+   */
+  readonly uniformSizing: boolean;
+
   /** Named material preset for the bezel (e.g. 'onyx', 'steel'). Undefined = no preset. */
   readonly bezelMaterial?: string;
   /** Application controls for the bezel material preset. */
@@ -129,17 +136,18 @@ export interface ImagePanelState {
 export interface ImagePanelDSL {
   readonly id: string;
   readonly src: string;
-  /** NVS center X [0..1]. Default: 0.5 */
-  readonly x?: number;
-  /** NVS center Y [0..1]. Default: 0.5 */
-  readonly y?: number;
+  /** NVS center X with explicit unit. Default: '50%' */
+  readonly x?: SceneLength;
+  /** NVS center Y with explicit unit. Default: '50%' */
+  readonly y?: SceneLength;
   /** World-space depth (Z). Default: 0 */
   readonly z?: number;
-  /** NVS width fraction [0..1]. Default: 0.6 */
-  readonly width?: number;
-  /** NVS height fraction [0..1]. Derived from aspect ratio if omitted. */
-  readonly height?: number;
-  readonly rotation?: readonly [number, number, number];
+  /** NVS width with explicit unit. Default: '60%' */
+  readonly width?: SceneLength;
+  /** NVS height with explicit unit. Derived from aspect ratio if omitted. */
+  readonly height?: SceneLength;
+  /** Rotation with explicit angle units [x, y, z]. Default: [0, 0, 0] */
+  readonly rotation?: readonly [SceneAngle, SceneAngle, SceneAngle];
   readonly scale?: number;
   readonly bezel?: ImagePanelBezelVariant;
   readonly bezelThickness?: number;

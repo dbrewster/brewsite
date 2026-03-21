@@ -105,7 +105,7 @@ function SceneCardGrid(): JSX.Element {
 export const WelcomeScene = (): JSX.Element => (
   <Scene id="input-welcome">
     <ProgressManager scrollUnits={700} />
-    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={52} />
+    <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={"52deg"} />
     <Lighting intensityScale={1}>
       <Ambient intensity={0.55} color="#d7e8ff" />
       <Directional intensity={1.3} color="#b0ccff" position={[-4, 8, 10]} />
@@ -114,7 +114,7 @@ export const WelcomeScene = (): JSX.Element => (
     <Floor variant="grid" negativeZExtent={20} />
 
     {/* Hero title bar */}
-    <TextBox id="welcome-title" x={0.05} y={0.07} w={0.82} h={0.17} layer={2}>
+    <TextBox id="welcome-title" x={"5%"} y={"7%"} w={"82%"} h={"17%"} layer={2}>
       <div
         style={{
           height: '100%',
@@ -142,7 +142,7 @@ export const WelcomeScene = (): JSX.Element => (
     </TextBox>
 
     {/* Scene cards grid */}
-    <TextBox id="welcome-cards" x={0.05} y={0.27} w={0.82} h={0.61} layer={2}>
+    <TextBox id="welcome-cards" x={"5%"} y={"27%"} w={"82%"} h={"61%"} layer={2}>
       <style>{`
         .welcome-cards-grid {
           display: grid;
@@ -174,7 +174,7 @@ export const WelcomeScene = (): JSX.Element => (
     </TextBox>
 
     {/* Navigation hint */}
-    <TextBox id="welcome-hint" x={0.22} y={0.90} w={0.44} h={0.06} layer={2}>
+    <TextBox id="welcome-hint" x={"22%"} y={"90%"} w={"44%"} h={"6%"} layer={2}>
       <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(120,160,220,0.6)' }}>
         Scroll, <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>↑</kbd><kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>↓</kbd>{' '}
         keys, or swipe to navigate

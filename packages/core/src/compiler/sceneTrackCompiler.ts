@@ -383,6 +383,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       themeFamily:   options.activeTheme?.family   ?? 'default' as const,
       themePolarity: options.activeTheme?.polarity ?? 'dark' as const,
       sceneTheme: options.sceneTheme,
+      widgetRegistry,
     };
     const raw = scene.getFrame(context);
     if (raw && typeof raw === 'object' && '$$typeof' in raw) {
@@ -399,6 +400,22 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       'Ensure getFrame() returns <Scene ...> (or a SceneFrame object) on every code path.',
     );
   });
+
+  // ── Step 1.4: Build scene membership mapping ──────────────────────────────
+  // For each scene, record which widget IDs have non-undefined state.
+  // This is used by RuntimeDriverImpl for partitioned asset loading.
+  const sceneMembership = new Map<number, Set<string>>();
+  for (let i = 0; i < snapshots.length; i++) {
+    const snapshot = snapshots[i];
+    if (!snapshot) continue;
+    const widgetIds = new Set<string>();
+    for (const [widgetId, state] of Object.entries(snapshot.widgets)) {
+      if (state !== undefined) {
+        widgetIds.add(widgetId);
+      }
+    }
+    sceneMembership.set(i, widgetIds);
+  }
 
   // ── Step 1.5: Allow widgets to merge snapshots for persistence ─────────────
   for (const widget of widgetRegistry.getSceneElements()) {
@@ -698,6 +715,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     tickStep,
     subTickCount: totalFrames,
     sceneWindows,
+    sceneMembership,
     ...(progressProfile !== undefined ? { progressProfile } : {}),
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),

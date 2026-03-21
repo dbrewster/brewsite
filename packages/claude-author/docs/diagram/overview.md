@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Overview"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-19
+updated: 2026-03-21
 ---
 
 ## What @brewsite/diagram Provides
@@ -136,20 +136,20 @@ Note: `UiShape` (`ui:*`), `TechShape` (`tech:*`), `SecurityShape` (`security:*`)
 
 ## Coordinate Systems in Diagrams
 
-The `<Diagram>` component uses NVS fractions [0..1] throughout — for the diagram viewport and for all node sizes and positions inside it.
+The `<Diagram>` component uses `SceneLength` unit strings throughout — for the diagram viewport and for all node sizes and positions inside it.
 
-**NVS (viewport fractions)** — The `<Diagram>` element's own `x`, `y`, `w`, `h` props position the diagram viewport on screen using NVS [0, 1] coordinates. This is the same system all other elements use.
+**NVS (viewport percentages)** — The `<Diagram>` element's own `x`, `y`, `w`, `h` props position the diagram viewport on screen using percentage strings. This is the same system all other elements use.
 
 ```tsx
 // Diagram occupies the right 80% of the viewport, nearly full height
-<Diagram id="arch" x={0.1} y={0.05} w={0.8} h={0.9}>
+<Diagram id="arch" x={"10%"} y={"5%"} w={"80%"} h={"90%"}>
 ```
 
-**Node sizes are also NVS** — `<DiagramNode size>` uses NVS fractions [0..1] in all layout modes. A `size={[0.15, 0.08]}` node is 15% of the diagram viewport wide and 8% tall. The theme default is `[0.15, 0.08]`.
+**Node sizes use uniform units** — `<DiagramNode size>` uses `"u"` (uniform) unit strings. A `size={["15u", "8u"]}` node is 15 uniform units wide and 8 tall. The theme default is `["15u", "8u"]`.
 
 ```tsx
-// Standard node size — 15% wide, 8% tall relative to diagram viewport
-<DiagramNode id="api" label="API Server" icon="tech:nodejs" size={[0.15, 0.08]} />
+// Standard node size — 15u wide, 8u tall
+<DiagramNode id="api" label="API Server" icon="tech:nodejs" size={["15u", "8u"]} />
 ```
 
 For the complete spatial reference including recommended node sizes and layout spacing values, see [layout-spatial-awareness.md](../guides/layout-spatial-awareness.md).
