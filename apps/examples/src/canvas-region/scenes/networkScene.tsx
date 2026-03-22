@@ -25,7 +25,7 @@ export function NetworkScene(): JSX.Element {
           shape="hexagon"
           icon="ui:arrows-right-left"
           position={["50%", "10%", 0]}
-          size={["0.18u", "0.14u"]}
+          size={["18u", "14u"]}
         />
 
         <DiagramGroup id="app-tier" label="Application Tier">
@@ -35,7 +35,7 @@ export function NetworkScene(): JSX.Element {
             shape="rectangle"
             icon="ui:server"
             position={["25%", "40%", 0]}
-            size={["0.18u", "0.12u"]}
+            size={["18u", "12u"]}
           />
           <DiagramNode
             id="app-2"
@@ -43,7 +43,7 @@ export function NetworkScene(): JSX.Element {
             shape="rectangle"
             icon="ui:server"
             position={["50%", "40%", 0]}
-            size={["0.18u", "0.12u"]}
+            size={["18u", "12u"]}
           />
           <DiagramNode
             id="app-3"
@@ -51,7 +51,7 @@ export function NetworkScene(): JSX.Element {
             shape="rectangle"
             icon="ui:server"
             position={["75%", "40%", 0]}
-            size={["0.18u", "0.12u"]}
+            size={["18u", "12u"]}
           />
         </DiagramGroup>
 
@@ -62,7 +62,7 @@ export function NetworkScene(): JSX.Element {
             shape="heptagon"
             icon="ui:bolt"
             position={["30%", "75%", 0]}
-            size={["0.18u", "0.16u"]}
+            size={["18u", "16u"]}
           />
           <DiagramNode
             id="db"
@@ -70,7 +70,7 @@ export function NetworkScene(): JSX.Element {
             shape="circle"
             icon="ui:circle-stack"
             position={["70%", "75%", 0]}
-            size={["0.18u", "0.18u"]}
+            size={["18u", "18u"]}
           />
         </DiagramGroup>
 

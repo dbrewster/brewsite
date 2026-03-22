@@ -42,8 +42,8 @@ export type EdgeRoutingAlgorithm = 'curved' | 'straight' | 'organic' | 'flow';
  */
 export type EdgeLandingAlgorithm = 'nearest-face' | 'shortest-path' | 'center' | 'port';
 
-/** Explicit attachment port for port-based landing. */
-export type DiagramEdgePort = 'top' | 'bottom' | 'left' | 'right' | 'front' | 'back';
+/** Explicit attachment side for port-based landing. */
+export type DiagramEdgePort = 'top' | 'bottom' | 'left' | 'right';
 
 /** Node appearance defaults within a theme. */
 export interface DiagramThemeNodeConfig {

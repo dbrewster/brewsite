@@ -164,7 +164,7 @@ export const SceneDslScene = (): JSX.Element => (
             sublabel="Camera: [0, 2, 8] · Lighting: soft · Background: #111"
                        icon="ui:document-text"
             position={["22%", "50%", 0]}
-            size={["0.22u", "0.14u"]}
+            size={["22u", "14u"]}
           />
           <DiagramNode
             id="snap-b"
@@ -172,7 +172,7 @@ export const SceneDslScene = (): JSX.Element => (
             sublabel="Camera: [-4, 3, 6] · Lighting: dramatic · (inherits)"
                        icon="ui:document-text"
             position={["78%", "50%", 0]}
-            size={["0.22u", "0.14u"]}
+            size={["22u", "14u"]}
                        glow={{ intensity: 0.15 }}
           />
         </DiagramGroup>
@@ -183,7 +183,7 @@ export const SceneDslScene = (): JSX.Element => (
           sublabel="Compiler bakes interpolation into SceneTrack."
                    icon="ui:arrows-right-left"
           position={["50%", "50%", 0]}
-          size={["0.18u", "0.14u"]}
+          size={["18u", "14u"]}
         />
 
         <DiagramEdge from="snap-a" to="snap-transition" label="declare" flow="forward" />
@@ -231,7 +231,7 @@ export const SceneTransitionScene = (): JSX.Element => (
             sublabel="Camera: [0, 2, 8] · Lighting: soft"
                        icon="ui:document-text"
             position={["15%", "50%", 0]}
-            size={["0.22u", "0.14u"]}
+            size={["22u", "14u"]}
           />
           <DiagramNode
             id="snap-b"
@@ -239,7 +239,7 @@ export const SceneTransitionScene = (): JSX.Element => (
             sublabel="Camera: [-4, 3, 6] · Lighting: dramatic"
                        icon="ui:document-text"
             position={["50%", "50%", 0]}
-            size={["0.22u", "0.14u"]}
+            size={["22u", "14u"]}
                        glow={{ intensity: 0.2 }}
           />
           <DiagramNode
@@ -248,7 +248,7 @@ export const SceneTransitionScene = (): JSX.Element => (
             sublabel="Camera: [3, 1.5, 5] · (inherits lighting)"
                        icon="ui:document-text"
             position={["85%", "50%", 0]}
-            size={["0.22u", "0.14u"]}
+            size={["22u", "14u"]}
                        glow={{ intensity: 0.1 }}
           />
         </DiagramGroup>
@@ -293,11 +293,11 @@ export const CompilerScene = (): JSX.Element => (
       >
         <ManualLayout />
 
-        <DiagramNode id="cmp-jsx" label="Scene JSX" sublabel="<Scene> children: Camera, Lighting, Charts…" icon="ui:code-bracket-square" position={["10%", "50%", 0]} size={["0.14u", "0.14u"]} />
-        <DiagramNode id="cmp-dsl" label="sceneDslCompiler" sublabel="JSX tree → NodeHandler dispatch" icon="ui:arrows-right-left" position={["30%", "50%", 0]} size={["0.14u", "0.14u"]} />
-        <DiagramNode id="cmp-frames" label="SceneFrame[]" sublabel="one per scene · widget states" icon="ui:squares-2x2" position={["50%", "50%", 0]} size={["0.14u", "0.14u"]} />
-        <DiagramNode id="cmp-baker" label="sceneTrackCompiler" sublabel="bakes tick[] · transitions pre-interpolated" icon="ui:cpu-chip" position={["70%", "50%", 0]} size={["0.14u", "0.14u"]} />
-        <DiagramNode id="cmp-track" label="SceneTrack" sublabel="flat tick[] · O(1) lookup" icon="ui:circle-stack" position={["90%", "50%", 0]} size={["0.14u", "0.14u"]} glow={{ intensity: 0.25 }} />
+        <DiagramNode id="cmp-jsx" label="Scene JSX" sublabel="<Scene> children: Camera, Lighting, Charts…" icon="ui:code-bracket-square" position={["10%", "50%", 0]} size={["14u", "14u"]} />
+        <DiagramNode id="cmp-dsl" label="sceneDslCompiler" sublabel="JSX tree → NodeHandler dispatch" icon="ui:arrows-right-left" position={["30%", "50%", 0]} size={["14u", "14u"]} />
+        <DiagramNode id="cmp-frames" label="SceneFrame[]" sublabel="one per scene · widget states" icon="ui:squares-2x2" position={["50%", "50%", 0]} size={["14u", "14u"]} />
+        <DiagramNode id="cmp-baker" label="sceneTrackCompiler" sublabel="bakes tick[] · transitions pre-interpolated" icon="ui:cpu-chip" position={["70%", "50%", 0]} size={["14u", "14u"]} />
+        <DiagramNode id="cmp-track" label="SceneTrack" sublabel="flat tick[] · O(1) lookup" icon="ui:circle-stack" position={["90%", "50%", 0]} size={["14u", "14u"]} glow={{ intensity: 0.25 }} />
 
         <DiagramEdge from="cmp-jsx" to="cmp-dsl" label="JSX tree" flow="forward" />
         <DiagramEdge from="cmp-dsl" to="cmp-frames" label="SceneState" flow="forward" />
@@ -432,10 +432,10 @@ export const LightingSoftScene = (): JSX.Element => (
         scale={1.0}
       >
         <ManualLayout />
-        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" icon="ui:light-bulb" position={["20%", "35%", 0]} size={["0.16u", "0.14u"]} />
-        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="0.9 intensity · #ffffff · [4, 10, 6]" icon="ui:bolt" position={["50%", "35%", 0]} size={["0.16u", "0.14u"]} />
-        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.4 intensity · #b0ccff · [-6, 4, 8]" icon="ui:bolt" position={["80%", "35%", 0]} size={["0.16u", "0.14u"]} />
-        <DiagramNode id="lt-result" label="Soft Result" sublabel="Professional presentation lighting" icon="ui:light-bulb" position={["50%", "72%", 0]} size={["0.22u", "0.14u"]} glow={{ intensity: 0.1 }} />
+        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" icon="ui:light-bulb" position={["20%", "35%", 0]} size={["16u", "14u"]} />
+        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="0.9 intensity · #ffffff · [4, 10, 6]" icon="ui:bolt" position={["50%", "35%", 0]} size={["16u", "14u"]} />
+        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.4 intensity · #b0ccff · [-6, 4, 8]" icon="ui:bolt" position={["80%", "35%", 0]} size={["16u", "14u"]} />
+        <DiagramNode id="lt-result" label="Soft Result" sublabel="Professional presentation lighting" icon="ui:light-bulb" position={["50%", "72%", 0]} size={["22u", "14u"]} glow={{ intensity: 0.1 }} />
         <DiagramEdge from="lt-ambient" to="lt-result" flow="forward" style="dashed" />
         <DiagramEdge from="lt-directional-1" to="lt-result" flow="forward" />
         <DiagramEdge from="lt-directional-2" to="lt-result" flow="forward" style="dashed" />
@@ -478,10 +478,10 @@ export const LightingDramaticScene = (): JSX.Element => (
         scale={1.0}
       >
         <ManualLayout />
-        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={["20%", "35%", 0]} size={["0.16u", "0.14u"]} />
-        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="2.0 intensity · #ff6030 · warm key" sublabelColor="#ffccaa" icon="ui:bolt" position={["50%", "35%", 0]} size={["0.16u", "0.14u"]} color="#3a1808" />
-        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.8 intensity · #3060ff · cool fill" sublabelColor="#aac8ff" icon="ui:bolt" position={["80%", "35%", 0]} size={["0.16u", "0.14u"]} color="#0a1840" />
-        <DiagramNode id="lt-result" label="Dramatic Result" sublabel="Cinematic warm/cool bi-tone + GlowPoint sprites" sublabelColor="#ffccaa" icon="ui:light-bulb" position={["50%", "72%", 0]} size={["0.22u", "0.14u"]} color="#301020" glow={{ intensity: 0.3 }} />
+        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={["20%", "35%", 0]} size={["16u", "14u"]} />
+        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="2.0 intensity · #ff6030 · warm key" sublabelColor="#ffccaa" icon="ui:bolt" position={["50%", "35%", 0]} size={["16u", "14u"]} color="#3a1808" />
+        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.8 intensity · #3060ff · cool fill" sublabelColor="#aac8ff" icon="ui:bolt" position={["80%", "35%", 0]} size={["16u", "14u"]} color="#0a1840" />
+        <DiagramNode id="lt-result" label="Dramatic Result" sublabel="Cinematic warm/cool bi-tone + GlowPoint sprites" sublabelColor="#ffccaa" icon="ui:light-bulb" position={["50%", "72%", 0]} size={["22u", "14u"]} color="#301020" glow={{ intensity: 0.3 }} />
         <DiagramEdge from="lt-ambient" to="lt-result" flow="forward" style="dashed" />
         <DiagramEdge from="lt-directional-1" to="lt-result" flow="forward" />
         <DiagramEdge from="lt-directional-2" to="lt-result" flow="forward" />
@@ -628,11 +628,11 @@ export const InputScene = (): JSX.Element => (
       >
         <ManualLayout />
         <DiagramGroup id="input-group" label="InputController + Action — gesture-to-action mapping" variant="swimlane">
-          <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" icon="ui:arrow-path" position={["20%", "40%", 0]} size={["0.18u", "0.15u"]} />
-          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" icon="ui:arrows-pointing-out" position={["50%", "40%", 0]} size={["0.18u", "0.15u"]} />
-          <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" icon="ui:arrow-path" position={["80%", "40%", 0]} size={["0.18u", "0.15u"]} />
+          <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" icon="ui:arrow-path" position={["20%", "40%", 0]} size={["18u", "15u"]} />
+          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" icon="ui:arrows-pointing-out" position={["50%", "40%", 0]} size={["18u", "15u"]} />
+          <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" icon="ui:arrow-path" position={["80%", "40%", 0]} size={["18u", "15u"]} />
         </DiagramGroup>
-        <DiagramNode id="inp-camera" label="CameraWidget" sublabel="receives dispatched actions" icon="ui:eye" position={["50%", "75%", 0]} size={["0.22u", "0.14u"]} glow={{ intensity: 0.15 }} />
+        <DiagramNode id="inp-camera" label="CameraWidget" sublabel="receives dispatched actions" icon="ui:eye" position={["50%", "75%", 0]} size={["22u", "14u"]} glow={{ intensity: 0.15 }} />
         <DiagramEdge from="inp-drag" to="inp-camera" flow="forward" />
         <DiagramEdge from="inp-wheel" to="inp-camera" flow="forward" />
         <DiagramEdge from="inp-key" to="inp-camera" flow="forward" />
@@ -668,10 +668,10 @@ export const ThemingScene = (): JSX.Element => (
         tilt={"-0.2243994753rad"}
       >
         <ManualLayout />
-        <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" icon="ui:cpu-chip" position={["50%", "20%", 0]} size={["0.35u", "0.14u"]} glow={{ intensity: 0.15 }} />
-        <DiagramNode id="thm-core" label="@brewsite/core" sublabel="CSS vars · EngineOverlayHost" icon="ui:swatch" position={["25%", "55%", 0]} size={["0.28u", "0.14u"]} />
-        <DiagramNode id="thm-diagram" label="@brewsite/diagram" sublabel="node/edge/group materials" icon="ui:squares-2x2" position={["75%", "55%", 0]} size={["0.28u", "0.14u"]} />
-        <DiagramNode id="thm-charts" label="@brewsite/charts" sublabel="palette · axis · grid colors" icon="ui:chart-bar" position={["50%", "85%", 0]} size={["0.28u", "0.14u"]} />
+        <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" icon="ui:cpu-chip" position={["50%", "20%", 0]} size={["35u", "14u"]} glow={{ intensity: 0.15 }} />
+        <DiagramNode id="thm-core" label="@brewsite/core" sublabel="CSS vars · EngineOverlayHost" icon="ui:swatch" position={["25%", "55%", 0]} size={["28u", "14u"]} />
+        <DiagramNode id="thm-diagram" label="@brewsite/diagram" sublabel="node/edge/group materials" icon="ui:squares-2x2" position={["75%", "55%", 0]} size={["28u", "14u"]} />
+        <DiagramNode id="thm-charts" label="@brewsite/charts" sublabel="palette · axis · grid colors" icon="ui:chart-bar" position={["50%", "85%", 0]} size={["28u", "14u"]} />
         <DiagramEdge from="thm-engine" to="thm-core" flow="forward" />
         <DiagramEdge from="thm-engine" to="thm-diagram" flow="forward" />
         <DiagramEdge from="thm-core" to="thm-charts" style="dashed" />

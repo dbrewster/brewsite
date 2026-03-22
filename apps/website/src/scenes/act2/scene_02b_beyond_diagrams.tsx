@@ -67,13 +67,13 @@ export const Scene02bBeyondDiagrams = (): JSX.Element => (
         <DiagramGroup id="tk-group" variant="cluster" label="">
           <DiagramNode id="tk-model" label="3D Models" sublabel="GLTF · Animations · Labels"
             icon="ui:sparkles" position={["18%", "40%", "200%"]}
-            size={["0.18u", "0.15u"]} glow={{ intensity: 0.25 }} />
+            size={["18u", "15u"]} glow={{ intensity: 0.25 }} />
           <DiagramNode id="tk-charts" label="Charts" sublabel="Bar · Line · Area · Pie"
             icon="ui:chart-bar" position={["50%", "35%", 0]}
-            size={["0.18u", "0.15u"]} glow={{ intensity: 0.3 }} />
+            size={["18u", "15u"]} glow={{ intensity: 0.3 }} />
           <DiagramNode id="tk-screens" label="Screens & Slides" sublabel="Presentations · Mockups"
             icon="ui:computer-desktop" position={["82%", "40%", "-200%"]}
-            size={["0.18u", "0.15u"]} glow={{ intensity: 0.25 }} />
+            size={["18u", "15u"]} glow={{ intensity: 0.25 }} />
         </DiagramGroup>
         <DiagramEdge from="tk-model" to="tk-charts" style="dashed" />
         <DiagramEdge from="tk-charts" to="tk-screens" style="dashed" />

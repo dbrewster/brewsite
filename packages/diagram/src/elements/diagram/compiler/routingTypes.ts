@@ -9,8 +9,8 @@ import type {
   EdgeRoutingAlgorithm,
 } from '../types';
 
-/** Face identifier for a node in 3D space. */
-export type FaceId = 'left' | 'right' | 'top' | 'bottom' | 'front' | 'back';
+/** Side identifier for a node in the 2D diagram plane. */
+export type FaceId = 'left' | 'right' | 'top' | 'bottom';
 
 /** 3D vector as an immutable triple. */
 export type Vec3 = readonly [number, number, number];

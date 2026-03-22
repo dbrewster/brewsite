@@ -977,3 +977,207 @@ describe('compileDiagram — thickness normalization', () => {
     expect(state.edges[0]!.thickness).toBeCloseTo(0.009, 4);
   });
 });
+
+// ─── Edge Z-coordinate sanity — depth alignment regression tests ─────────────
+//
+// After the depth alignment model change (front face at z, side faces at z - d/2),
+// edge routing Z coordinates must stay proportional to the XY dimensions.
+// If depth is not scaled by the same scaleFactor as width/height, edge path Z
+// coordinates become disproportionately large, causing pipes to route deep into
+// the screen instead of staying near the XY plane.
+
+describe('compileDiagram — edge Z-coordinate depth alignment', () => {
+  it('edge path Z coordinates stay bounded relative to node thickness', () => {
+    const dsl: DiagramDSL = {
+      id: 'z-sanity',
+      layout: { kind: 'grid' },
+      nodes: [
+        makeNode('a', { size: ['15%', '8%'], thickness: '4%' }),
+        makeNode('b', { size: ['15%', '8%'], thickness: '4%' }),
+        makeNode('c', { size: ['15%', '8%'], thickness: '4%' }),
+      ],
+      edges: [
+        makeEdge('a', 'b'),
+        makeEdge('b', 'c'),
+        makeEdge('a', 'c'),
+      ],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    const maxNodeThickness = Math.max(...state.nodes.map((n) => n.thickness));
+
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          // Edge Z should be within a reasonable multiple of node thickness.
+          // The depth alignment model places side faces at z - d/2, and the flow
+          // router may use underpass depth (default 0.08 NVS) for obstacle avoidance.
+          // A 4× tolerance accounts for face stubs + underpass + routing offsets.
+          expect(
+            Math.abs(point[2]),
+            `edge "${edge.id}" has Z=${point[2].toFixed(6)} exceeding 4× max thickness ${maxNodeThickness.toFixed(6)}`,
+          ).toBeLessThan(maxNodeThickness * 4);
+        }
+      }
+    }
+  });
+
+  it('edge path Z coordinates are near zero for diagrams with default thickness', () => {
+    const dsl: DiagramDSL = {
+      id: 'z-default',
+      layout: { kind: 'flow', direction: 'top-down', gap: '5%' },
+      nodes: [makeNode('a'), makeNode('b'), makeNode('c'), makeNode('d')],
+      edges: [
+        makeEdge('a', 'b'),
+        makeEdge('a', 'c'),
+        makeEdge('c', 'd'),
+      ],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          // With default theme thickness (~0.03 NVS), edge Z should stay small.
+          // The flow router may use underpass depth (0.08) for obstacle avoidance,
+          // so allow up to 0.15 NVS. Before the depth scaling fix, unscaled depth
+          // values could produce Z coordinates > 0.4 which would be clearly broken.
+          expect(
+            Math.abs(point[2]),
+            `edge "${edge.id}" Z=${point[2].toFixed(6)} is too large for default thickness`,
+          ).toBeLessThan(0.15);
+        }
+      }
+    }
+  });
+
+  it('dense layout with scaleFactor < 1 keeps edge Z proportional to scaled dimensions', () => {
+    // Create a dense layout that forces scaleFactor < 1.
+    // 16 large nodes in a 4-col grid: 4×25% + 3×10% = 130% > usable area → scaleFactor < 1.
+    const nodes = Array.from({ length: 16 }, (_, i) =>
+      makeNode(`n${i}`, { size: ['25%', '15%'], thickness: '5%' }),
+    );
+    const edges = [
+      makeEdge('n0', 'n1'),
+      makeEdge('n1', 'n2'),
+      makeEdge('n2', 'n3'),
+      makeEdge('n4', 'n5'),
+      makeEdge('n5', 'n6'),
+      makeEdge('n0', 'n4'),
+      makeEdge('n4', 'n8'),
+    ];
+    const dsl: DiagramDSL = {
+      id: 'z-dense',
+      layout: { kind: 'grid', columns: 4, spacing: ['10%', '10%'] },
+      nodes,
+      edges,
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+
+    // Verify scaleFactor was applied (nodes should be scaled down from authored 25%).
+    const maxNodeW = Math.max(...state.nodes.map((n) => n.size[0]));
+    expect(maxNodeW).toBeLessThan(0.25);
+
+    // Key check: thickness must also be scaled down proportionally.
+    // If thickness were NOT scaled, it would remain 0.05 while width is ~0.16,
+    // making depth/width ratio ~0.31 (should be 0.2 = 5%/25%).
+    const sampleNode = state.nodes[0]!;
+    const thicknessToWidthRatio = sampleNode.thickness / sampleNode.size[0];
+    // Authored ratio: 5/25 = 0.2. After uniform scaling, ratio should be preserved.
+    expect(thicknessToWidthRatio).toBeCloseTo(0.2, 1);
+
+    const maxNodeThickness = Math.max(...state.nodes.map((n) => n.thickness));
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          // Even in dense layouts, edge Z must stay proportional to the scaled thickness.
+          // Allow 5× for underpass routing + face stubs.
+          expect(
+            Math.abs(point[2]),
+            `edge "${edge.id}" Z=${point[2].toFixed(6)} exceeds 5× scaled thickness ${maxNodeThickness.toFixed(6)} in dense layout`,
+          ).toBeLessThan(maxNodeThickness * 5);
+        }
+      }
+    }
+  });
+
+  it('edge paths between groups have Z near zero, not deep into screen', () => {
+    const dsl: DiagramDSL = {
+      id: 'z-groups',
+      layout: { kind: 'flow', direction: 'top-down', gap: '5%' },
+      nodes: [
+        makeNode('src', { size: ['20%', '8%'] }),
+        makeNode('a1', { size: ['12%', '6%'] }),
+        makeNode('a2', { size: ['12%', '6%'] }),
+        makeNode('b1', { size: ['12%', '6%'] }),
+        makeNode('b2', { size: ['12%', '6%'] }),
+      ],
+      edges: [
+        makeEdge('src', 'g1', { routing: 'flow' }),
+        makeEdge('src', 'g2', { routing: 'flow' }),
+      ],
+      groups: [
+        {
+          id: 'container',
+          nodeIds: [],
+          childGroupIds: ['g1', 'g2'],
+          layout: { kind: 'grid', columns: 2, spacing: ['5%', '5%'] },
+        },
+        { id: 'g1', parentId: 'container', nodeIds: ['a1', 'a2'], layout: { kind: 'flow', direction: 'top-down', gap: '3%' } },
+        { id: 'g2', parentId: 'container', nodeIds: ['b1', 'b2'], layout: { kind: 'flow', direction: 'top-down', gap: '3%' } },
+      ],
+      childrenOrder: ['src', 'container'],
+    };
+    const state = compileDiagram(dsl);
+    const maxThickness = Math.max(
+      ...state.nodes.map((n) => n.thickness),
+      ...state.groups.map((g) => g.borderHeight),
+    );
+
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          expect(
+            Math.abs(point[2]),
+            `group edge "${edge.id}" Z=${point[2].toFixed(6)} too deep (max thickness: ${maxThickness.toFixed(6)})`,
+          ).toBeLessThan(maxThickness * 3);
+        }
+      }
+    }
+  });
+
+  it('edge control points Z stays bounded (not just path commands)', () => {
+    const dsl: DiagramDSL = {
+      id: 'z-cp',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a'), makeNode('b'), makeNode('c')],
+      edges: [makeEdge('a', 'b'), makeEdge('b', 'c')],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    const maxNodeThickness = Math.max(...state.nodes.map((n) => n.thickness));
+
+    for (const edge of state.edges) {
+      for (const cp of edge.controlPoints) {
+        expect(
+          Math.abs(cp[2]),
+          `edge "${edge.id}" controlPoint Z=${cp[2].toFixed(6)} exceeds bounds`,
+        ).toBeLessThan(maxNodeThickness * 2);
+      }
+    }
+  });
+});

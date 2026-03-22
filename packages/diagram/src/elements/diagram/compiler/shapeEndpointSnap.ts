@@ -116,14 +116,11 @@ type NodeShapeInfo = {
 };
 
 /**
- * Compute the front-face Z for a node. The node front face is at position[2]
- * (Z = 0 in local space). Edge endpoints at side-face Z (z - depth/2) cause
- * visible gaps when the diagram has tilt because the tube is rendered behind
- * the visible front face. Moving the endpoint to front-face Z ensures the
- * tube visually connects to the polygon surface.
+ * Return the edge anchor Z for a node — mid-depth between front face and back.
+ * This keeps edge tubes in a single flat plane at the visual midpoint of the box.
  */
-function frontFaceZ(node: NodeShapeInfo): number {
-  return node.position[2];
+function edgeAnchorZ(node: NodeShapeInfo, originalZ: number): number {
+  return originalZ;
 }
 
 function adjustCommandStart(
@@ -136,7 +133,7 @@ function adjustCommandStart(
     node.position[0], node.position[1],
     node.size, node.shape,
   );
-  const sz = frontFaceZ(node);
+  const sz = edgeAnchorZ(node, start[2]);
 
   const dx = sx - start[0];
   const dy = sy - start[1];
@@ -169,7 +166,7 @@ function adjustCommandEnd(
     node.position[0], node.position[1],
     node.size, node.shape,
   );
-  const ez = frontFaceZ(node);
+  const ez = edgeAnchorZ(node, end[2]);
 
   const dx = ex - end[0];
   const dy = ey - end[1];
@@ -218,8 +215,7 @@ export function snapEdgePathToShapeBoundaries(
 
   // Adjust first command start point for source shape.
   // For polygon/circle shapes: snaps XY to the shape surface.
-  // For all shapes: brings Z to the front face (Z=0) to eliminate
-  // the visual gap caused by side-face Z offset with tilt.
+  // Z is preserved at the routing plane (mid-depth).
   if (sourceNode) {
     adjusted[0] = adjustCommandStart(adjusted[0]!, sourceNode);
   }

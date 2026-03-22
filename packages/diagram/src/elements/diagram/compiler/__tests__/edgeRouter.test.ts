@@ -67,35 +67,6 @@ describe('resolveFaces', () => {
 });
 
 describe('getFacePortAnchor', () => {
-  it('offsets front ports horizontally and vertically when target is off-axis', () => {
-    const anchor = getFacePortAnchor(
-      [0, 0, 0],
-      [4, 2, 2],
-      'front',
-      0,
-      2,
-      [10, 5, 0],
-    );
-    expect(anchor[0]).toBeLessThan(0);
-    expect(anchor[1]).toBeGreaterThan(0);
-    // Depth alignment: front face at z=0.
-    expect(anchor[2]).toBeCloseTo(0);
-  });
-
-  it('returns centered anchor when only one port is available', () => {
-    const anchor = getFacePortAnchor(
-      [0, 0, 0],
-      [4, 2, 2],
-      'back',
-      0,
-      1,
-      [-1, -5, 0],
-    );
-    expect(anchor[0]).toBeCloseTo(0);
-    // Depth alignment: back face at z - d = 0 - 2 = -2.
-    expect(anchor[2]).toBeCloseTo(-2);
-  });
-
   it('places top/bottom anchors using horizontal offsets', () => {
     const top = getFacePortAnchor(
       [0, 0, 0],
@@ -117,16 +88,27 @@ describe('getFacePortAnchor', () => {
     expect(bottom[0]).not.toBe(0);
   });
 
-  it('falls back to face center for unknown face values', () => {
-    const anchor = getFacePortAnchor(
-      [1, 2, 3],
-      [4, 2, 2],
-      'unknown' as unknown as 'front',
-      0,
-      1,
+  it('places left/right anchors using vertical offsets', () => {
+    const left = getFacePortAnchor(
       [0, 0, 0],
+      [4, 2, 2],
+      'left',
+      0,
+      3,
+      [0, 10, 0],
     );
-    expect(anchor).toBeUndefined();
+    const right = getFacePortAnchor(
+      [0, 0, 0],
+      [4, 2, 2],
+      'right',
+      2,
+      3,
+      [0, -10, 0],
+    );
+    expect(left[0]).toBeCloseTo(-2); // x - w/2
+    expect(left[1]).not.toBe(0);
+    expect(right[0]).toBeCloseTo(2); // x + w/2
+    expect(right[1]).not.toBe(0);
   });
 });
 
@@ -195,8 +177,8 @@ describe('routeEdges', () => {
         id: 'ported',
         from: 'a',
         to: 'b',
-        fromPort: 'front',
-        toPort: 'back',
+        fromPort: 'right',
+        toPort: 'left',
         routing: 'straight',
       }],
       positions,
@@ -207,7 +189,7 @@ describe('routeEdges', () => {
     expect(routePoints(result, 'ported')).toHaveLength(2);
   });
 
-  it('handles front/back face port counts with narrow and wide nodes', () => {
+  it('handles port counts with narrow and wide nodes', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['wide', [0, 0, 0]],
       ['w1', [5, 0, 6]],

@@ -53,15 +53,15 @@ export const Scene01FlatWorld = (): JSX.Element => (
         <FlowLayout direction="left-right" gap={"10%"} />
         <DiagramGroup id="flat-group" variant="boundary" label="">
           <DiagramNode id="flat-web" label="Frontend" icon="ui:globe-alt"
-            position={["12%", "35%", 0]} size={["0.13u", "0.11u"]} />
+            position={["12%", "35%", 0]} size={["13u", "11u"]} />
           <DiagramNode id="flat-api" label="API" icon="ui:server"
-            position={["37%", "35%", 0]} size={["0.13u", "0.11u"]} />
+            position={["37%", "35%", 0]} size={["13u", "11u"]} />
           <DiagramNode id="flat-auth" label="Auth" icon="ui:lock-closed"
-            position={["62%", "25%", 0]} size={["0.13u", "0.11u"]} />
+            position={["62%", "25%", 0]} size={["13u", "11u"]} />
           <DiagramNode id="flat-cache" label="Cache" icon="ui:bolt"
-            position={["62%", "50%", 0]} size={["0.13u", "0.11u"]} />
+            position={["62%", "50%", 0]} size={["13u", "11u"]} />
           <DiagramNode id="flat-db" label="Database" icon="ui:circle-stack"
-            position={["87%", "35%", 0]} size={["0.13u", "0.11u"]} />
+            position={["87%", "35%", 0]} size={["13u", "11u"]} />
         </DiagramGroup>
         <DiagramEdge from="flat-web" to="flat-api" flow="forward" />
         <DiagramEdge from="flat-api" to="flat-auth" flow="forward" />

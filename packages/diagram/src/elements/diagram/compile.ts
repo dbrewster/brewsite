@@ -235,18 +235,25 @@ export function compileDiagram(
     .sort((a, b) => a.position[2] - b.position[2]);
 
   // Build normalized size map including depth (thickness) for edge routing.
+  // Depth MUST be scaled by the same scaleFactor as width/height so all three
+  // dimensions are in the same coordinate system. The edge router's depth
+  // alignment model (front face at z, side faces at z - d/2) uses the depth
+  // value for Z offsets on every face — if depth is unscaled while XY is
+  // scaled, the Z coordinates become disproportionately large and edges
+  // route deep into the screen instead of staying near the XY plane.
   const normalizedSizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   for (const [id, norm] of normalizedSizes) {
     const originalDepth = sizeWithDepthMap.get(id)?.[2] ?? 0.4;
-    normalizedSizeWithDepthMap.set(id, [norm[0], norm[1], originalDepth]);
+    normalizedSizeWithDepthMap.set(id, [norm[0], norm[1], originalDepth * scaleFactor]);
   }
   // Add group entries for edge routing — use normalized group centers as targets.
   // Use the auto-computed group depth (max node thickness) from sizeWithDepthMap
   // so edge routing accounts for the group's actual Z extent.
+  // Group depth is also scaled by scaleFactor for the same reason as node depth.
   for (const [groupId, normBounds] of normalizedGroups) {
     normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, 0]);
     const groupDepthValue = sizeWithDepthMap.get(groupId)?.[2] ?? 0.01;
-    normalizedSizeWithDepthMap.set(groupId, [normBounds.w, normBounds.h, groupDepthValue]);
+    normalizedSizeWithDepthMap.set(groupId, [normBounds.w, normBounds.h, groupDepthValue * scaleFactor]);
   }
 
   // Route edges with normalized positions (routing math is scale-invariant)

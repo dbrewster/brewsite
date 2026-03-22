@@ -65,33 +65,33 @@ export const Scene04Ecosystem = (): JSX.Element => (
         {/* Core — the glowing heart */}
         <DiagramNode id="eco-core" label="@brewsite/core" sublabel="Engine"
           icon="ui:cpu-chip" position={["50%", "45%", 0]}
-          size={["0.18u", "0.14u"]} glow={{ intensity: 0.4 }} />
+          size={["18u", "14u"]} glow={{ intensity: 0.4 }} />
 
         {/* Inner ring — element packages */}
         <DiagramGroup id="eco-inner" variant="boundary" label="">
           <DiagramNode id="eco-diagram" label="diagram" sublabel="Nodes · Edges · Groups"
             icon="ui:squares-2x2" position={["20%", "22%", "100%"]}
-            size={["0.14u", "0.11u"]} glow={{ intensity: 0.2 }} />
+            size={["14u", "11u"]} glow={{ intensity: 0.2 }} />
           <DiagramNode id="eco-model" label="model" sublabel="GLTF · Labels"
             icon="ui:sparkles" position={["80%", "22%", "100%"]}
-            size={["0.14u", "0.11u"]} glow={{ intensity: 0.2 }} />
+            size={["14u", "11u"]} glow={{ intensity: 0.2 }} />
           <DiagramNode id="eco-charts" label="charts" sublabel="Bar · Line · Pie"
             icon="ui:chart-bar" position={["20%", "68%", "-100%"]}
-            size={["0.14u", "0.11u"]} glow={{ intensity: 0.2 }} />
+            size={["14u", "11u"]} glow={{ intensity: 0.2 }} />
           <DiagramNode id="eco-slides" label="slides" sublabel="Decks · Presentations"
             icon="ui:presentation-chart-bar" position={["80%", "68%", "-100%"]}
-            size={["0.14u", "0.11u"]} glow={{ intensity: 0.15 }} />
+            size={["14u", "11u"]} glow={{ intensity: 0.15 }} />
         </DiagramGroup>
 
         {/* Outer ring — support packages (desktop only) */}
         {!isMobile && (
           <DiagramGroup id="eco-outer" variant="cluster" label="">
             <DiagramNode id="eco-screens" label="screens" icon="ui:computer-desktop"
-              position={["6%", "45%", "-150%"]} size={["0.11u", "0.09u"]} />
+              position={["6%", "45%", "-150%"]} size={["11u", "9u"]} />
             <DiagramNode id="eco-textures" label="textures" icon="ui:swatch"
-              position={["94%", "45%", "-150%"]} size={["0.11u", "0.09u"]} />
+              position={["94%", "45%", "-150%"]} size={["11u", "9u"]} />
             <DiagramNode id="eco-themes" label="themes" icon="ui:paint-brush"
-              position={["50%", "88%", "-150%"]} size={["0.11u", "0.09u"]} />
+              position={["50%", "88%", "-150%"]} size={["11u", "9u"]} />
           </DiagramGroup>
         )}
 

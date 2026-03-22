@@ -89,20 +89,18 @@ const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scala
 export function getFaceCenter(pos: Vec3, size: NodeDimensions, face: FaceId): Vec3 {
   const [x, y, z] = pos;
   const [w, h, d] = size;
-  // Depth alignment model: front face at z, extrudes backward to z - d.
-  // Side faces span [z, z - d], center at z - d/2.
+  // Anchor at the mid-depth plane between the front face and the back.
+  const sideZ = z - d / 2;
   switch (face) {
-    case 'left':   return [x - w / 2, y,         z - d / 2];
-    case 'right':  return [x + w / 2, y,         z - d / 2];
-    case 'top':    return [x,         y + h / 2, z - d / 2];
-    case 'bottom': return [x,         y - h / 2, z - d / 2];
-    case 'front':  return [x,         y,         z];
-    case 'back':   return [x,         y,         z - d];
+    case 'left':   return [x - w / 2, y,         sideZ];
+    case 'right':  return [x + w / 2, y,         sideZ];
+    case 'top':    return [x,         y + h / 2, sideZ];
+    case 'bottom': return [x,         y - h / 2, sideZ];
   }
 }
 
 /**
- * Returns the outward unit normal for a named face.
+ * Returns the outward unit normal for a named side (in the XY diagram plane).
  */
 export function getFaceNormal(face: FaceId): Vec3 {
   switch (face) {
@@ -110,8 +108,6 @@ export function getFaceNormal(face: FaceId): Vec3 {
     case 'right':  return [ 1,  0,  0];
     case 'top':    return [ 0,  1,  0];
     case 'bottom': return [ 0, -1,  0];
-    case 'front':  return [ 0,  0,  1];
-    case 'back':   return [ 0,  0, -1];
   }
 }
 
@@ -129,25 +125,10 @@ export function getFacePortAnchor(
 ): Vec3 {
   const [x, y, z] = pos;
   const [w, h, d] = size;
-  const dx = targetPos[0] - x;
-  const dy = targetPos[1] - y;
-  const dz = targetPos[2] - z;
-  const useVerticalOffset = Math.abs(dy) > Math.abs(dz) * 0.5;
-  const useHorizontalOffset = Math.abs(dx) > Math.abs(dz) * 0.5;
-  const yOffset = useVerticalOffset ? (dy > 0 ? h / 2 : -h / 2) : 0;
-
-  // Depth alignment model: side faces span [z, z - d], center at z - d/2.
-  const sideZ = z - d / 2;
+  // Anchor at the front face plane so edge tubes don't clip through the box.
+  const sideZ = z;
 
   switch (face) {
-    case 'front':
-      return portCount === 1
-        ? [x, y + yOffset, z]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z];
-    case 'back':
-      return portCount === 1
-        ? [x, y + yOffset, z - d]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z - d];
     case 'top': {
       const offset = portCount <= 1 ? 0 : -w / 2 + (w / (portCount - 1)) * portIndex;
       return [x + offset, y + h / 2, sideZ];
@@ -164,8 +145,6 @@ export function getFacePortAnchor(
       const offset = portCount <= 1 ? 0 : -h / 2 + (h / (portCount - 1)) * portIndex;
       return [x + w / 2, y + offset, sideZ];
     }
-    default:
-      return getFaceCenter(pos, size, face);
   }
 }
 
@@ -173,34 +152,27 @@ function portToFace(port: DiagramEdgePort): FaceId {
   return port as FaceId;
 }
 
-/** nearest-face: pick face by dominant delta-vector direction. */
+/** Pick the nearest planar side by dominant delta-vector direction. */
 export function nearestFace(origin: Vec3, target: Vec3): FaceId {
   const dx = target[0] - origin[0];
   const dy = target[1] - origin[1];
-  const dz = target[2] - origin[2];
   const adx = Math.abs(dx);
   const ady = Math.abs(dy);
-  const adz = Math.abs(dz);
-  if (ady >= adx * 0.7 && ady >= adz * 0.7) return dy >= 0 ? 'top' : 'bottom';
-  if (adx >= adz) return dx >= 0 ? 'right' : 'left';
-  return dz >= 0 ? 'front' : 'back';
+  if (ady >= adx * 0.7) return dy >= 0 ? 'top' : 'bottom';
+  return dx >= 0 ? 'right' : 'left';
 }
 
 function nearestFaceForNode(origin: Vec3, target: Vec3, size: NodeDimensions): FaceId {
   const dx = target[0] - origin[0];
   const dy = target[1] - origin[1];
-  const dz = target[2] - origin[2];
   const halfW = Math.max(0.001, size[0] * 0.5);
   const halfH = Math.max(0.001, size[1] * 0.5);
-  const halfD = Math.max(0.001, size[2] * 0.5);
 
   const nx = Math.abs(dx) / halfW;
   const ny = Math.abs(dy) / halfH;
-  const nz = Math.abs(dz) / halfD;
 
-  if (ny >= nx && ny >= nz) return dy >= 0 ? 'top' : 'bottom';
-  if (nx >= nz) return dx >= 0 ? 'right' : 'left';
-  return dz >= 0 ? 'front' : 'back';
+  if (ny >= nx) return dy >= 0 ? 'top' : 'bottom';
+  return dx >= 0 ? 'right' : 'left';
 }
 
 function nearestFaceForNodePair(
@@ -209,13 +181,9 @@ function nearestFaceForNodePair(
   originSize: NodeDimensions,
   targetSize: NodeDimensions,
 ): FaceId {
-  const face = nearestFaceForNode(origin, target, originSize);
-  if (face === 'front' || face === 'back') {
-    return target[0] >= origin[0] ? 'right' : 'left';
-  }
   // DEBT: Remove unused targetSize parameter
   void targetSize;
-  return face;
+  return nearestFaceForNode(origin, target, originSize);
 }
 
 /** shortest-path: enumerate all 36 face-pair combos, pick minimum distance. */
@@ -223,7 +191,7 @@ function shortestPathFaces(
   srcPos: Vec3, srcSize: NodeDimensions,
   dstPos: Vec3, dstSize: NodeDimensions,
 ): { srcFace: FaceId; dstFace: FaceId } {
-  const faces: FaceId[] = ['left', 'right', 'top', 'bottom', 'front', 'back'];
+  const faces: FaceId[] = ['left', 'right', 'top', 'bottom'];
   let minDist = Infinity;
   let best: { srcFace: FaceId; dstFace: FaceId } = { srcFace: 'right', dstFace: 'left' };
   for (const sf of faces) {
@@ -403,7 +371,7 @@ function routeCenterLanding(
 ): import('./routingTypes').EdgeRouteState {
   const sn = getFaceNormal(nearestFaceForNode(fromPos, toPos, fromSize));
   const dn = getFaceNormal(nearestFaceForNode(toPos, fromPos, toSize));
-  // Depth alignment: center landing targets the depth-center of each node (z - d/2).
+  // Center landing anchors at mid-depth (z - d/2), same as side edges.
   const fromCenter: Vec3 = [fromPos[0], fromPos[1], fromPos[2] - fromSize[2] / 2];
   const toCenter: Vec3 = [toPos[0], toPos[1], toPos[2] - toSize[2] / 2];
   const start = addVec(fromCenter, scaleVec(sn, 0.012));

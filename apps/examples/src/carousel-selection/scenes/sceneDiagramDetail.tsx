@@ -23,22 +23,22 @@ export const DiagramDetailScene = (): JSX.Element => (
     <Diagram id="picker-diagram" x={"5%"} y={"2%"} w={"90%"} h={"92%"} scale={1.0}>
       <FlowLayout direction="top-down" gap={"8%"} />
 
-      <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC · rate limiting · auth" size={["0.32u", "0.1u"]}
+      <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC · rate limiting · auth" size={["32u", "10u"]}
         glow={{ intensity: 0.12 }} />
 
       <DiagramGroup id="services" label="Microservices" variant="container">
         <GridLayout columns={3} spacing={["5%", "3%"]} />
 
         <DiagramNode id="auth" label="Auth Service"
-          sublabel="OAuth 2.0 · JWT · MFA" size={["0.2u", "0.1u"]} />
+          sublabel="OAuth 2.0 · JWT · MFA" size={["20u", "10u"]} />
         <DiagramNode id="billing" label="Billing Service"
-          sublabel="Stripe · invoices · usage" size={["0.2u", "0.1u"]} />
+          sublabel="Stripe · invoices · usage" size={["20u", "10u"]} />
         <DiagramNode id="notify" label="Notification Service"
-          sublabel="email · SMS · push" size={["0.2u", "0.1u"]} />
+          sublabel="email · SMS · push" size={["20u", "10u"]} />
       </DiagramGroup>
 
       <DiagramNode id="db" label="Database Cluster"
-        sublabel="PostgreSQL · read replicas · connection pooling" size={["0.32u", "0.1u"]} />
+        sublabel="PostgreSQL · read replicas · connection pooling" size={["32u", "10u"]} />
 
       <DiagramEdge from="api" to="auth" routing="flow" flow="forward" />
       <DiagramEdge from="api" to="billing" routing="flow" flow="forward" />

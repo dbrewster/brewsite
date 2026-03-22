@@ -622,15 +622,13 @@ describe('sceneCfOverview routing', () => {
     const lowerRightResampled = resamplePolyline(sampleEdgePath(lowerRight!), 64);
     const sampledSplit = firstLateralSplit(lowerLeftResampled, lowerRightResampled, 0.015);
     expect(sampledSplit, 'lower routes never split laterally in sampled path').toBeDefined();
-    // Tolerance raised from default 0.01 to 0.04 to accommodate group depth
-    // alignment: groups now carry their actual Z extent (max node thickness)
-    // instead of a flat 0.01, which slightly perturbs edge routing Z coordinates
-    // and can cause minor lateral overlap near the split point.
+    // Depth is now properly normalized alongside XY dimensions, so edge routing
+    // Z coordinates no longer perturb lateral ordering. Tolerance restored to 0.01.
     const orderViolation = findLateralOrderViolation(
       lowerLeftResampled,
       lowerRightResampled,
       sampledSplit!.index,
-      0.04,
+      0.01,
     );
     expect(
       orderViolation,
@@ -996,6 +994,7 @@ describe('sceneDim7Safety routing', () => {
           const outDx = command.p3[0] - command.p2[0];
           const outDy = command.p3[1] - command.p2[1];
           const outIsH = Math.abs(outDy) < 0.01;
+
           const outIsV = Math.abs(outDx) < 0.01;
 
           // One arm horizontal, other vertical = 90° turn
@@ -1027,6 +1026,498 @@ describe('sceneDim7Safety routing', () => {
       }
     }
 
+    expect(violations).toEqual([]);
+  });
+});
+
+// ─── Z-coordinate depth alignment regression tests ────────────────────────────
+//
+// These tests verify that edge path Z coordinates stay proportional to the
+// XY plane. The depth alignment model (front face at z, side faces at z - d/2)
+// uses depth values for Z offsets — if depth is not normalized alongside XY
+// dimensions, edges route deep into the screen instead of staying planar.
+
+describe('edge Z-coordinate sanity', () => {
+  it('cfOverview edge paths have Z near zero (not deep into screen)', async () => {
+    const state = await compileCfOverview();
+    const maxThickness = Math.max(
+      ...state.nodes.map((n) => n.thickness),
+      ...state.groups.map((g) => g.borderHeight),
+    );
+
+    const violations: string[] = [];
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          if (Math.abs(point[2]) > maxThickness * 3) {
+            violations.push(
+              `edge "${edge.id}" path Z=${point[2].toFixed(6)} exceeds 3× max thickness ${maxThickness.toFixed(6)}`,
+            );
+          }
+        }
+      }
+      for (const cp of edge.controlPoints) {
+        if (Math.abs(cp[2]) > maxThickness * 3) {
+          violations.push(
+            `edge "${edge.id}" controlPoint Z=${cp[2].toFixed(6)} exceeds 3× max thickness ${maxThickness.toFixed(6)}`,
+          );
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it('dim7Safety edge paths have Z near zero', async () => {
+    const state = await compileDim7Safety();
+    const maxThickness = Math.max(
+      ...state.nodes.map((n) => n.thickness),
+      ...state.groups.map((g) => g.borderHeight),
+    );
+
+    const violations: string[] = [];
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          if (Math.abs(point[2]) > maxThickness * 3) {
+            violations.push(
+              `edge "${edge.id}" path Z=${point[2].toFixed(6)} exceeds 3× max thickness ${maxThickness.toFixed(6)}`,
+            );
+          }
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it('edge Z coordinates are proportional to node depth (no unscaled mismatch)', async () => {
+    const state = await compileCfOverview();
+    // The node depth (thickness) in NVS should be much smaller than node XY dimensions.
+    // If depth is not scaled by scaleFactor, it would be disproportionately large.
+    for (const node of state.nodes) {
+      const maxXY = Math.max(node.size[0], node.size[1]);
+      // Thickness should be a fraction of the node's largest XY dimension,
+      // not larger than it (which would indicate unscaled depth).
+      expect(
+        node.thickness,
+        `node "${node.id}" thickness ${node.thickness.toFixed(6)} exceeds size ${maxXY.toFixed(6)}`,
+      ).toBeLessThan(maxXY);
+    }
+  });
+});
+
+// ─── CS Overview architecture diagram ─────────────────────────────────────────
+
+function buildSceneCsOverview(): ReactElement {
+  return (
+    <Scene id="cs-overview">
+      <Diagram
+        id="cs-overview-diagram"
+        x={0}
+        y={0}
+        w={"100%"}
+        h={"100%"}
+        tilt={"-0.2617993878rad"}
+        scale={1.0}
+      >
+        <FlowLayout direction="left-right" gap={"10%"} />
+
+        <DiagramGroup
+          id="layer-author"
+          label="Author (DSL) — pure JSX, no Three.js"
+          variant="boundary"
+        >
+          <DiagramNode
+            id="ov-scene"
+            label="<Scene>"
+            sublabel="key/id · easing · overlay children"
+            icon="ui:document-text"
+            position={["12%", "50%", 0]}
+            size={["16u", "14u"]}
+          />
+        </DiagramGroup>
+
+        <DiagramGroup
+          id="layer-compiler"
+          label="Compile (compiler/) — pure functions, zero Three.js"
+          variant="swimlane"
+        >
+          <DiagramNode
+            id="ov-frames"
+            label="SceneFrame[]"
+            sublabel="one snapshot per scene · accumulated from JSX"
+            icon="ui:squares-2x2"
+            position={["37%", "35%", 0]}
+            size={["16u", "14u"]}
+          />
+          <DiagramNode
+            id="ov-track"
+            label="SceneTrack"
+            sublabel="flat tick[] · pre-baked · O(1) sampling"
+            icon="ui:circle-stack"
+            position={["37%", "65%", 0]}
+            size={["16u", "14u"]}
+            glow={{ intensity: 0.2 }}
+          />
+        </DiagramGroup>
+
+        <DiagramGroup
+          id="layer-runtime"
+          label="Execute (runtime/) — rAF loop, O(1) per frame"
+          variant="cluster"
+        >
+          <DiagramNode
+            id="ov-driver"
+            label="RuntimeDriverImpl"
+            sublabel="sample SceneTrack → WidgetState dispatch"
+            icon="ui:cpu-chip"
+            position={["62%", "35%", 0]}
+            size={["16u", "14u"]}
+          />
+          <DiagramNode
+            id="ov-registry"
+            label="WidgetRegistry"
+            sublabel="routes state by id → IWidget.apply()"
+            icon="ui:puzzle-piece"
+            position={["62%", "65%", 0]}
+            size={["16u", "14u"]}
+          />
+        </DiagramGroup>
+
+        <DiagramGroup
+          id="layer-output"
+          label="Output (player/) — React integration surface"
+          variant="boundary"
+        >
+          <DiagramNode
+            id="ov-canvas"
+            label="SceneCanvas"
+            sublabel="WebGLRenderer · Three.js scene root"
+            icon="ui:photo"
+            position={["88%", "35%", 0]}
+            size={["16u", "14u"]}
+          />
+          <DiagramNode
+            id="ov-overlay"
+            label="EngineOverlayHost"
+            sublabel="React HUD over canvas"
+            icon="ui:chat-bubble-left-right"
+            position={["88%", "65%", 0]}
+            size={["16u", "14u"]}
+          />
+        </DiagramGroup>
+
+        <DiagramEdge from="ov-scene" to="ov-frames" label="JSX tree" flow="forward" />
+        <DiagramEdge from="ov-frames" to="ov-track" label="bake tick[]" flow="forward" />
+        <DiagramEdge from="ov-track" to="ov-driver" label="sample(progress)" flow="forward" />
+        <DiagramEdge from="ov-driver" to="ov-registry" label="dispatch" flow="forward" />
+        <DiagramEdge from="ov-overlay" to="ov-canvas" label="apply()" flow="forward" />
+        <DiagramEdge from="ov-registry" to="ov-overlay" style="dashed" arrowEnd="open" />
+      </Diagram>
+    </Scene>
+  );
+}
+
+async function compileCsOverview(): Promise<DiagramState> {
+  const plugin = diagramPlugin();
+  plugin.registerHandlers();
+  const scene = buildSceneCsOverview();
+
+  const registry = new WidgetRegistry();
+  const track = compileSceneTrack({
+    scenes: [{ id: 'cs-overview-scene', getFrame: () => scene as ReactElement }],
+    widgetRegistry: registry,
+    blockSize: 2,
+  });
+
+  return track.ticks[0]?.state.widgets['cs-overview-diagram'] as DiagramState;
+}
+
+const renderCsOverviewSvg = (state: DiagramState): string => {
+  const groups = state.groups.map((group) => {
+    const x = group.bounds.x * SVG_WIDTH;
+    const y = group.bounds.y * SVG_HEIGHT;
+    const w = group.bounds.w * SVG_WIDTH;
+    const h = group.bounds.h * SVG_HEIGHT;
+    const variantColors: Record<string, { stroke: string; fill: string }> = {
+      boundary: { stroke: '#5e8cc8', fill: 'rgba(20, 40, 80, 0.18)' },
+      swimlane: { stroke: '#6ea05e', fill: 'rgba(20, 60, 30, 0.18)' },
+      cluster: { stroke: '#a08040', fill: 'rgba(50, 40, 15, 0.22)' },
+      container: { stroke: '#7c8fb5', fill: 'rgba(24, 30, 52, 0.22)' },
+    };
+    const colors = variantColors[group.variant] ?? variantColors.container!;
+    const title = group.label ?? group.id;
+    return `
+      <g data-group="${escapeXml(group.id)}">
+        <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="14" ry="14" fill="${colors.fill}" stroke="${colors.stroke}" stroke-width="2" />
+        <text x="${(x + 12).toFixed(2)}" y="${(y + 22).toFixed(2)}" fill="#c0d0f0" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escapeXml(title)}</text>
+      </g>
+    `;
+  }).join('\n');
+
+  const edges = state.edges.map((edge) => {
+    const dashAttr = edge.style === 'dashed' ? ' stroke-dasharray="10 6"' : '';
+    return `
+    <g data-edge="${escapeXml(edge.id)}">
+      <path d="${buildSvgPathData(edge)}" fill="none" stroke="${edge.color ?? '#5588cc'}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"${dashAttr} />
+    </g>
+  `;
+  }).join('\n');
+
+  const nodes = state.nodes.map((node) => {
+    const x = (node.position[0] - node.size[0] / 2) * SVG_WIDTH;
+    const y = (node.position[1] - node.size[1] / 2) * SVG_HEIGHT;
+    const w = node.size[0] * SVG_WIDTH;
+    const h = node.size[1] * SVG_HEIGHT;
+    return `
+      <g data-node="${escapeXml(node.id)}">
+        <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="10" ry="10" fill="${node.color}" stroke="#a0b8e0" stroke-opacity="0.25" stroke-width="1.5" />
+        <text x="${(x + 10).toFixed(2)}" y="${(y + 20).toFixed(2)}" fill="#e8f0ff" font-size="14" font-weight="600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escapeXml(node.label ?? node.id)}</text>
+        <text x="${(x + 10).toFixed(2)}" y="${(y + 36).toFixed(2)}" fill="#8090b0" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escapeXml(node.sublabel ?? '')}</text>
+      </g>
+    `;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${SVG_WIDTH}" height="${SVG_HEIGHT}" viewBox="0 0 ${SVG_WIDTH} ${SVG_HEIGHT}">
+  <rect width="${SVG_WIDTH}" height="${SVG_HEIGHT}" fill="#060a18" />
+  <g opacity="0.9">${groups}</g>
+  <g>${edges}</g>
+  <g>${nodes}</g>
+</svg>`;
+};
+
+const writeCsOverviewSvgArtifact = async (state: DiagramState): Promise<void> => {
+  await mkdir(ARTIFACT_DIR, { recursive: true });
+  await writeFile(
+    join(ARTIFACT_DIR, 'cs-overview-architecture.svg'),
+    renderCsOverviewSvg(state),
+    'utf8',
+  );
+};
+
+describe('sceneCsOverview architecture', () => {
+  it('compiles the correct structure', async () => {
+    const state = await compileCsOverview();
+    await writeCsOverviewSvgArtifact(state);
+
+    // 6 authored nodes, 6 edges, 4 groups
+    expect(state.nodes.length).toBeGreaterThanOrEqual(6);
+    expect(state.edges.length).toBe(6);
+    expect(state.groups.length).toBeGreaterThanOrEqual(4);
+
+    // All authored nodes are present by id
+    const nodeById = new Map(state.nodes.map((n) => [n.id, n]));
+    for (const id of ['ov-scene', 'ov-frames', 'ov-track', 'ov-driver', 'ov-registry', 'ov-canvas', 'ov-overlay']) {
+      expect(nodeById.has(id), `missing node ${id}`).toBe(true);
+    }
+
+    // All authored groups are present by id
+    const groupById = new Map(state.groups.map((g) => [g.id, g]));
+    for (const id of ['layer-author', 'layer-compiler', 'layer-runtime', 'layer-output']) {
+      expect(groupById.has(id), `missing group ${id}`).toBe(true);
+    }
+  });
+
+  it('nodes have proper sizes from u-unit conversion', async () => {
+    const state = await compileCsOverview();
+    const nodeById = new Map(state.nodes.map((n) => [n.id, n]));
+
+    // size was ["16u", "14u"] → 0.16 × 0.14 NVS (uniform). Allow ±0.02 tolerance
+    // for layout adjustments.
+    for (const id of ['ov-scene', 'ov-frames', 'ov-track', 'ov-driver', 'ov-registry', 'ov-canvas', 'ov-overlay']) {
+      const node = nodeById.get(id)!;
+      expect(
+        node.size[0],
+        `${id} width ${node.size[0].toFixed(4)} not near 0.16`,
+      ).toBeGreaterThan(0.10);
+      expect(node.size[0]).toBeLessThan(0.22);
+      expect(
+        node.size[1],
+        `${id} height ${node.size[1].toFixed(4)} not near 0.14`,
+      ).toBeGreaterThan(0.08);
+      expect(node.size[1]).toBeLessThan(0.20);
+    }
+  });
+
+  it('all nodes stay within the 0–1 NVS viewport', async () => {
+    const state = await compileCsOverview();
+
+    for (const node of state.nodes) {
+      const rect = nodeRect(node);
+      expect(rect.left, `${node.id} left=${rect.left.toFixed(4)} out of bounds`).toBeGreaterThanOrEqual(-0.01);
+      expect(rect.right, `${node.id} right=${rect.right.toFixed(4)} out of bounds`).toBeLessThanOrEqual(1.01);
+      expect(rect.top, `${node.id} top=${rect.top.toFixed(4)} out of bounds`).toBeGreaterThanOrEqual(-0.01);
+      expect(rect.bottom, `${node.id} bottom=${rect.bottom.toFixed(4)} out of bounds`).toBeLessThanOrEqual(1.01);
+    }
+  });
+
+  it('groups are ordered left-to-right: Author < Compile < Execute < Output', async () => {
+    const state = await compileCsOverview();
+    const groupById = new Map(state.groups.map((g) => [g.id, g]));
+    const author = groupById.get('layer-author')!;
+    const compiler = groupById.get('layer-compiler')!;
+    const runtime = groupById.get('layer-runtime')!;
+    const output = groupById.get('layer-output')!;
+
+    // Each lane's left edge should be strictly to the right of the previous lane's left edge
+    expect(author.bounds.x, 'Author should be leftmost').toBeLessThan(compiler.bounds.x);
+    expect(compiler.bounds.x, 'Compile should precede Execute').toBeLessThan(runtime.bounds.x);
+    expect(runtime.bounds.x, 'Execute should precede Output').toBeLessThan(output.bounds.x);
+  });
+
+  it('nodes are placed in the correct lanes', async () => {
+    const state = await compileCsOverview();
+    const nodeById = new Map(state.nodes.map((n) => [n.id, n]));
+    const groupById = new Map(state.groups.map((g) => [g.id, g]));
+
+    const isNodeInGroup = (nodeId: string, groupId: string): boolean => {
+      const node = nodeById.get(nodeId)!;
+      const group = groupById.get(groupId)!;
+      const nr = nodeRect(node);
+      // Node center should be within the group bounds (with tolerance for border overlap)
+      return (
+        node.position[0] >= group.bounds.x - 0.01 &&
+        node.position[0] <= group.bounds.x + group.bounds.w + 0.01 &&
+        node.position[1] >= group.bounds.y - 0.01 &&
+        node.position[1] <= group.bounds.y + group.bounds.h + 0.01
+      );
+    };
+
+    expect(isNodeInGroup('ov-scene', 'layer-author'), 'ov-scene should be in Author lane').toBe(true);
+    expect(isNodeInGroup('ov-frames', 'layer-compiler'), 'ov-frames should be in Compile lane').toBe(true);
+    expect(isNodeInGroup('ov-track', 'layer-compiler'), 'ov-track should be in Compile lane').toBe(true);
+    expect(isNodeInGroup('ov-driver', 'layer-runtime'), 'ov-driver should be in Execute lane').toBe(true);
+    expect(isNodeInGroup('ov-registry', 'layer-runtime'), 'ov-registry should be in Execute lane').toBe(true);
+    expect(isNodeInGroup('ov-canvas', 'layer-output'), 'ov-canvas should be in Output lane').toBe(true);
+    expect(isNodeInGroup('ov-overlay', 'layer-output'), 'ov-overlay should be in Output lane').toBe(true);
+  });
+
+  it('vertical ordering within two-node lanes is correct', async () => {
+    const state = await compileCsOverview();
+    const nodeById = new Map(state.nodes.map((n) => [n.id, n]));
+
+    // In the Compile lane: SceneTrack above SceneFrame[] (lower Y = higher on screen in Y-down NVS)
+    const track = nodeById.get('ov-track')!;
+    const frames = nodeById.get('ov-frames')!;
+    expect(
+      track.position[1],
+      'SceneTrack should be above SceneFrame[]',
+    ).toBeLessThan(frames.position[1]);
+
+    // In the Execute lane: WidgetRegistry above RuntimeDriverImpl
+    const registry = nodeById.get('ov-registry')!;
+    const driver = nodeById.get('ov-driver')!;
+    expect(
+      registry.position[1],
+      'WidgetRegistry should be above RuntimeDriverImpl',
+    ).toBeLessThan(driver.position[1]);
+
+    // In the Output lane: EngineOverlayHost above SceneCanvas
+    const overlay = nodeById.get('ov-overlay')!;
+    const canvas = nodeById.get('ov-canvas')!;
+    expect(
+      overlay.position[1],
+      'EngineOverlayHost should be above SceneCanvas',
+    ).toBeLessThan(canvas.position[1]);
+  });
+
+  it('forward edges flow left-to-right across lanes', async () => {
+    const state = await compileCsOverview();
+    const nodeById = new Map(state.nodes.map((n) => [n.id, n]));
+    const edgeById = new Map(state.edges.map((e) => [e.id, e]));
+
+    // Cross-lane forward edges: source node X should be less than destination node X
+    const crossLaneEdges = [
+      ['ov-scene-ov-frames-0', 'ov-scene', 'ov-frames'],
+      ['ov-track-ov-driver-2', 'ov-track', 'ov-driver'],
+      ['ov-registry-ov-overlay-5', 'ov-registry', 'ov-overlay'],
+    ] as const;
+
+    for (const [edgeId, fromId, toId] of crossLaneEdges) {
+      const edge = edgeById.get(edgeId);
+      expect(edge, `missing edge ${edgeId}`).toBeDefined();
+
+      const fromNode = nodeById.get(fromId)!;
+      const toNode = nodeById.get(toId)!;
+      expect(
+        fromNode.position[0],
+        `${edgeId}: source ${fromId} should be left of dest ${toId}`,
+      ).toBeLessThan(toNode.position[0]);
+    }
+  });
+
+  it('intra-lane vertical edges connect nodes within the same lane', async () => {
+    const state = await compileCsOverview();
+    const edgeById = new Map(state.edges.map((e) => [e.id, e]));
+
+    // SceneFrame[] → SceneTrack (vertical within Compile lane)
+    const framesToTrack = edgeById.get('ov-frames-ov-track-1')!;
+    expect(framesToTrack, 'missing edge ov-frames-ov-track-1').toBeDefined();
+    // Start tangent should be vertical (Y-dominant)
+    expect(Math.abs(framesToTrack.path.startTangent[1])).toBeGreaterThan(0.9);
+
+    // RuntimeDriverImpl → WidgetRegistry (vertical within Execute lane)
+    const driverToRegistry = edgeById.get('ov-driver-ov-registry-3')!;
+    expect(driverToRegistry, 'missing edge ov-driver-ov-registry-3').toBeDefined();
+    expect(Math.abs(driverToRegistry.path.startTangent[1])).toBeGreaterThan(0.9);
+
+    // EngineOverlayHost → SceneCanvas (vertical within Output lane)
+    const overlayToCanvas = edgeById.get('ov-overlay-ov-canvas-4')!;
+    expect(overlayToCanvas, 'missing edge ov-overlay-ov-canvas-4').toBeDefined();
+    expect(Math.abs(overlayToCanvas.path.startTangent[1])).toBeGreaterThan(0.9);
+  });
+
+  it('the ov-registry → ov-overlay edge is dashed', async () => {
+    const state = await compileCsOverview();
+    const edge = state.edges.find((e) => e.fromId === 'ov-registry' && e.toId === 'ov-overlay');
+    expect(edge, 'missing edge ov-registry → ov-overlay').toBeDefined();
+    expect(edge!.style).toBe('dashed');
+  });
+
+  it('edge paths have Z near zero', async () => {
+    const state = await compileCsOverview();
+    const maxThickness = Math.max(
+      ...state.nodes.map((n) => n.thickness),
+      ...state.groups.map((g) => g.borderHeight),
+    );
+
+    for (const edge of state.edges) {
+      for (const command of edge.path.commands) {
+        const points = command.kind === 'line'
+          ? [command.from, command.to]
+          : [command.p0, command.p1, command.p2, command.p3];
+        for (const point of points) {
+          expect(
+            Math.abs(point[2]),
+            `edge "${edge.id}" Z=${point[2].toFixed(6)} too deep`,
+          ).toBeLessThan(maxThickness * 3);
+        }
+      }
+    }
+  });
+
+  it('no edges route through unrelated node interiors', async () => {
+    const state = await compileCsOverview();
+    const nodeRects = state.nodes.map((node) => ({
+      id: node.id,
+      rect: nodeRect(node),
+    }));
+    const violations: string[] = [];
+    for (const edge of state.edges) {
+      for (const node of nodeRects) {
+        if (node.id === edge.fromId || node.id === edge.toId) continue;
+        const intersection = findPathRectInteriorIntersection(edge, node.rect);
+        if (intersection) {
+          violations.push(`edge ${edge.id} crosses into node ${node.id} via ${intersection.detail}`);
+        }
+      }
+    }
     expect(violations).toEqual([]);
   });
 });

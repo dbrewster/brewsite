@@ -20,8 +20,6 @@ const getFaceNormalLocal = (face: FaceId): Vec3 => {
     case 'right':  return [1, 0, 0];
     case 'top':    return [0, 1, 0];
     case 'bottom': return [0, -1, 0];
-    case 'front':  return [0, 0, 1];
-    case 'back':   return [0, 0, -1];
   }
 };
 
@@ -36,15 +34,12 @@ const resolveGroupApproachX = (
 const getFaceCenterLocal = (pos: Vec3, size: readonly [number, number, number], face: FaceId): Vec3 => {
   const [x, y, z] = pos;
   const [w, h, d] = size;
-  // Depth alignment model: front face at z, extrudes backward to z - d.
-  // Side faces span [z, z - d], center at z - d/2.
+  const sideZ = z - d / 2;
   switch (face) {
-    case 'left':   return [x - w / 2, y, z - d / 2];
-    case 'right':  return [x + w / 2, y, z - d / 2];
-    case 'top':    return [x, y + h / 2, z - d / 2];
-    case 'bottom': return [x, y - h / 2, z - d / 2];
-    case 'front':  return [x, y, z];
-    case 'back':   return [x, y, z - d];
+    case 'left':   return [x - w / 2, y, sideZ];
+    case 'right':  return [x + w / 2, y, sideZ];
+    case 'top':    return [x, y + h / 2, sideZ];
+    case 'bottom': return [x, y - h / 2, sideZ];
   }
 };
 
@@ -383,7 +378,7 @@ export function evaluateFaceCandidatePruning(
         sourceIsVertical &&
         absDy >= absDx * 0.85;
       const sourceAwayThreshold = useModerateVerticalAwayThreshold ? -0.55 : -0.7;
-      if (dotSrc < sourceAwayThreshold && candidate.srcFace !== 'front' && candidate.srcFace !== 'back') {
+      if (dotSrc < sourceAwayThreshold) {
         reasons.push('source-face-points-away');
       }
     }
@@ -397,8 +392,6 @@ export function evaluateFaceCandidatePruning(
       const dotDst = dstNormal[0] * dirFromTarget[0] + dstNormal[1] * dirFromTarget[1] + dstNormal[2] * dirFromTarget[2];
       if (
         dotDst < -0.7 &&
-        candidate.dstFace !== 'front' &&
-        candidate.dstFace !== 'back' &&
         !(destinationIsGroup && destinationIsSideFace)
       ) {
         reasons.push('destination-face-points-away');
@@ -475,16 +468,12 @@ function nearestFaceLocal(
 ): FaceId {
   const dx = target[0] - origin[0];
   const dy = target[1] - origin[1];
-  const dz = target[2] - origin[2];
   const halfW = Math.max(0.001, size[0] * 0.5);
   const halfH = Math.max(0.001, size[1] * 0.5);
-  const halfD = Math.max(0.001, size[2] * 0.5);
   const nx = Math.abs(dx) / halfW;
   const ny = Math.abs(dy) / halfH;
-  const nz = Math.abs(dz) / halfD;
-  if (ny >= nx && ny >= nz) return dy >= 0 ? 'top' : 'bottom';
-  if (nx >= nz) return dx >= 0 ? 'right' : 'left';
-  return dz >= 0 ? 'front' : 'back';
+  if (ny >= nx) return dy >= 0 ? 'top' : 'bottom';
+  return dx >= 0 ? 'right' : 'left';
 }
 
 // Re-export for use in tests.

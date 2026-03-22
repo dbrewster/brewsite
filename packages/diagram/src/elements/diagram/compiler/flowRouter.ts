@@ -7,7 +7,7 @@ import type { FlowObstacleModel } from './flowObstacleModel';
 import { buildFlowPathState, commandsToControlPoints } from './flowPathBuilder';
 import { findFlowVisibilityRoute } from './flowVisibilityGraph';
 
-export type FaceId = 'left' | 'right' | 'top' | 'bottom' | 'front' | 'back';
+export type FaceId = 'left' | 'right' | 'top' | 'bottom';
 export type Vec3 = readonly [number, number, number];
 export type NodeDimensions = readonly [number, number, number];
 
@@ -61,15 +61,12 @@ const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scala
 const getFaceCenter = (pos: Vec3, size: NodeDimensions, face: FaceId): Vec3 => {
   const [x, y, z] = pos;
   const [w, h, d] = size;
-  // Depth alignment model: front face at z, extrudes backward to z - d.
-  // Side faces span [z, z - d], center at z - d/2.
+  const sideZ = z - d / 2;
   switch (face) {
-    case 'left': return [x - w / 2, y, z - d / 2];
-    case 'right': return [x + w / 2, y, z - d / 2];
-    case 'top': return [x, y + h / 2, z - d / 2];
-    case 'bottom': return [x, y - h / 2, z - d / 2];
-    case 'front': return [x, y, z];
-    case 'back': return [x, y, z - d];
+    case 'left': return [x - w / 2, y, sideZ];
+    case 'right': return [x + w / 2, y, sideZ];
+    case 'top': return [x, y + h / 2, sideZ];
+    case 'bottom': return [x, y - h / 2, sideZ];
   }
 };
 
@@ -79,8 +76,6 @@ const getFaceNormal = (face: FaceId): Vec3 => {
     case 'right': return [1, 0, 0];
     case 'top': return [0, 1, 0];
     case 'bottom': return [0, -1, 0];
-    case 'front': return [0, 0, 1];
-    case 'back': return [0, 0, -1];
   }
 };
 
@@ -116,7 +111,7 @@ export function routeFlowEdge(input: RouteFlowEdgeInput): FlowRouteResult {
   });
 
   const endApproachDirectionMap: Record<FaceId, 'S' | 'N' | 'E' | 'W'> = {
-    top: 'S', bottom: 'N', left: 'E', right: 'W', front: 'S', back: 'N',
+    top: 'S', bottom: 'N', left: 'E', right: 'W',
   };
 
   const route = findFlowVisibilityRoute({

@@ -23,7 +23,7 @@ export function PipelineScene(): JSX.Element {
           shape="rectangle"
           icon="ui:code-bracket"
           position={["10%", "45%", 0]}
-          size={["0.14u", "0.14u"]}
+          size={["14u", "14u"]}
         />
         <DiagramNode
           id="build"
@@ -31,7 +31,7 @@ export function PipelineScene(): JSX.Element {
           shape="rectangle"
           icon="ui:wrench"
           position={["30%", "45%", 0]}
-          size={["0.14u", "0.14u"]}
+          size={["14u", "14u"]}
         />
         <DiagramNode
           id="test"
@@ -39,7 +39,7 @@ export function PipelineScene(): JSX.Element {
           shape="diamond"
           icon="ui:check-circle"
           position={["50%", "45%", 0]}
-          size={["0.14u", "0.14u"]}
+          size={["14u", "14u"]}
         />
         <DiagramNode
           id="stage"
@@ -47,7 +47,7 @@ export function PipelineScene(): JSX.Element {
           shape="rectangle"
           icon="ui:cloud"
           position={["70%", "45%", 0]}
-          size={["0.14u", "0.14u"]}
+          size={["14u", "14u"]}
         />
         <DiagramNode
           id="deploy"
@@ -55,7 +55,7 @@ export function PipelineScene(): JSX.Element {
           shape="hexagon"
           icon="ui:cloud-arrow-up"
           position={["90%", "45%", 0]}
-          size={["0.14u", "0.14u"]}
+          size={["14u", "14u"]}
         />
 
         <DiagramEdge from="source" to="build" label="Push" flow="forward" />

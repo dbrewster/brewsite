@@ -70,27 +70,27 @@ export const Scene02aDimensionalShift = (): JSX.Element => (
         {/* Frontend — closest to viewer */}
         <DiagramGroup id="dim-front" variant="boundary" label="Frontend">
           <DiagramNode id="dim-web" label="Frontend" icon="ui:globe-alt"
-            position={["15%", "40%", "300%"]} size={["0.15u", "0.13u"]}
+            position={["15%", "40%", "300%"]} size={["15u", "13u"]}
             glow={{ intensity: 0.3 }} />
         </DiagramGroup>
 
         {/* Services — middle depth */}
         <DiagramGroup id="dim-svc" variant="swimlane" label="Services">
           <DiagramNode id="dim-api" label="API" icon="ui:server"
-            position={["42%", "28%", 0]} size={["0.15u", "0.13u"]}
+            position={["42%", "28%", 0]} size={["15u", "13u"]}
             glow={{ intensity: 0.35 }} />
           <DiagramNode id="dim-auth" label="Auth" icon="ui:lock-closed"
-            position={["42%", "68%", 0]} size={["0.15u", "0.13u"]}
+            position={["42%", "68%", 0]} size={["15u", "13u"]}
             glow={{ intensity: 0.15 }} />
         </DiagramGroup>
 
         {/* Data — farthest from viewer */}
         <DiagramGroup id="dim-data" variant="cluster" label="Data">
           <DiagramNode id="dim-cache" label="Cache" icon="ui:bolt"
-            position={["72%", "25%", "-300%"]} size={["0.15u", "0.13u"]}
+            position={["72%", "25%", "-300%"]} size={["15u", "13u"]}
             glow={{ intensity: 0.15 }} />
           <DiagramNode id="dim-db" label="Database" icon="ui:circle-stack"
-            position={["72%", "62%", "-300%"]} size={["0.15u", "0.13u"]}
+            position={["72%", "62%", "-300%"]} size={["15u", "13u"]}
             glow={{ intensity: 0.3 }} />
         </DiagramGroup>
 

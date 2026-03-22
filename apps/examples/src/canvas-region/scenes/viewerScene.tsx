@@ -29,7 +29,7 @@ export function ViewerScene(): JSX.Element {
             shape="rectangle"
             icon="ui:globe-alt"
             position={["35%", "50%", 0]}
-            size={["0.2u", "0.15u"]}
+            size={["20u", "15u"]}
           />
           <DiagramNode
             id="db"
@@ -37,7 +37,7 @@ export function ViewerScene(): JSX.Element {
             shape="circle"
             icon="ui:circle-stack"
             position={["65%", "50%", 0]}
-            size={["0.2u", "0.2u"]}
+            size={["20u", "20u"]}
           />
         </DiagramGroup>
         <DiagramNode
@@ -46,7 +46,7 @@ export function ViewerScene(): JSX.Element {
           shape="rectangle"
           icon="ui:computer-desktop"
           position={["50%", "15%", 0]}
-          size={["0.2u", "0.15u"]}
+          size={["20u", "15u"]}
         />
         <DiagramEdge from="client" to="api" label="HTTPS" />
         <DiagramEdge from="api" to="db" label="SQL" />

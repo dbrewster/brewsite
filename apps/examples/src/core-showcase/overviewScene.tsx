@@ -25,7 +25,7 @@ export const OverviewScene = (): JSX.Element => (
         tilt={"-0.2617993878rad"}
         scale={1.0}
       >
-        <FlowLayout direction='left-right' gap={"10%"}/>
+        <FlowLayout direction="left-right" gap={"10%"} />
 
         <DiagramGroup
           id="layer-author"
@@ -38,7 +38,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="key/id · easing · overlay children"
             icon="ui:document-text"
             position={["12%", "50%", 0]}
-            size={["0.16u", "0.14u"]}
+            size={["16u", "14u"]}
           />
         </DiagramGroup>
 
@@ -53,7 +53,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="one snapshot per scene · accumulated from JSX"
             icon="ui:squares-2x2"
             position={["37%", "35%", 0]}
-            size={["0.16u", "0.14u"]}
+            size={["16u", "14u"]}
           />
           <DiagramNode
             id="ov-track"
@@ -61,8 +61,8 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="flat tick[] · pre-baked · O(1) sampling"
             icon="ui:circle-stack"
             position={["37%", "65%", 0]}
-            size={["0.16u", "0.14u"]}
-            glow={{intensity: 0.2}}
+            size={["16u", "14u"]}
+            glow={{ intensity: 0.2 }}
           />
         </DiagramGroup>
 
@@ -77,7 +77,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="sample SceneTrack → WidgetState dispatch"
             icon="ui:cpu-chip"
             position={["62%", "35%", 0]}
-            size={["0.16u", "0.14u"]}
+            size={["16u", "14u"]}
           />
           <DiagramNode
             id="ov-registry"
@@ -85,7 +85,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="routes state by id → IWidget.apply()"
             icon="ui:puzzle-piece"
             position={["62%", "65%", 0]}
-            size={["0.16u", "0.14u"]}
+            size={["16u", "14u"]}
           />
         </DiagramGroup>
 
@@ -100,7 +100,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="WebGLRenderer · Three.js scene root"
             icon="ui:photo"
             position={["88%", "35%", 0]}
-            size={["0.16u", "0.14u"]}
+            size={["16u", "14u"]}
           />
           <DiagramNode
             id="ov-overlay"
@@ -108,16 +108,16 @@ export const OverviewScene = (): JSX.Element => (
             sublabel="React HUD over canvas"
             icon="ui:chat-bubble-left-right"
             position={["88%", "65%", 0]}
-            size={["0.16u", "0.14u"]}
+            size={["16u", "14u"]}
           />
         </DiagramGroup>
 
-        <DiagramEdge from="ov-scene" to="ov-frames" label="JSX tree" flow="forward"/>
-        <DiagramEdge from="ov-frames" to="ov-track" label="bake tick[]" flow="forward"/>
-        <DiagramEdge from="ov-track" to="ov-driver" label="sample(progress)" flow="forward"/>
-        <DiagramEdge from="ov-driver" to="ov-registry" label="dispatch" flow="forward"/>
-        <DiagramEdge from="ov-overlay" to="ov-canvas" label="apply()" flow="forward"/>
-        <DiagramEdge from="ov-registry" to="ov-overlay" style="dashed" arrowEnd="open"/>
+        <DiagramEdge from="ov-scene" to="ov-frames" label="JSX tree" flow="forward" />
+        <DiagramEdge from="ov-frames" to="ov-track" label="bake tick[]" flow="forward" />
+        <DiagramEdge from="ov-track" to="ov-driver" label="sample(progress)" flow="forward" />
+        <DiagramEdge from="ov-driver" to="ov-registry" label="dispatch" flow="forward" />
+        <DiagramEdge from="ov-overlay" to="ov-canvas" label="apply()" flow="forward" />
+        <DiagramEdge from="ov-registry" to="ov-overlay" style="dashed" arrowEnd="open" />
       </Diagram>
     </View>
   </Scene>

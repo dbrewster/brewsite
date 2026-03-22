@@ -1,6 +1,6 @@
 type Vec3 = readonly [number, number, number];
 type NodeDimensions = readonly [number, number, number];
-type FaceId = 'left' | 'right' | 'top' | 'bottom' | 'front' | 'back';
+type FaceId = 'left' | 'right' | 'top' | 'bottom';
 
 export type Rect2D = {
   readonly left: number;
@@ -85,8 +85,6 @@ const corridorForFace = (
         bottom: Math.min(anchor[1], routePoint[1]) - padding,
         top: Math.max(anchor[1], routePoint[1]) + padding,
       };
-    default:
-      return undefined;
   }
 };
 

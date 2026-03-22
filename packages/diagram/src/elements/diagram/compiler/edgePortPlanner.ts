@@ -31,8 +31,6 @@ const getFaceNormalLocal = (face: FaceId): Vec3 => {
     case 'right':  return [1, 0, 0];
     case 'top':    return [0, 1, 0];
     case 'bottom': return [0, -1, 0];
-    case 'front':  return [0, 0, 1];
-    case 'back':   return [0, 0, -1];
   }
 };
 
@@ -54,10 +52,6 @@ const resolvePortCountForFace = (
   thickness: number,
 ): number => {
   const [w, h] = size;
-  if (face === 'front' || face === 'back') {
-    const pitch = Math.max(MIN_PORT_PITCH, thickness * PORT_SPACING_FACTOR);
-    return w >= pitch * 2 ? 2 : 1;
-  }
   if (face === 'top' || face === 'bottom') return oddifyPortCount(computePortCount(w, thickness));
   if (face === 'left' || face === 'right') return oddifyPortCount(computePortCount(h, thickness));
   return 1;
@@ -87,24 +81,8 @@ function getFacePortAnchorLocal(
 ): Vec3 | undefined {
   const [x, y, z] = pos;
   const [w, h, d] = size;
-  const dx = targetPos[0] - x;
-  const dy = targetPos[1] - y;
-  const dz = targetPos[2] - z;
-  const useVerticalOffset = Math.abs(dy) > Math.abs(dz) * 0.5;
-  const useHorizontalOffset = Math.abs(dx) > Math.abs(dz) * 0.5;
-  const yOffset = useVerticalOffset ? (dy > 0 ? h / 2 : -h / 2) : 0;
-
-  // Depth alignment model: side faces span [z, z - d], center at z - d/2.
   const sideZ = z - d / 2;
   switch (face) {
-    case 'front':
-      return portCount === 1
-        ? [x, y + yOffset, z]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z];
-    case 'back':
-      return portCount === 1
-        ? [x, y + yOffset, z - d]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z - d];
     case 'top':
       return [x + resolvePortOffset(portIndex, portCount, w), y + h / 2, sideZ];
     case 'bottom':
@@ -146,7 +124,7 @@ export function buildPortOptions(
   isSourceFaceLocked: boolean,
   preferOuterLateral = false,
 ): ReadonlyArray<PortOption> {
-  const portCount = preferOuterLateral && face !== 'front' && face !== 'back'
+  const portCount = preferOuterLateral
     ? Math.max(3, resolvePortCountForFace(face, size, thickness))
     : resolvePortCountForFace(face, size, thickness);
   const centerIdx = Math.floor(portCount / 2);
@@ -480,14 +458,11 @@ function getFaceCenterForPort(
 ): Vec3 {
   const [x, y, z] = pos;
   const [w, h, d] = size;
-  // Depth alignment model: front face at z, extrudes backward to z - d.
-  // Side faces span [z, z - d], center at z - d/2.
+  const sideZ = z - d / 2;
   switch (face) {
-    case 'left':   return [x - w / 2, y, z - d / 2];
-    case 'right':  return [x + w / 2, y, z - d / 2];
-    case 'top':    return [x, y + h / 2, z - d / 2];
-    case 'bottom': return [x, y - h / 2, z - d / 2];
-    case 'front':  return [x, y, z];
-    case 'back':   return [x, y, z - d];
+    case 'left':   return [x - w / 2, y, sideZ];
+    case 'right':  return [x + w / 2, y, sideZ];
+    case 'top':    return [x, y + h / 2, sideZ];
+    case 'bottom': return [x, y - h / 2, sideZ];
   }
 }

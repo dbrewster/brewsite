@@ -55,25 +55,25 @@ export const Scene03bPipeline = (): JSX.Element => (
         <DiagramNode id="pipe-dsl" label="JSX" sublabel="Declare"
           icon="ui:code-bracket"
           position={isMobile ? ["50%", "12%", 0] : ["10%", "40%", 0]}
-          size={isMobile ? ["0.2u", "0.09u"] : ["0.13u", "0.12u"]}
+          size={isMobile ? ["20u", "9u"] : ["13u", "12u"]}
           glow={{ intensity: 0.2 }} />
         <DiagramNode id="pipe-frames" label="Frames" sublabel="Snapshot"
           icon="ui:squares-2x2"
           position={isMobile ? ["50%", "32%", 0] : ["30%", "40%", 0]}
-          size={isMobile ? ["0.2u", "0.09u"] : ["0.13u", "0.12u"]} />
+          size={isMobile ? ["20u", "9u"] : ["13u", "12u"]} />
         <DiagramNode id="pipe-track" label="Track" sublabel="Pre-bake"
           icon="ui:circle-stack"
           position={isMobile ? ["50%", "52%", 0] : ["50%", "40%", 0]}
-          size={isMobile ? ["0.2u", "0.09u"] : ["0.13u", "0.12u"]}
+          size={isMobile ? ["20u", "9u"] : ["13u", "12u"]}
           glow={{ intensity: 0.3 }} />
         <DiagramNode id="pipe-runtime" label="Runtime" sublabel="O(1)"
           icon="ui:cpu-chip"
           position={isMobile ? ["50%", "72%", 0] : ["70%", "40%", 0]}
-          size={isMobile ? ["0.2u", "0.09u"] : ["0.13u", "0.12u"]} />
+          size={isMobile ? ["20u", "9u"] : ["13u", "12u"]} />
         <DiagramNode id="pipe-canvas" label="60fps" sublabel="Render"
           icon="ui:photo"
           position={isMobile ? ["50%", "92%", 0] : ["90%", "40%", 0]}
-          size={isMobile ? ["0.2u", "0.09u"] : ["0.13u", "0.12u"]}
+          size={isMobile ? ["20u", "9u"] : ["13u", "12u"]}
           glow={{ intensity: 0.2 }} />
         <DiagramEdge from="pipe-dsl" to="pipe-frames" flow="forward" />
         <DiagramEdge from="pipe-frames" to="pipe-track" flow="forward" />

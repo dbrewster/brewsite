@@ -37,7 +37,7 @@ export const MediaScreenScene = (): JSX.Element => (
           x={"50%"}
           y={"50%"}
           z={0}
-          width={"0.24u"}
+          width={"24u"}
           bezel="dark"
           bezelThickness={0.03}
           gloss={0.4}
@@ -56,7 +56,7 @@ export const MediaScreenScene = (): JSX.Element => (
           x={"50%"}
           y={"50%"}
           z={0}
-          width={"0.24u"}
+          width={"24u"}
           bezel="dark"
           bezelThickness={0.03}
           gloss={0.4}
@@ -75,7 +75,7 @@ export const MediaScreenScene = (): JSX.Element => (
           x={"50%"}
           y={"50%"}
           z={0}
-          width={"0.24u"}
+          width={"24u"}
           bezel="dark"
           bezelThickness={0.03}
           gloss={0.4}

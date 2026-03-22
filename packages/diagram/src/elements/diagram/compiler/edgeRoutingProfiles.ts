@@ -31,8 +31,6 @@ const getFaceNormal = (face: FaceId): Vec3 => {
     case 'right':  return [1, 0, 0];
     case 'top':    return [0, 1, 0];
     case 'bottom': return [0, -1, 0];
-    case 'front':  return [0, 0, 1];
-    case 'back':   return [0, 0, -1];
   }
 };
 
