@@ -11,23 +11,44 @@ const __dirname = dirname(__filename);
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
 /**
+ * Walk up from `startDir` looking for `filename`. Returns the directory
+ * containing it, or null if the filesystem root is reached.
+ */
+function findUp(startDir: string, filename: string): string | null {
+  let dir = startDir;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (existsSync(join(dir, filename))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return null; // reached filesystem root
+    dir = parent;
+  }
+}
+
+/**
  * Detect the package manager in the current project.
+ * Walks up the directory tree to find lock files — matching the behavior
+ * of pnpm/yarn which resolve workspaces from ancestor directories.
  * Falls back to npm if none detected.
  */
 export function detectPackageManager(projectRoot: string): 'pnpm' | 'npm' | 'yarn' {
-  if (existsSync(join(projectRoot, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (existsSync(join(projectRoot, 'yarn.lock'))) return 'yarn';
+  if (findUp(projectRoot, 'pnpm-lock.yaml')) return 'pnpm';
+  if (findUp(projectRoot, 'yarn.lock')) return 'yarn';
   return 'npm';
 }
 
-/** True when the project root is a pnpm workspace root (has pnpm-workspace.yaml). */
-function isPnpmWorkspaceRoot(projectRoot: string): boolean {
-  return existsSync(join(projectRoot, 'pnpm-workspace.yaml'));
+/**
+ * True when the cwd is inside a pnpm workspace (pnpm-workspace.yaml exists
+ * at the cwd or any ancestor). pnpm refuses `pnpm add` without `-w` when
+ * run inside a workspace — this detection lets us add the flag automatically.
+ */
+function isInsidePnpmWorkspace(startDir: string): boolean {
+  return findUp(startDir, 'pnpm-workspace.yaml') !== null;
 }
 
 /**
  * Build the install command string for a given package manager.
- * Automatically adds `-w` when running at a pnpm workspace root.
+ * Automatically adds `-w` when running inside a pnpm workspace.
  */
 export function buildInstallCommand(
   pm: 'pnpm' | 'npm' | 'yarn',
@@ -36,7 +57,7 @@ export function buildInstallCommand(
 ): string {
   const devFlag = opts.dev ? (pm === 'npm' ? '--save-dev' : '-D') : '';
   if (pm === 'pnpm') {
-    const wsFlag = opts.projectRoot && isPnpmWorkspaceRoot(opts.projectRoot) ? '-w' : '';
+    const wsFlag = opts.projectRoot && isInsidePnpmWorkspace(opts.projectRoot) ? '-w' : '';
     return `pnpm add ${wsFlag} ${devFlag} ${packages.join(' ')}`.replace(/\s+/g, ' ').trim();
   }
   if (pm === 'yarn') {

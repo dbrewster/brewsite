@@ -2,7 +2,7 @@
 
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 /** Map of shorthand names to npm package names. */
 export const PACKAGE_MAP: Record<string, { npm: string; dev: boolean }> = {
@@ -17,16 +17,31 @@ export const PACKAGE_MAP: Record<string, { npm: string; dev: boolean }> = {
   'claude-author': { npm: '@brewsite/claude-author', dev: true },
 };
 
-/** Detect the package manager in the current project. */
+/**
+ * Walk up from `startDir` looking for `filename`. Returns the directory
+ * containing it, or null if the filesystem root is reached.
+ */
+function findUp(startDir: string, filename: string): string | null {
+  let dir = startDir;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (existsSync(join(dir, filename))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+/** Detect the package manager in the current project (walks up for lock files). */
 export function detectPackageManager(projectRoot: string): 'pnpm' | 'npm' | 'yarn' {
-  if (existsSync(join(projectRoot, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (existsSync(join(projectRoot, 'yarn.lock'))) return 'yarn';
+  if (findUp(projectRoot, 'pnpm-lock.yaml')) return 'pnpm';
+  if (findUp(projectRoot, 'yarn.lock')) return 'yarn';
   return 'npm';
 }
 
-/** True when the project root is a pnpm workspace root (has pnpm-workspace.yaml). */
-function isPnpmWorkspaceRoot(projectRoot: string): boolean {
-  return existsSync(join(projectRoot, 'pnpm-workspace.yaml'));
+/** True when the cwd is inside a pnpm workspace (walks up for pnpm-workspace.yaml). */
+function isInsidePnpmWorkspace(startDir: string): boolean {
+  return findUp(startDir, 'pnpm-workspace.yaml') !== null;
 }
 
 /** Build the install command string for a given package manager. */
@@ -37,7 +52,7 @@ export function buildInstallCommand(
 ): string {
   const devFlag = opts.dev ? (pm === 'npm' ? '--save-dev' : '-D') : '';
   if (pm === 'pnpm') {
-    const wsFlag = opts.projectRoot && isPnpmWorkspaceRoot(opts.projectRoot) ? '-w' : '';
+    const wsFlag = opts.projectRoot && isInsidePnpmWorkspace(opts.projectRoot) ? '-w' : '';
     return `pnpm add ${wsFlag} ${devFlag} ${npmName}`.replace(/\s+/g, ' ').trim();
   }
   if (pm === 'yarn') {
