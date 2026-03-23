@@ -219,7 +219,11 @@ describe('ViewWidget', () => {
     expect(childObj.visible).toBe(false);
   });
 
-  it('apply() sets child object.visible = true when opacity > 0', () => {
+  it('apply() does NOT force child object.visible = true when opacity > 0', () => {
+    // ViewWidget must not stomp child visibility when opacity > 0.
+    // Child widgets manage their own visibility via apply() — e.g., DiagramWidget
+    // sets visible=false when absent (disableWhenAbsent). Forcing visible=true
+    // here would override that every tick.
     const childObj = new THREE.Object3D();
     childObj.visible = false;
 
@@ -236,7 +240,8 @@ describe('ViewWidget', () => {
     });
     widget.apply(state, makeRenderContext());
 
-    expect(childObj.visible).toBe(true);
+    // Stays false — child widget's own apply() is responsible for setting visible=true.
+    expect(childObj.visible).toBe(false);
   });
 
   it('apply() identity: child position unchanged when bounds match original (scale=1)', () => {

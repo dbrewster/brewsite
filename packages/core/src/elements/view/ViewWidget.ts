@@ -163,7 +163,13 @@ export class ViewWidget implements IRenderable<ViewState> {
 
       obj.position.set(current.x, current.y, current.z);
       obj.scale.set(current.scaleRatio, current.scaleRatio, 1);
-      obj.visible = targetOpacity > 0;
+      // Only HIDE when view opacity reaches 0. Don't force-show — child widgets
+      // manage their own visibility via apply() (e.g., DiagramWidget sets
+      // visible=true when enabled, visible=false when absent via disableWhenAbsent).
+      // Force-showing here would stomp that disabled state every tick.
+      if (targetOpacity <= 0) {
+        obj.visible = false;
+      }
     }
 
     // Lerp opacity toward target. First frame snaps; subsequent frames lerp.

@@ -275,6 +275,7 @@ export class DiagramWidget
     if (camera) this.mainCamera = camera as THREE.PerspectiveCamera;
 
     // Create the Three.js group that will hold diagram geometry.
+    // Create the Three.js group that will hold diagram geometry.
     this.diagramGroup = new THREE.Group();
     this.diagramGroup.name = `diagram:${this.widgetId}`;
     (scene as THREE.Scene).add(this.diagramGroup);
