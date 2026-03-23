@@ -3,8 +3,11 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-21
+last_updated: 2026-03-23
 change_history:
+  - date: 2026-03-23
+    author: "Toolkit Product"
+    summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput, and ControlledProgressContext. Section 1, 4, 5, 6, 7, 7A.1, 7A.6, 7B, 8.2, 15, and 27 updated. SceneEmbed provides self-contained embedded player with auto-play, controlled progress, visibility lifecycle, and interactive camera support. useVisibilityGate exported as @beta for custom embed layouts. Deleted exports: SceneReel, SceneReelProps, TimeInput, TimeInputProps, ControlledInput, ControlledInputProps, ControlledProgressContext. New exports: SceneEmbed, SceneEmbedProps, AutoPlayConfig, useVisibilityGate, VisibilityGateResult, VisibilityMode."
   - date: 2026-03-21
     author: "Toolkit Product"
     summary: "Scene unit system: updated TextBox code example to use SceneLength unit strings for x/y/w/h. All DSL spatial props across the toolkit now require unit strings. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
@@ -80,9 +83,9 @@ change_history:
 
 ## 1. Overview
 
-The Player layer is the React integration surface for `@brewsite/core`. `SceneEngine` is the primary component that a host application mounts to run an animated 3D scene. It is a pure context provider with zero DOM output, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and input components (`InputCoordinator`, `TimeInput`, `ControlledInput`) to form the complete integration. `SceneReel` provides a pre-composed convenience wrapper for embedded/docs/slides use cases. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
+The Player layer is the React integration surface for `@brewsite/core`. `SceneEngine` is the primary component that a host application mounts to run an animated 3D scene. It is a pure context provider with zero DOM output, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and `InputCoordinator` to form the complete integration. `SceneEmbed` provides a self-contained convenience component for embedded/docs/inline use cases with built-in auto-play, controlled progress, and visibility lifecycle management. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneReel`), the composable input components (`InputCoordinator`, `TimeInput` (@deprecated), `ControlledInput` (@deprecated)), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource` (@deprecated)), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
+This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneEmbed`), the `InputCoordinator` component, the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource` (@deprecated)), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -125,7 +128,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 - Audio synchronization is out of scope for the Player layer.
 - The Runtime layer does not implement physics, collision detection, or pathfinding. These belong in widget `IAnimationController` implementations.
 - The Player layer does not manage React Router integration. Scene change callbacks are wired through `corePlugin({ onSceneChange })` options.
-- `SceneEngine` does not manage full-page scroll position. `ScrollStage` provides the sticky-canvas scroll layout pattern with native scroll handling; `SceneReel` handles embedded/fill-container layouts.
+- `SceneEngine` does not manage full-page scroll position. `ScrollStage` provides the sticky-canvas scroll layout pattern with native scroll handling; `SceneEmbed` handles embedded/fill-container layouts.
 
 ---
 
@@ -137,7 +140,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 - As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<SceneEngine>` so that I can build reactive overlays driven by scene metadata.
 - As a toolkit consumer, I want to mount `<TimelineWidget>` inside `<SceneEngine>` so that I get a scrubbing timeline for development and debugging without additional code.
 - As a server-side rendering host, I want `<EngineGate>` to render the `placeholder` prop during SSR and until the engine's first tick so that my page has no layout shift and no hydration mismatch.
-- As a toolkit consumer building a docs page, I want `<SceneReel height={400}>` to embed a self-contained 3D animation in a single line so that I have no scroll configuration to manage.
+- As a toolkit consumer building a docs page, I want `<SceneEmbed height={400} autoPlay>` to embed a self-contained 3D animation in a single line so that I have no scroll configuration, visibility management, or progress driving to manage.
 
 ---
 
@@ -158,7 +161,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 13. `useCurrentScene()` shall return `{ id: string; index: number }` and re-render its consumer only when `sceneId` changes.
 14. `useSceneProgress()` shall return the current `progress: number` ([0, 1] global progress) and update on every tick index change.
 15. `LabelPositioner.update` shall be called once per render, after `renderer.render(scene, camera)`, with the current label primitives and bone world positions from the runtime driver.
-16. Input components (`InputCoordinator`, `TimeInput`, `ControlledInput`) shall be rendered as children of `SceneEngine` or `SceneReel`. Multiple input components may coexist; `ControlledInput` has highest priority, user-initiated input (`InputCoordinator`) has next priority, and `TimeInput` (auto-advance) has lowest priority and yields to user input. `ActionInput`, `KeyboardInput`, `EngineInputRegion`, `ScrollCaptureSection`, `ScrollInput`, and `PointerInput` are deleted. Scroll progress is driven by `InputCoordinator` inertia within `ScrollStage`.
+16. `InputCoordinator` shall be rendered as a child of `SceneEngine` or `ScrollStage`. `SceneEmbed` mounts `InputCoordinator` internally when `interactive` is set. For embedded use cases, `SceneEmbed` manages progress driving internally via `autoPlay` (auto-advance) or `progress` (controlled mode). Scroll progress in full-page layouts is driven by `InputCoordinator` inertia within `ScrollStage`.
 17. `SceneEngine` shall be SSR-safe: all Three.js and DOM initialization shall be deferred to `useEffect`. On the server, `EngineGate` renders `placeholder` (if provided) or `null`. Input components render nothing on the server.
 18. `corePlugin()` shall be accessible from `@brewsite/core` player exports. Pairing `corePlugin()` with `modelPlugin()` from `@brewsite/model` provides complete widget coverage for scenes with GLTF models.
 
@@ -166,7 +169,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 ## 7. SceneEngine: Primary Integration Component
 
-`SceneEngine` is the primary component for integrating BrewSite scenes into a host application. It is a pure React context provider with zero DOM output — it establishes the engine context tree and manages the Three.js engine lifecycle without rendering any DOM structure. Compose it with `EngineGate` (loading gate), `ScrollStage` (full-page scroll layout), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and input components (`InputCoordinator`, `TimeInput`, `ControlledInput`) to build the complete player integration. Use `SceneReel` for embedded/inline animations that require no custom layout.
+`SceneEngine` is the primary component for integrating BrewSite scenes into a host application. It is a pure React context provider with zero DOM output — it establishes the engine context tree and manages the Three.js engine lifecycle without rendering any DOM structure. Compose it with `EngineGate` (loading gate), `ScrollStage` (full-page scroll layout), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and `InputCoordinator` to build the complete player integration. Use `SceneEmbed` for embedded/inline animations that require no custom layout.
 
 **Canonical full-page scroll integration pattern:**
 
@@ -202,19 +205,18 @@ export default function Page() {
 }
 ```
 
-**Canonical embedded reel pattern:**
+**Canonical embedded pattern:**
 
 ```tsx
-import { SceneReel, TimeInput } from '@brewsite/core';
+import { SceneEmbed } from '@brewsite/core';
 
 export default function DocArticle() {
   return (
     <article>
       <p>Intro text...</p>
-      <SceneReel height={400} plugins={PLUGINS} defaultTransitionDuration={500}>
+      <SceneEmbed height={400} plugins={PLUGINS} defaultTransitionDuration={500} autoPlay>
         <Scene key="demo">...</Scene>
-        <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
-      </SceneReel>
+      </SceneEmbed>
     </article>
   );
 }
@@ -281,7 +283,7 @@ The composable player primitives allow host applications to construct custom can
 
 ### 7A.1 SceneEngine
 
-`SceneEngine` creates the engine and establishes all React context providers. It renders no DOM elements — it is a pure context tree wrapper. Compose it with `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, and input components to construct full-page or custom layouts. Use `SceneReel` for self-contained embedded animations.
+`SceneEngine` creates the engine and establishes all React context providers. It renders no DOM elements — it is a pure context tree wrapper. Compose it with `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, and `InputCoordinator` to construct full-page or custom layouts. Use `SceneEmbed` for self-contained embedded animations.
 
 ```typescript
 type SceneEngineProps = {
@@ -361,7 +363,7 @@ type SceneEngineProps = {
 - Custom canvas layout (grid, flex, portal, absolute positioning outside the document flow)
 - Multiple canvases registered against a single engine
 - Overlay content hosted in a separate React subtree or DOM portal
-- Plugin hoisting (zero-scene mode: provide plugins to all nested `SceneReel` instances)
+- Plugin hoisting (zero-scene mode: provide plugins to all nested `SceneEmbed` instances)
 
 **Context tree established by `SceneEngine`:**
 ```
@@ -637,34 +639,50 @@ function NavBar() {
 
 ### 7A.6 Embedded Animation Integration Pattern
 
-In v2, embedding an animation on a page is handled by `SceneReel`, which provides a self-contained, sized container with no scroll infrastructure. There is no `inputModePolicy`, no scroll spacer, and no `setRawProgress` imperative pattern.
+Embedding an animation on a page is handled by `SceneEmbed`, which provides a self-contained, sized container with built-in auto-play, controlled progress, visibility lifecycle management, and optional camera interaction. There is no `inputModePolicy`, no scroll spacer, and no `setRawProgress` imperative pattern.
 
-**`SceneReel` — embedded reel:**
+**`SceneEmbed` — auto-playing embed:**
 
 ```tsx
-import { SceneReel, TimeInput } from '@brewsite/core';
+import { SceneEmbed } from '@brewsite/core';
 
-// Auto-playing inline animation — no input config required
-<SceneReel height={400} plugins={PLUGINS} defaultTransitionDuration={500}>
+// Auto-playing inline animation — 6s duration, loops
+<SceneEmbed height={400} plugins={PLUGINS} defaultTransitionDuration={500} autoPlay>
   <Scene key="demo">
     <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
   </Scene>
-  <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
-</SceneReel>
+</SceneEmbed>
+
+// Custom auto-play: 10s duration, no loop
+<SceneEmbed height={400} plugins={PLUGINS} autoPlay={{ duration: 10, loop: false }}>
+  <Scene key="demo">...</Scene>
+</SceneEmbed>
 ```
 
-`SceneReel` accepts and forwards the following `SceneEngine` props: `theme`, `scrollSource`, `defaultTransitionDuration`, `defaultTransitionEasing`, plus all props documented in Section 7A.1 (`plugins`, `id`, `timingProfile`, `primaryCameraId`, `primaryCanvasActionTargetId`, `cameraInteractionDefaults`, `invalidateCacheToken`, `maxAnimBoostPerFrame`, `sceneTheme`, and all lifecycle callbacks).
+`SceneEmbed` accepts and forwards a picked subset of `SceneEngine` props: `theme`, `scrollSource`, `defaultTransitionDuration`, `defaultTransitionEasing`, `loadPolicy`, plus `plugins`, `id`, `timingProfile`, `primaryCameraId`, `primaryCanvasActionTargetId`, `cameraInteractionDefaults`, `invalidateCacheToken`, `maxAnimBoostPerFrame`, `sceneTheme`, and all lifecycle callbacks. Additional props: `autoPlay`, `progress`, `onProgressChange`, `interactive`, `visibility`, `rootMargin`.
 
-**`SceneReel` with externally controlled progress:**
+**`SceneEmbed` with externally controlled progress:**
 
 ```tsx
 const [progress, setProgress] = useState(0);
 
-<SceneReel height={400} plugins={PLUGINS} defaultTransitionDuration={500}>
+<SceneEmbed height={400} plugins={PLUGINS} progress={progress} onProgressChange={setProgress}>
   <Scene key="demo">...</Scene>
-  <ControlledInput value={progress} onChange={setProgress} />
-</SceneReel>
+</SceneEmbed>
 ```
+
+**`SceneEmbed` with camera interaction:**
+
+```tsx
+<SceneEmbed height={500} plugins={PLUGINS} interactive primaryCameraId="main-camera">
+  <ProductViewerScene />
+</SceneEmbed>
+```
+
+**Visibility modes:** `SceneEmbed` supports three visibility lifecycle modes via the `visibility` prop:
+- `'always'` — Mount immediately, run continuously. No visibility gating.
+- `'autopause'` (default) — Mount immediately. Pause RAF when off-screen. Zero GPU cost when not visible.
+- `'lazy'` — Defer mount until near viewport. Unmount when far away. Use for pages with many (6+) embeds.
 
 **`@brewsite/docs` integration:** The docs application uses a single app-level `SceneEngine` in standard scroll mode. All demo scenes are authored in a single global `docs-scenes.tsx`. Scroll input is provided natively by `ScrollStage` via `InputCoordinator` inertia; action-based input (keyboard, camera) is provided by `<InputCoordinator>`.
 
@@ -772,7 +790,7 @@ class SceneProgressMapper {
 
 **When a mapper is active:** `SceneProgressMapper` is constructed when `SceneTrack.progressProfile` is present (i.e., at least one scene declared a `<ProgressManager>`). When `progressProfile` is absent (no `<ProgressManager>` in any scene), the identity mapping is used — no `SceneProgressMapper` is instantiated.
 
-**Mode scope:** `remap` is applied in scroll mode and direct mode. It is not applied when `ControlledInput` drives engine progress directly (the caller provides engine progress directly).
+**Mode scope:** `remap` is applied in scroll mode and direct mode. It is not applied when controlled progress drives engine progress directly (e.g., `SceneEmbed` with `progress` prop — the caller provides engine progress directly).
 
 **`inverse` usage:** `setProgress(engineProgress)` and `useGoToScene` convert the requested engine progress through `mapper.inverse(engineProgress)` before setting scroll position or direct-mode progress state. This ensures that a call like `setProgress(0.5)` jumps to the scroll position that produces engine progress 0.5, not raw progress 0.5.
 
@@ -916,7 +934,7 @@ type UseSceneEngineResult = {
 
 **`setRawProgress(raw)`** — Write raw scroll-space progress through the `SceneProgressMapper` (if present). Used by scroll sources only.
 
-**`setProgress(mapped)`** — Write post-mapper engine progress directly, bypassing the mapper. Used by `ControlledInput`, inertia mode, keyboard, time, and pointer inputs.
+**`setProgress(mapped)`** — Write post-mapper engine progress directly, bypassing the mapper. Used by `SceneEmbed` controlled mode, `useAutoPlay`, inertia mode, keyboard, and pointer inputs.
 
 **`advanceProgress(delta)`** — Advance engine progress by a signed delta. Clamps to [0, 1].
 
@@ -1393,7 +1411,7 @@ type ScrollStageProps = {
 - **Outer div:** Height = computed scroll height. `overscrollBehavior: 'none'`.
 - **Inner viewport:** `position: sticky; top: 0; height: 100vh`. Contains `SceneCanvas`, `EngineOverlayHost`, and any other children.
 
-Input components (`InputCoordinator`, `TimeInput`, etc.) are rendered as children of `ScrollStage` alongside `SceneCanvas` and `EngineOverlayHost`. They attach their own event listeners and do not require a separate region wrapper. Scroll source overrides (`CustomScrollSource`, `ElementScrollSource`) must also be children of `ScrollStage`. `InputCoordinator` provides built-in inertia scroll when inside a `ScrollStage`.
+`InputCoordinator` is rendered as a child of `ScrollStage` alongside `SceneCanvas` and `EngineOverlayHost`. It attaches its own event listeners and does not require a separate region wrapper. `InputCoordinator` provides built-in inertia scroll when inside a `ScrollStage`.
 
 See `packages/core/MIGRATION.md` for the `EngineInputRegion` → `ScrollStage` migration guide.
 
@@ -1667,8 +1685,8 @@ All downstream packages (`@brewsite/diagram`, `@brewsite/charts`, `@brewsite/mod
 
 For any release that modifies the Player or Runtime public API:
 
-- All `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, and `EngineARContainer` prop types compile with `strict: true` and no `any`.
-- All input components (`InputCoordinator`, `TimeInput`, `ControlledInput`) prop types compile with `strict: true` and no `any`.
+- All `SceneEngine`, `SceneEmbed`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, and `EngineARContainer` prop types compile with `strict: true` and no `any`.
+- `InputCoordinator` prop types compile with `strict: true` and no `any`.
 - `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside a `<SceneEngine>` wrapper.
 - `useEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
 - `useGoToScene` integration test verifies navigation to scene by id and by index.
@@ -1682,7 +1700,7 @@ For any release that modifies the Player or Runtime public API:
 - `SceneProgressMapper.inverse` unit tests verify inverse maps engine progress back to raw progress correctly for both uniform and non-uniform profiles.
 - SSR render of `<SceneEngine>` with `<EngineGate>` produces no Three.js errors and matches the placeholder output.
 - At least one example in `apps/examples/` demonstrates `SceneEngine` + `EngineARContainer` + `SceneCanvas` + `EngineOverlayHost` with a `TextBox` overlay element.
-- At least one example demonstrates `SceneReel` with `TimeInput`.
-- At least one example demonstrates the Canvas Region embedding mode: `SceneReel` with default input spec camera interaction, no scene navigation, embedded in a normal page layout.
+- At least one example demonstrates `SceneEmbed` with `autoPlay`.
+- At least one example demonstrates the Canvas Region embedding mode: `SceneEmbed` with `interactive`, default input spec camera interaction, no scene navigation, embedded in a normal page layout.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
-- `packages/core/README.md` reflects the current `SceneEngineProps` interface and documents `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, `InputCoordinator`, `TimeInput`, `ControlledInput`, and `useGoToScene`.
+- `packages/core/README.md` reflects the current `SceneEngineProps` interface and documents `SceneEngine`, `SceneEmbed`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, `InputCoordinator`, `useVisibilityGate`, and `useGoToScene`.

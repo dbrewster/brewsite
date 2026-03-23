@@ -183,7 +183,7 @@ Also make sure `useMemo` wraps the plugins array to avoid re-registering on ever
 </div>
 ```
 
-`ScrollStage` and `SceneReel` handle this layout automatically.
+`ScrollStage` and `SceneEmbed` handle this layout automatically.
 
 ---
 

@@ -44,38 +44,36 @@ export default function LandingPage() {
 }
 ```
 
-### Embedded reel (docs / slides)
+### Embedded player (docs / inline)
 
 ```tsx
-import { SceneReel, TimeInput, Scene, corePlugin } from '@brewsite/core';
+import { SceneEmbed, Scene, corePlugin } from '@brewsite/core';
 
 export function DemoWidget() {
   return (
-    <SceneReel
+    <SceneEmbed
       height={400}
       plugins={[corePlugin()]}
       defaultTransitionDuration={500}
+      autoPlay
     >
       <Scene id="step1">...</Scene>
       <Scene id="step2">...</Scene>
-      <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
-    </SceneReel>
+    </SceneEmbed>
   );
 }
 ```
 
-### Slide deck (keyboard navigation)
+### Interactive 3D viewer (canvas region)
 
 ```tsx
-import { SceneReel, InputCoordinator, Scene, corePlugin } from '@brewsite/core';
+import { SceneEmbed, Scene, corePlugin } from '@brewsite/core';
 
-export function SlideDeck() {
+export function ProductViewer() {
   return (
-    <SceneReel height={600} plugins={[corePlugin()]}>
-      <Scene id="slide1">...</Scene>
-      <Scene id="slide2">...</Scene>
-      <InputCoordinator />
-    </SceneReel>
+    <SceneEmbed height={500} plugins={[corePlugin()]} interactive primaryCameraId="cam">
+      <Scene id="viewer">...</Scene>
+    </SceneEmbed>
   );
 }
 ```
@@ -114,11 +112,11 @@ export function DocsLayout() {
 ### App-level plugin hoisting (root zero-scene mode)
 
 ```tsx
-import { SceneEngine, SceneReel, TimeInput, Scene, corePlugin } from '@brewsite/core';
+import { SceneEngine, SceneEmbed, Scene, corePlugin } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 import { diagramPlugin } from '@brewsite/diagram';
 
-// Root layout — no scenes; provides plugins for all nested reels.
+// Root layout — no scenes; provides plugins for all nested embeds.
 function RootLayout({ children }: { children: React.ReactNode }) {
   const plugins = useMemo(() => [corePlugin(), modelPlugin({ manifestUrl: '/manifest.json' }), diagramPlugin()], []);
   return (
@@ -131,10 +129,9 @@ function RootLayout({ children }: { children: React.ReactNode }) {
 // Anywhere nested (plugins inherited automatically):
 function ProductPage() {
   return (
-    <SceneReel height={400}>   {/* no plugins prop needed */}
+    <SceneEmbed height={400} autoPlay>   {/* no plugins prop needed */}
       <Scene id="hero">...</Scene>
-      <TimeInput duration={5} loop />
-    </SceneReel>
+    </SceneEmbed>
   );
 }
 ```
@@ -148,7 +145,7 @@ function ProductPage() {
 | Export | Description |
 |---|---|
 | `SceneEngine` | Root engine component — pure context provider, zero DOM output |
-| `SceneReel` | Convenience wrapper for embedded/docs/slides use cases |
+| `SceneEmbed` | Self-contained embedded player with auto-play, controlled progress, visibility lifecycle, and interactive camera |
 
 ### Layout Components
 
@@ -165,9 +162,7 @@ function ProductPage() {
 
 | Export | Description |
 |---|---|
-| `InputCoordinator` | Unified input handler for scroll, keyboard, and pointer input — replaces separate input components |
-| `TimeInput` | Drives engine progress via wall-clock auto-advance |
-| `ControlledInput` | Drives engine progress from an external `value` prop (highest priority) |
+| `InputCoordinator` | Unified input handler for scroll, keyboard, and pointer input |
 
 ### Hooks
 
@@ -181,6 +176,7 @@ function ProductPage() {
 | `useCurrentScene()` | Current scene id and index |
 | `useSceneRuntime(id)` | Runtime state (assets, viewport) from global registry |
 | `useSceneEngineContext()` | Raw engine context for advanced custom integrations |
+| `useVisibilityGate(ref, mode)` | Viewport-aware mount/pause lifecycle hook *(beta)* |
 | `useNativeScrollSource(opts)` | Hidden native scroll region as `IScrollSource` |
 
 ### Plugin System
@@ -224,7 +220,7 @@ See [MIGRATION.md](./MIGRATION.md) for a complete v1 → v2 upgrade guide.
 
 **Summary of breaking changes:**
 - `SceneEngine` replaces the deprecated `EngineProvider`
-- `EngineInputRegion` deleted → use `ScrollStage` + `ScrollInput` (scroll mode) or `SceneReel` (embedded mode)
+- `EngineInputRegion` deleted → use `ScrollStage` (scroll mode) or `SceneEmbed` (embedded mode)
 - `ScrollCaptureSection` deleted → use `ScrollStage`
 - `useEngineScroll` / `useEngineInput` deleted → functionality internalized in input components
 - `useSceneEngineState(id)` deleted → use `useEngineState(id)`

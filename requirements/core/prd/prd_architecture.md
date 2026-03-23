@@ -3,8 +3,11 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-21
+updated: 2026-03-23
 change_history:
+  - date: 2026-03-23
+    author: "Toolkit Product"
+    summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput, ControlledProgressContext. Updated player layer description: SceneReel → SceneEmbed, TimeInput/ControlledInput removed from component list. SceneEmbed provides auto-play, controlled progress, visibility lifecycle, and interactive camera."
   - date: 2026-03-21
     author: "Toolkit Product"
     summary: "Scene unit system: added units/ module to core layer map. ViewProps and ViewLayoutProps x/y/w/h/gap now require SceneLength unit strings. RegionPadding (and View.padding) remains number — not yet migrated. All affected packages bump semver major. Migration guide: packages/claude-author/docs/migration/unit-system.md."
@@ -144,12 +147,12 @@ The React integration surface. The public entry point for pages and routes. Owns
 - `EngineOverlayHost` — renders overlay content positioned over the canvas. Reads the current scene overlay from `EngineContext`.
 - `ScrollStage` — scroll container component that drives scene progress via scroll position. Provides scroll source integration for `SceneEngine`.
 - `BackgroundLayer` — background rendering layer component.
-- `SceneReel` — multi-scene reel component for sequential scene playback.
+- `SceneEmbed` — self-contained embedded scene player with auto-play, controlled progress, visibility lifecycle management, and optional camera interaction.
 - `EngineARContainer` — aspect-ratio container for the engine viewport.
 - `ViewportScaleContainer` — viewport-aware scaling container.
 - `InputCoordinator` — the unified input bridge component. Reads `__input_controller` from the current tick and manages `ActionInputController` lifecycle. Replaces the deleted `ActionInput`, `KeyboardInput`, and `InertiaScrollSource` components.
-- `TimeInput` — time-based input driver for auto-playing scenes.
-- `ControlledInput` — programmatic input driver for externally controlled progress.
+- `useVisibilityGate` — viewport-aware mount/pause lifecycle hook (@beta). Used internally by `SceneEmbed`; exported for custom embed layouts.
+- `useAutoPlay` — RAF-based wall-clock progress driver hook (internal to `SceneEmbed`, not exported).
 - `CustomScrollSource` / `ElementScrollSource` — scroll source components from `StageScrollSources`.
 - `TimelineWidget` — debug/dev overlay showing scene timeline, tick index, and progress scrubber.
 - `corePlugin(options?)` — plugin factory that registers core built-in widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) into the engine.

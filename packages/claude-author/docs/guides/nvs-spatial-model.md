@@ -111,7 +111,7 @@ Props:
 
 `EngineARContainer` injects the `--scene-scale` CSS custom property on every resize. Overlay components can use `calc(24px * var(--scene-scale))` for text that scales proportionally with the container.
 
-`ScrollStage` and `SceneReel` both detect `EngineARContainerContext` and use `computedArHeight` for their sticky stage height automatically.
+`ScrollStage` and `SceneEmbed` both detect `EngineARContainerContext` and use `computedArHeight` for their sticky stage height automatically.
 
 ## NVS Stability Under Camera Interaction
 

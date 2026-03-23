@@ -196,6 +196,25 @@ export class EdgeRenderer {
     return new Set(this.entries.keys());
   }
 
+  /**
+   * Updates only the uTime uniform on all existing edges that have pulse
+   * materials. Called from DiagramRenderer's early-out path so that flow
+   * pulse animations continue even when the diagram state reference is
+   * unchanged between frames.
+   */
+  tickPulseUniforms(): void {
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+    for (const entry of this.entries.values()) {
+      const mat = entry.tube.material as THREE.MeshStandardMaterial & { userData: Record<string, unknown> };
+      const pulseData = mat.userData[this.pulseUniformKey] as
+        | { uniforms: { uTime: { value: number } } }
+        | undefined;
+      if (pulseData) {
+        pulseData.uniforms.uTime.value = now;
+      }
+    }
+  }
+
   private createEntry(edge: EdgeLike): EdgeEntry {
     const group = new THREE.Group();
     const curve = buildCurve(edge);

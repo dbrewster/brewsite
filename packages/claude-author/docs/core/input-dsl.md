@@ -3,14 +3,14 @@ title: Input DSL
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-21
+updated: 2026-03-23
 ---
 
 ## Two Input Systems
 
 BrewSite has two orthogonal input systems that work at different layers.
 
-**1. Scene navigation input (player-level)** — Controls which scene is active and how the engine progress value changes. Provided by player components: `ScrollStage` for scroll-driven navigation, `TimeInput` for auto-advance, `ControlledInput` for external state, and `InputCoordinator` for wheel-inertia + keyboard navigation. These components live outside the DSL and are not authored inside `<Scene>`.
+**1. Scene navigation input (player-level)** — Controls which scene is active and how the engine progress value changes. Provided by player components: `ScrollStage` for scroll-driven navigation, `SceneEmbed` with `autoPlay` for auto-advance, `SceneEmbed` with `progress` for external state, and `InputCoordinator` for wheel-inertia + keyboard navigation. These components live outside the DSL and are not authored inside `<Scene>`.
 
 **2. Action-based input (DSL-level)** — Controls camera orbit/zoom/pan, carousel stepping, and custom interactions within a scene. A comprehensive default input spec is always present (see Default Input Bindings below). Scene authors can customize by merging overrides via `<InputController>` and `<Action>` DSL components.
 

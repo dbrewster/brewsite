@@ -3,8 +3,11 @@ title: "BrewSite Core — Vision & Overview"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-21
+updated: 2026-03-23
 change_history:
+  - date: 2026-03-23
+    author: "Toolkit Product"
+    summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput, ControlledProgressContext. Updated §3.3 Input and Navigation, §4.1 DSL authoring components API surface."
   - date: 2026-03-21
     author: "Toolkit Product"
     summary: "Scene unit system: all DSL-authored spatial values across the toolkit now require explicit SceneLength/SceneAngle unit strings (e.g. '50%', '15u', '45deg'). Bare numbers except 0 are TypeScript errors. The units/ module in @brewsite/core resolves unit strings to NVS numbers at compile time. Compiled state and the SceneTrack remain number. This is a semver major breaking change across all published packages."
@@ -143,12 +146,11 @@ The DSL supports an `nvsViewport` convenience concept for diagram/chart scenes t
 
 ### 3.3 Input and Navigation
 
-Scene navigation is handled by composable input components rendered as children of `SceneEngine` or `SceneReel`:
+Scene navigation is handled by composable input components rendered as children of `SceneEngine`, or managed automatically by `SceneEmbed`:
 
 - **ScrollStage** — Full-page scroll drives scene progress via native `window.scrollY`. Provides the sticky-canvas scroll layout pattern.
 - **InputCoordinator** — Unified input component that bridges compiled `<InputController>` DSL to the `ActionInputController` runtime. Handles pointer, wheel, pinch, and keyboard action dispatch, including focus management and default keyboard navigation (ArrowRight/ArrowDown = scene.next, ArrowLeft/ArrowUp = scene.prev when no `<InputController>` is authored).
-- **TimeInput** — Wall-clock auto-advance with configurable duration, looping, and pause-when-hidden.
-- **ControlledInput** — External `value` prop drives progress directly for programmatic control.
+- **SceneEmbed** — Self-contained embedded player with built-in auto-play (`autoPlay` prop), controlled progress (`progress` prop), visibility lifecycle management (`visibility` prop), and optional camera interaction (`interactive` prop).
 - **useEngineScrubber** — Hook for imperative progress read/write.
 - **useGoToScene** — Hook for programmatic scene navigation by id or index.
 
@@ -227,13 +229,11 @@ The following is the complete public surface of `@brewsite/core`. All symbols li
 <BackgroundLayer style={CSSProperties} />
 <EngineOverlayHost className={string} passthroughPointerEvents={boolean} />
 
-// Convenience wrapper for embedded/inline animations
-<SceneReel height={number} plugins={WidgetPlugin[]} theme={ActiveTheme} defaultTransitionDuration={number} />
+// Self-contained embedded player
+<SceneEmbed height={number} plugins={WidgetPlugin[]} autoPlay={boolean | AutoPlayConfig} progress={number} interactive={boolean} visibility={'always' | 'autopause' | 'lazy'} />
 
-// Input components
+// Input component (for custom SceneEngine layouts)
 <InputCoordinator />
-<TimeInput duration={number} loop pauseWhenHidden={{ y: number }} />
-<ControlledInput value={number} />
 
 // Dev tools (@internal — not part of the stable public API)
 <TimelineWidget />

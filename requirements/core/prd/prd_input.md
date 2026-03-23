@@ -3,8 +3,11 @@ title: "BrewSite Core — Input System"
 doc_type: prd
 status: active
 owner: Toolkit Product
-last_updated: 2026-03-18
+last_updated: 2026-03-23
 change_history:
+  - date: 2026-03-23
+    author: "Toolkit Product"
+    summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput. Updated Section 1 overview and Section 7 input tier descriptions. ControlledInput and TimeInput are deleted exports. SceneEmbed manages progress driving internally. InputCoordinator remains the input component for custom SceneEngine layouts and is mounted internally by SceneEmbed when interactive=true."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Carousel selection region: documented carousel selection dispatch in ActionInputController (Section 7.7) and InputCoordinator (Section 7.8). Added `carousel.select` as an implicit action. Pointer click and keyboard Enter/Space within carousel bounds dispatch `CarouselSelectEvent` to the `onSelect` handler registered via `<ViewLayout onSelect={...}>`. When `event.preventDefault()` is called, the normal click dispatch waterfall is suppressed. New types: `CarouselSelectEvent`, `CarouselSelectHandler`, `CarouselSelectSource`."
@@ -48,11 +51,10 @@ The Input system handles two distinct concerns: navigating between scenes (advan
 
 The system is built on a foundational design principle: **scroll is sacred.** Plain scroll Y always drives scene navigation. Plain scroll X always drives carousel navigation. No default action consumes unmodified scroll. Camera interactions use modifier+scroll, pinch, and keyboard exclusively.
 
-**Scene navigation** is handled by composable input components and layout primitives:
+**Scene navigation** is handled by composable input components, layout primitives, and the `SceneEmbed` convenience component:
 - `ScrollStage` — full-page scroll drives scene progress via native `window.scrollY` with spring-physics inertia. Has `tabIndex={0}` for keyboard focus gating.
 - `InputCoordinator` — unified input coordinator that handles action dispatch, keyboard navigation, inertia scroll, carousel X-axis inertia, touch gesture classification, and focus management. Implements a priority waterfall for wheel events.
-- `TimeInput` — wall-clock auto-advance with configurable duration, loop, and pause-when-hidden.
-- `ControlledInput` — external `value` prop drives progress directly.
+- `SceneEmbed` — self-contained embedded player that manages progress driving internally via `autoPlay` (wall-clock auto-advance) or `progress` (external controlled progress). Mounts `InputCoordinator` internally when `interactive` is set.
 
 **Action input** is authored through the `<InputController>` and `<Action>` DSL components compiled into the `SceneTrack`. The compiler merges scene-authored actions with a comprehensive default input spec. At runtime, `InputCoordinator` reads the baked action spec from the current tick state and wires it to `ActionInputController`, which routes pointer, wheel, pinch, and keyboard events to registered named-action handlers on widgets.
 
@@ -417,8 +419,8 @@ export const ActionInputExtensionContext = React.createContext<ActionInputExtens
 |---|---|
 | `ScrollStage` | Full-page scroll layout. Renders a tall container with a sticky-positioned inner viewport. Has `tabIndex={0}` for keyboard focus gating; auto-focuses on mouse hover. |
 | `InputCoordinator` | Unified input coordinator. Bridges compiled `<InputController>` DSL to `ActionInputController`, manages inertia scroll, carousel X-axis inertia, touch gesture classification, keyboard event routing, scope resolution, and pauseWhenHidden. |
-| `TimeInput` | Wall-clock auto-advance with configurable `duration`, `loop`, and `pauseWhenHidden`. Yields to user input. |
-| `ControlledInput` | External `value` prop drives progress. Highest priority — overrides all other input. |
+| `SceneEmbed` (autoPlay) | Wall-clock auto-advance with configurable duration and loop. Pauses when off-screen. Disabled when `prefers-reduced-motion` matches. |
+| `SceneEmbed` (progress) | External `progress` prop drives engine progress directly. Highest priority — overrides autoPlay. |
 
 ### 7.13 Extracted Pure Modules
 
@@ -475,7 +477,7 @@ iOS 3-finger gestures may conflict with system actions (undo/redo on iPad). The 
 
 When `scope="canvas"` and the player is inside a `ScrollStage`, keyboard events listen on the stage container (which has `tabIndex={0}`). Keyboard input only fires when the stage has focus, preventing cross-instance conflicts when multiple BrewSite players exist on a page.
 
-When there is no `ScrollStage` (e.g., bare `SceneReel`), keyboard events fall back to `document` and focus-gating is not active. This is acceptable because non-scroll players are typically full-viewport.
+When there is no `ScrollStage` (e.g., `SceneEmbed` or bare `SceneEngine`), keyboard events fall back to `document` and focus-gating is not active. This is acceptable because non-scroll players are typically full-viewport or embedded.
 
 ---
 

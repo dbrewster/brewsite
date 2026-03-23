@@ -135,7 +135,7 @@ Replace `<Hud>` and `<HudItem>` blocks with HTML children directly inside `<Scen
 </Scene>
 ```
 
-The `EngineOverlayHost` component handles rendering. It is mounted by the consumer inside `SceneEngine` alongside `SceneCanvas`. `SceneReel` includes it automatically.
+The `EngineOverlayHost` component handles rendering. It is mounted by the consumer inside `SceneEngine` alongside `SceneCanvas`. `SceneEmbed` includes it automatically.
 
 For persistent overlay content (navigation arrows, progress dots) that must appear regardless of the active scene, render those components as siblings of `EngineOverlayHost` — they are not part of scene overlay children.
 

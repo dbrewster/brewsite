@@ -122,14 +122,14 @@ export type UseSceneEngineResult = {
 
   /**
    * Write post-mapper engine progress [0, 1] directly, bypassing the
-   * SceneProgressMapper. Used by ControlledInput, inertia mode, keyboard, time,
+   * SceneProgressMapper. Used by EmbedProgressDriver, inertia mode, keyboard,
    * and pointer inputs that operate in engine progress space rather than scroll space.
    */
   setProgress(mapped: number): void;
 
   /**
    * Advance engine progress by a signed delta in engine progress space [−1..+1].
-   * Clamps result to [0, 1]. Used by TimeInput and keyboard step navigation.
+   * Clamps result to [0, 1]. Used by useAutoPlay and keyboard step navigation.
    * Equivalent to setProgress(currentProgress + delta).
    */
   advanceProgress(delta: number): void;

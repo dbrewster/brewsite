@@ -3,8 +3,11 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-21
+last_updated: 2026-03-23
 change_history:
+  - date: 2026-03-23
+    author: "Toolkit Product"
+    summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput. Updated ProgressManager fn description to reference SceneEmbed controlled mode instead of ControlledInput. Removed CP9 deprecation note for TimeInput/ControlledInput — these exports are now deleted."
   - date: 2026-03-21
     author: "Toolkit Product"
     summary: "Scene unit system: View/ViewLayout/TextBox x/y/w/h now require SceneLength unit strings (e.g. '50%'). ViewLayout gap requires SceneLength. Camera azimuth/polar/fov require SceneAngle. All code examples updated with unit strings. View.padding remains RegionPadding (number) — not yet migrated. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
@@ -13,7 +16,7 @@ change_history:
     summary: "Carousel selection region: ViewLayout gains `focusedIndex` (replaces deprecated `activeIndex`) and `onSelect` callback prop. Added `CarouselSelectEvent`, `CarouselSelectHandler`, `CarouselSelectSource` types to DSL elements list. Updated ViewLayoutProps type. Added carousel selection example to Section 8.12. Documented `activeIndex` deprecation with migration guide."
   - date: 2026-03-18
     author: "Toolkit Product"
-    summary: "Core over-engineering audit: updated <Model> transition description to reflect that ElementTransitionSpec is deprecated — all built-in and external widgets now use FunctionalTransitionSpec exclusively. Updated CompileApi type to document new layoutContext field (replaces WeakMap side-channel for view handler communication). Noted CP9 deprecations (TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, useSceneRuntime)."
+    summary: "Core over-engineering audit: updated <Model> transition description to reflect that ElementTransitionSpec is deprecated — all built-in and external widgets now use FunctionalTransitionSpec exclusively. Updated CompileApi type to document new layoutContext field (replaces WeakMap side-channel for view handler communication). Noted CP9 deprecations (useNativeScrollSource, CustomScrollSource, ElementScrollSource, useSceneRuntime)."
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "Carousel highlight DSL refactor: added <Highlight> to built-in DSL elements list with full prop documentation and usage examples. Marked highlight* props on <CarouselTray> as @deprecated with migration guide. Updated <ViewLayout> children description to include <Highlight> as a valid child. Updated carousel example to use <Highlight> instead of deprecated tray highlight props."
@@ -1017,7 +1020,7 @@ export const sceneDetail = (
 );
 ```
 
-The `fn` prop applies only in scroll mode and direct mode. It does not apply when `ControlledInput` drives the engine directly.
+The `fn` prop applies only in scroll mode and direct mode. It does not apply when controlled progress drives the engine directly (e.g., `SceneEmbed` with `progress` prop).
 
 `autoAdvance` and `animationTimeScale` apply independently of `fn`. `autoAdvance` drives `rawProgress` forward using wall-clock time while the user is idle; `animationTimeScale` scales the `effectiveDeltaSeconds` passed to GLTF `AnimationMixer` widgets during scroll.
 

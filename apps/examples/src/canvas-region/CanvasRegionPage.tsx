@@ -1,7 +1,7 @@
 // CanvasRegionPage.tsx — Multi-canvas region embedding mode example.
 
 import {type JSX, useMemo, useState, useCallback} from 'react';
-import {type ActiveTheme, InputCoordinator, SceneReel, type ThemeFamily, type ThemePolarity} from '@brewsite/core';
+import {type ActiveTheme, SceneEmbed, type ThemeFamily, type ThemePolarity} from '@brewsite/core';
 import {createCanvasRegionPlugins} from './widgetSetup';
 import {ViewerScene} from './scenes/viewerScene';
 import {NetworkScene} from './scenes/networkScene';
@@ -181,17 +181,18 @@ function CanvasPanel({
 
       {/* 3D canvas */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        <SceneReel
+        <SceneEmbed
           height={'100%'}
           plugins={plugins}
           theme={theme}
           defaultTransitionDuration={500}
           timingProfile={{ fpsCap }}
+          interactive
+          visibility="always"
         >
           <def.Scene />
-          <InputCoordinator />
           <StatsOverlay />
-        </SceneReel>
+        </SceneEmbed>
       </div>
     </div>
   );

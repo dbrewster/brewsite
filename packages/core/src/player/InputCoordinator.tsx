@@ -42,14 +42,14 @@ import type { CarouselSelectSource } from '../input/carouselSelectTypes';
 
 /**
  * Walk up from the canvas element to find the engine's visual container — the
- * outermost positioned+clipping ancestor (e.g., the SceneReel or ScrollStage div).
+ * outermost positioned+clipping ancestor (e.g., the SceneEmbed or ScrollStage div).
  * This container is the correct pointer/wheel event target because:
  * - The raw <canvas> is covered by EngineOverlayHost (zIndex:10, pointer-events:auto)
  * - Wheel events on the overlay bubble up to this container
  * - It scopes events to this engine's visual region (not window)
  *
  * Heuristic: walk up from the canvas and find the outermost `position:relative`
- * ancestor with `overflow:hidden` — this matches the SceneReel/ScrollStage pattern.
+ * ancestor with `overflow:hidden` — this matches the SceneEmbed/ScrollStage pattern.
  * Falls back to the nearest positioned ancestor if no overflow:hidden container is found.
  */
 function findEngineContainer(el: HTMLElement): HTMLElement {
@@ -61,7 +61,7 @@ function findEngineContainer(el: HTMLElement): HTMLElement {
     if (isPositioned) {
       bestPositioned = current;
       if (style.overflow === 'hidden' || style.overflowX === 'hidden' || style.overflowY === 'hidden') {
-        return current; // SceneReel/ScrollStage container
+        return current; // SceneEmbed/ScrollStage container
       }
     }
     current = current.parentElement;
@@ -267,7 +267,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
     // on first mount (InputCoordinator effect fires before SceneCanvas effect).
     //
     // For the pointer target, walk up from the canvas to find the nearest
-    // positioned container (the SceneReel/ScrollStage wrapper). The raw <canvas>
+    // positioned container (the SceneEmbed/ScrollStage wrapper). The raw <canvas>
     // element itself doesn't receive pointer events because EngineOverlayHost
     // sits on top at zIndex:10 with pointer-events:auto.
     const rawCanvasEl = engine.canvasElement;

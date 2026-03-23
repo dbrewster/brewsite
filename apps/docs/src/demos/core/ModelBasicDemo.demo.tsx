@@ -47,7 +47,6 @@ export default function ModelBasicDemo(): JSX.Element {
     <DemoScene
       sceneCount={2}
       sceneDuration={3000}
-      manifestUrl="/scene-manifest.json"
       plugins={createModelDemoWidgetSetup()}
     >
       <Scene key="s1" id="s1" >

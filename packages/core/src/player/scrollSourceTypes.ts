@@ -27,7 +27,7 @@ export interface IScrollSource {
  * The source prop accepted by ScrollInput.
  *
  * 'inertia'      — Spring-decay velocity integrator on wheel events. No DOM scroll region.
- *                  Default for SceneReel / embedded contexts.
+ *                  Default for SceneEmbed / embedded contexts.
  * 'window'       — Reads native DOM scrolling. Uses the nearest ScrollStage container
  *                  when present; otherwise falls back to window.scrollY.
  * { elementRef } — Reads element.scrollTop. Must be paired with ScrollStage.

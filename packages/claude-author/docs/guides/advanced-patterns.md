@@ -3,7 +3,7 @@ title: Advanced Scene Authoring Patterns
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-21
+updated: 2026-03-23
 ---
 
 ## Multi-Scene Sequences
@@ -240,45 +240,45 @@ The hook must be called inside a `<SceneEngine>` subtree.
 
 ---
 
-### ControlledInput
+### Controlled Progress via SceneEmbed
 
-`ControlledInput` drives engine progress from an external React state value. Use it when you want a custom progress source — a slider, a step-by-step wizard, or an external scroll hook.
+`SceneEmbed` with the `progress` prop drives engine progress from an external React state value. Use it when you want a custom progress source — a slider, a step-by-step wizard, or an external scroll hook.
 
 ```tsx
-import { ControlledInput, useCurrentScene } from '@brewsite/core';
+import { SceneEmbed, useCurrentScene } from '@brewsite/core';
 import { useState } from 'react';
 
 function PresentationPage() {
   const [progress, setProgress] = useState(0);
   const numScenes = 5;
+  const plugins = useMemo(() => [corePlugin()], []);
 
   return (
-    <SceneEngine plugins={plugins}>
-      <Scene1 />
-      <Scene2 />
-      <Scene3 />
-      <Scene4 />
-      <Scene5 />
+    <>
+      <SceneEmbed
+        height={540}
+        plugins={plugins}
+        progress={progress}
+        onProgressChange={setProgress}
+      >
+        <Scene1 />
+        <Scene2 />
+        <Scene3 />
+        <Scene4 />
+        <Scene5 />
+      </SceneEmbed>
 
-      {/* ControlledInput writes progress to the engine on every render */}
-      <ControlledInput value={progress} onChange={setProgress} />
-
-      <ScrollStage>
-        <SceneCanvas ... />
-        <EngineOverlayHost />
-      </ScrollStage>
-
-      {/* Step buttons outside the engine */}
+      {/* Step buttons outside the embed */}
       <StepButtons
         onBack={() => setProgress(Math.max(0, progress - 1 / (numScenes - 1)))}
         onForward={() => setProgress(Math.min(1, progress + 1 / (numScenes - 1)))}
       />
-    </SceneEngine>
+    </>
   );
 }
 ```
 
-`ControlledInput` is highest-priority — it overrides all other input sources. `onChange` is called when keyboard or other inputs attempt to change progress, so you can keep your external state in sync.
+The `progress` prop is highest-priority — it overrides `autoPlay` and drives the engine directly. `onProgressChange` is called when keyboard or other inputs attempt to change progress, so you can keep your external state in sync.
 
 ---
 

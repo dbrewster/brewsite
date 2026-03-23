@@ -9,18 +9,14 @@ export { ScrollStage } from './ScrollStage';
 export type { ScrollStageHandle, ScrollStageProps, ScrollStageSnapshot } from './ScrollStage';
 export { BackgroundLayer } from './BackgroundLayer';
 export type { BackgroundLayerProps } from './BackgroundLayer';
-export { SceneReel } from './SceneReel';
-export type { SceneReelProps } from './SceneReel';
+export { SceneEmbed } from './SceneEmbed';
+export type { SceneEmbedProps, AutoPlayConfig } from './SceneEmbed';
 
 // ─── Input Components ─────────────────────────────────────────────────────────
 export { InputCoordinator } from './InputCoordinator';
 export type { InputCoordinatorProps } from './InputCoordinator';
 export { CustomScrollSource, ElementScrollSource } from './StageScrollSources';
 export type { ElementScrollSourceProps } from './StageScrollSources';
-export { TimeInput } from './TimeInput';
-export type { TimeInputProps } from './TimeInput';
-export { ControlledInput } from './ControlledInput';
-export type { ControlledInputProps } from './ControlledInput';
 
 // ─── Scroll Source ────────────────────────────────────────────────────────────
 export type { IScrollSource, ScrollSourceProp } from './scrollSourceTypes';
@@ -42,6 +38,10 @@ export { ViewportScaleContext } from './EngineARContainer';
 export { computeContainerDims } from './EngineARContainer';
 export { EngineGate } from './EngineGate';
 export type { EngineGateProps } from './EngineGate';
+
+// ─── Visibility Lifecycle ─────────────────────────────────────────────────────
+export { useVisibilityGate } from './useVisibilityGate';
+export type { VisibilityGateResult, VisibilityMode } from './useVisibilityGate';
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export { useSceneEngine } from './useSceneEngine';

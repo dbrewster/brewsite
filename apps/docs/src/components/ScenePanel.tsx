@@ -1,9 +1,9 @@
 // Block-level 3D scene panel in normal document flow.
 // Each ScenePanel owns its SceneEngine and WebGL context lifecycle.
-// Progress is driven by wall-clock time (TimeInput) — no scroll wiring.
+// Progress is driven by auto-play via SceneEmbed.
 
-import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
-import { SceneEngine, SceneCanvas, TimeInput } from '@brewsite/core';
+import { type JSX, type ReactNode } from 'react';
+import { SceneEmbed } from '@brewsite/core';
 import type { WidgetPlugin } from '@brewsite/core';
 
 export interface ScenePanelProps {
@@ -30,13 +30,8 @@ export interface ScenePanelProps {
  * ScenePanel — a fixed-height block element in normal document flow containing
  * a real <canvas> for 3D scene rendering.
  *
- * Lazy mounting: SceneEngine is not created until the panel is within ~2 viewport
- * heights of the current scroll position (rootMargin: '600px'). Once mounted,
- * the engine stays mounted for the session.
- *
- * Progress: driven by TimeInput via wall-clock elapsed time. The scene auto-plays
- * when in view, pauses when off-screen, and resets+replays each time it scrolls
- * back into view.
+ * Uses visibility="lazy" to defer WebGL context creation until the panel
+ * is near the viewport, and auto-plays the scene via wall-clock time.
  */
 export function ScenePanel({
   id,
@@ -45,51 +40,17 @@ export function ScenePanel({
   plugins,
   children,
 }: ScenePanelProps): JSX.Element {
-  const mountRef = useRef<HTMLDivElement>(null);
-
-  // SceneEngine is only mounted once the panel is within 2 viewports of scroll position.
-  // Once true, never reverts to false.
-  const [engineMounted, setEngineMounted] = useState(false);
-
-  useEffect(() => {
-    const el = mountRef.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setEngineMounted(true);
-          obs.disconnect(); // Never unmount — stay mounted after first trigger.
-        }
-      },
-      { rootMargin: '600px' },
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
   return (
-    <div
-      ref={mountRef}
+    <SceneEmbed
       id={id}
-      style={{
-        position: 'relative',
-        height: height ?? '480px',
-        width: '100%',
-      }}
+      height={height ?? '480px'}
+      plugins={plugins}
+      timingProfile={{ qualityPreset: 'balanced' }}
+      autoPlay={{ duration: duration ?? 3, loop: true }}
+      visibility="lazy"
+      onError={(err) => console.error(`[ScenePanel id="${id}"]`, err)}
     >
-      {engineMounted && (
-        <SceneEngine
-          plugins={plugins}
-          timingProfile={{ qualityPreset: 'balanced' }}
-          onError={(err) => console.error(`[ScenePanel id="${id}"]`, err)}
-        >
-          {children}
-          <TimeInput duration={duration ?? 3} />
-          <SceneCanvas style={{ width: '100%', height: '100%', display: 'block' }} />
-        </SceneEngine>
-      )}
-    </div>
+      {children}
+    </SceneEmbed>
   );
 }

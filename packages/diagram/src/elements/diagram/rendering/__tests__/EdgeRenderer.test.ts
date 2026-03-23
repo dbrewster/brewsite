@@ -179,4 +179,31 @@ describe('EdgeRenderer', () => {
     const pulseData = mat.userData[keys[0]!] as { uniforms: { uPulseIntensity?: { value: number } } };
     expect(pulseData.uniforms.uPulseIntensity?.value).toBe(0);
   });
+
+  it('tickPulseUniforms updates uTime on all edges with pulse materials', () => {
+    // Create an edge with flow enabled so it gets pulse uniforms.
+    const entry = renderer.getOrCreate(makeEdge({ flow: 'forward' }), parent);
+    const mat = entry.tube.material as THREE.MeshStandardMaterial;
+    const pulseKey = Object.keys(mat.userData).find((k) => k.includes('pulse'));
+    expect(pulseKey).toBeDefined();
+
+    const pulseData = mat.userData[pulseKey!] as { uniforms: { uTime: { value: number } } };
+
+    // Set uTime to a sentinel value.
+    pulseData.uniforms.uTime.value = -999;
+    expect(pulseData.uniforms.uTime.value).toBe(-999);
+
+    // tickPulseUniforms should update uTime from the sentinel to a real clock value.
+    renderer.tickPulseUniforms();
+    expect(pulseData.uniforms.uTime.value).not.toBe(-999);
+    expect(pulseData.uniforms.uTime.value).toBeGreaterThan(0);
+  });
+
+  it('tickPulseUniforms is a no-op for edges without flow', () => {
+    // Create an edge without flow — no pulse uniforms should exist.
+    renderer.getOrCreate(makeEdge({ flow: undefined }), parent);
+
+    // Should not throw.
+    expect(() => renderer.tickPulseUniforms()).not.toThrow();
+  });
 });

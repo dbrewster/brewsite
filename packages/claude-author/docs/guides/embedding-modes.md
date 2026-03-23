@@ -3,7 +3,7 @@ title: Embedding Modes
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-20
+updated: 2026-03-23
 ---
 
 ## Scroll-Driven Mode
@@ -88,15 +88,21 @@ function LandingPage() {
 
 Fixed-size container that auto-advances via wall-clock time. Best for docs pages, presentations, blog posts, and embeds that play automatically.
 
-`SceneReel` is a convenience wrapper that composes `SceneEngine` + `SceneCanvas` + `BackgroundLayer` + `EngineOverlayHost` into a single sized, overflow-hidden container. You provide scene declarations and input components as children.
+`SceneEmbed` is a self-contained embedded scene player that composes `SceneEngine` + `SceneCanvas` + `BackgroundLayer` + `EngineOverlayHost` + visibility lifecycle management + auto-play into a single component. Provide scene declarations as children.
 
-### SceneReel Props
+### SceneEmbed Props
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `height` | `string \| number` | required | CSS height of the container |
 | `width` | `string \| number` | `'100%'` | CSS width of the container |
 | `className` | `string` | — | CSS class on the outer container div |
+| `autoPlay` | `boolean \| AutoPlayConfig` | — | Auto-advance via wall-clock time. `true` = 6s loop. Object for custom config. Ignored when `progress` is provided. Disabled when `prefers-reduced-motion` matches. |
+| `progress` | `number` | — | Externally controlled engine progress [0, 1]. Overrides `autoPlay`. |
+| `onProgressChange` | `(progress: number) => void` | — | Called when internal input requests a progress change (controlled mode only). |
+| `interactive` | `boolean` | `false` | Enable pointer-based camera interaction (orbit, dolly, pan). |
+| `visibility` | `'always' \| 'autopause' \| 'lazy'` | `'autopause'` | Engine lifecycle relative to viewport. `'always'` = no gating. `'autopause'` = pause RAF when off-screen. `'lazy'` = defer mount until near viewport, unmount when far away. |
+| `rootMargin` | `string` | `'200px'` | IntersectionObserver rootMargin for visibility detection. |
 | `plugins` | `WidgetPlugin[]` | — | Forwarded to `SceneEngine` |
 | `id` | `string` | — | Engine registry id |
 | `timingProfile` | `SceneEngineProps['timingProfile']` | — | Timing profile forwarded to `SceneEngine` |
@@ -110,48 +116,24 @@ Fixed-size container that auto-advances via wall-clock time. Best for docs pages
 | `scrollSource` | `SceneEngineProps['scrollSource']` | — | Scroll source for viewport-relative lifecycle |
 | `defaultTransitionDuration` | `SceneEngineProps['defaultTransitionDuration']` | `400` | Duration (ms) for programmatic scene transitions |
 | `defaultTransitionEasing` | `SceneEngineProps['defaultTransitionEasing']` | — | Easing for programmatic scene transitions |
+| `loadPolicy` | `SceneEngineProps['loadPolicy']` | — | Scene asset loading strategy |
 | `onReady` | `() => void` | — | Called when assets are ready |
 | `onError` | `(err: Error) => void` | — | Error handler |
 | `onWidgetError` | `(widgetId: string, error: Error) => void` | — | Per-widget error handler |
 | `onCompileWarning` | `SceneEngineProps['onCompileWarning']` | — | Compile warning callback |
-| `children` | `ReactNode` | — | Scene declarations, input components, overlay content |
+| `children` | `ReactNode` | — | Scene declarations and overlay content |
 
-### TimeInput Props
+### AutoPlayConfig
 
-> **Deprecated.** `TimeInput` has no known consumers in current packages or apps and will be removed in a future version. Use `InputCoordinator` with `ProgressManager` `autoAdvance` instead (see replacement pattern below).
-
-| Prop | Type | Default | Description |
+| Field | Type | Default | Description |
 |---|---|---|---|
-| `duration` | `number` | required | Seconds to advance engine progress from 0 to `max` |
-| `max` | `number` | `1.0` | Maximum engine progress to advance to |
-| `loop` | `boolean` | `false` | Loop back to 0 when `max` is reached |
-| `resetOnExit` | `boolean` | `true` | Reset to 0 when element leaves viewport |
-| `pauseWhenHidden` | `PauseWhenHiddenOptions` | — | Pause when element leaves viewport |
+| `duration` | `number` | `6` | Total seconds to traverse from progress 0 to 1 (across all scenes). |
+| `loop` | `boolean` | `true` | Loop back to progress 0 when reaching the end. |
 
-**Recommended replacement** -- use `ProgressManager` with `autoAdvance` inside each scene and `InputCoordinator` for input handling:
+### Basic Auto-Play Example
 
 ```tsx
-import { corePlugin, SceneReel, InputCoordinator, Scene, ProgressManager } from '@brewsite/core';
-
-function EmbeddedDemo() {
-  const plugins = useMemo(() => [corePlugin()], []);
-
-  return (
-    <SceneReel height={450} width="100%" plugins={plugins}>
-      <Scene id="intro">
-        <ProgressManager autoAdvance={{ duration: 8, max: 1.0 }} />
-        {/* ... scene content */}
-      </Scene>
-      <InputCoordinator />
-    </SceneReel>
-  );
-}
-```
-
-### Legacy Example (using deprecated TimeInput)
-
-```tsx
-import { corePlugin, SceneReel, TimeInput } from '@brewsite/core';
+import { corePlugin, SceneEmbed } from '@brewsite/core';
 import { Scene01Intro } from './scenes/scene01_intro';
 import { Scene02Detail } from './scenes/scene02_detail';
 
@@ -159,22 +141,48 @@ function EmbeddedDemo() {
   const plugins = useMemo(() => [corePlugin()], []);
 
   return (
-    <SceneReel height={450} width="100%" plugins={plugins}>
+    <SceneEmbed height={450} autoPlay plugins={plugins}>
       <Scene01Intro />
       <Scene02Detail />
-      <TimeInput duration={8} loop />
-    </SceneReel>
+    </SceneEmbed>
   );
 }
 ```
 
-`SceneReel` provides `SceneCanvas`, `BackgroundLayer`, and `EngineOverlayHost` automatically — do not add them as children. Add scene declarations and input components only.
+### Custom Auto-Play Duration
+
+```tsx
+<SceneEmbed height={450} autoPlay={{ duration: 10, loop: false }} plugins={plugins}>
+  <HeroScene />
+  <FeatureScene />
+</SceneEmbed>
+```
+
+`SceneEmbed` provides `SceneCanvas`, `BackgroundLayer`, and `EngineOverlayHost` automatically — do not add them as children. Add scene declarations only.
+
+### Visibility Modes
+
+For pages with many embeds (6+), use `visibility="lazy"` to stay within browser WebGL context limits:
+
+```tsx
+<SceneEmbed height={300} autoPlay visibility="lazy" plugins={plugins}>
+  <Scene1 />
+</SceneEmbed>
+<SceneEmbed height={300} autoPlay visibility="lazy" plugins={plugins}>
+  <Scene2 />
+</SceneEmbed>
+{/* ...repeat safely */}
+```
+
+- `'always'` — Mount immediately, run continuously. Use for a single hero embed.
+- `'autopause'` (default) — Mount immediately. Pause RAF when off-screen. Zero GPU cost when not visible.
+- `'lazy'` — Defer mount until near viewport. Unmount when far away. Use for many-embed pages.
 
 ---
 
 ## Programmatic / Controlled Mode
 
-External UI (buttons, tabs, step indicators) drives which scene is active. Use `useGoToScene()` for the most common case, or `ControlledInput` when you need full two-way sync between engine progress and external state.
+External UI (buttons, tabs, step indicators) drives which scene is active. Use `useGoToScene()` for the most common case, or `SceneEmbed` with the `progress` prop when you need full two-way sync between engine progress and external state.
 
 ### useGoToScene
 
@@ -184,23 +192,19 @@ function useGoToScene(): (idOrIndex: string | number) => void
 
 Returns a stable callback. Accepts a scene `id` string or a zero-based numeric index. When inside a `ScrollStage`, it syncs the scroll position. In all other modes, it writes `engine.setProgress()` directly.
 
-### ControlledInput Props
+### SceneEmbed Controlled Props
 
 | Prop | Type | Description |
 |---|---|---|
-| `value` | `number` | Normalized engine progress [0, 1]. Drives the engine on every render. |
-| `onChange` | `(progress: number) => void` | Called when another input attempts to change progress (e.g. keyboard). |
-| `children` | `ReactNode` | Optional — keyboard/button inputs that need the onChange context. |
+| `progress` | `number` | Normalized engine progress [0, 1]. Drives the engine directly. Overrides `autoPlay`. |
+| `onProgressChange` | `(progress: number) => void` | Called when an internal input (e.g. keyboard) requests a progress change. Wire to the same `setState` that feeds `progress`. |
 
 ### Complete Example with Nav Buttons
 
 ```tsx
 import {
   corePlugin,
-  ControlledInput,
-  EngineOverlayHost,
-  SceneCanvas,
-  SceneEngine,
+  SceneEmbed,
   useGoToScene,
 } from '@brewsite/core';
 import { Scene01 } from './scenes/scene01';
@@ -225,24 +229,22 @@ function PresentationPlayer() {
   const plugins = useMemo(() => [corePlugin()], []);
 
   return (
-    <div style={{ width: 960, height: 540, position: 'relative' }}>
-      <SceneEngine plugins={plugins}>
-        <Scene01 />
-        <Scene02 />
-        <Scene03 />
-
-        <ControlledInput value={progress} onChange={setProgress} />
-        <SceneCanvas style={{ position: 'absolute', inset: 0 }} />
-        <EngineOverlayHost>
-          <SceneNavButtons />
-        </EngineOverlayHost>
-      </SceneEngine>
-    </div>
+    <SceneEmbed
+      height={540}
+      plugins={plugins}
+      progress={progress}
+      onProgressChange={setProgress}
+    >
+      <Scene01 />
+      <Scene02 />
+      <Scene03 />
+      <SceneNavButtons />
+    </SceneEmbed>
   );
 }
 ```
 
-`ControlledInput` is the highest priority input tier — it calls `engine.setProgress()` via `useLayoutEffect` on every render, ensuring no one-frame lag.
+When `progress` is provided, `SceneEmbed` calls `engine.setProgress()` via `useLayoutEffect` on every render, ensuring no one-frame lag.
 
 ---
 
@@ -250,12 +252,12 @@ function PresentationPlayer() {
 
 A self-contained 3D viewport with no scene sequencing — just a single "scene" (or a fixed scene) with camera orbit/zoom/pan enabled. Use this for interactive product viewers, inline 3D illustrations, or any context where you want the user to freely explore a 3D scene.
 
-Use `SceneReel` for the layout and add an `InputCoordinator` for action-based camera control. Default input bindings provide Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, and R key reset automatically. No `<InputController>` is needed for the common case.
+Use `SceneEmbed` with `interactive` for the layout and camera control. Default input bindings provide Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, and R key reset automatically. No `<InputController>` is needed for the common case.
 
 ### Complete Example (Using Defaults)
 
 ```tsx
-import { corePlugin, InputCoordinator, SceneReel } from '@brewsite/core';
+import { corePlugin, SceneEmbed } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 import { ProductViewerScene } from './scenes/product_viewer';
 
@@ -266,14 +268,14 @@ function ProductViewer() {
   ], []);
 
   return (
-    <SceneReel
+    <SceneEmbed
       height={500}
       plugins={plugins}
       primaryCameraId="main-camera"
+      interactive
     >
       <ProductViewerScene />
-      <InputCoordinator />
-    </SceneReel>
+    </SceneEmbed>
   );
 }
 
@@ -319,7 +321,7 @@ function ProductViewerScene() {
 }
 ```
 
-`primaryCameraId` on `SceneReel` is forwarded to `SceneEngine` and tells `InputCoordinator` which camera to target when `cameraId` is omitted from an `<Action>`.
+`primaryCameraId` on `SceneEmbed` is forwarded to `SceneEngine` and tells `InputCoordinator` which camera to target when `cameraId` is omitted from an `<Action>`.
 
 ---
 
@@ -387,6 +389,6 @@ Ask these questions in order:
 
 1. **Is this a slide deck / presentation?** → Slide deck mode (`SceneEngine` + `SlidePlayer` from `@brewsite/slides`)
 2. **Should the user scroll to progress through scenes?** → Scroll-driven mode (`ScrollStage` + `InputCoordinator`)
-3. **Should it play automatically without user interaction?** → Embedded player mode (`SceneReel` + `InputCoordinator` with `ProgressManager` `autoAdvance`)
-4. **Does external UI (buttons, tabs, routing) control which scene is shown?** → Programmatic mode (`SceneReel` or raw `SceneEngine` + `useGoToScene` / `ControlledInput`)
-5. **Is it a single interactive 3D region with no scene progression?** → Canvas region mode (`SceneReel` + `InputController` in DSL)
+3. **Should it play automatically without user interaction?** → Embedded player mode (`SceneEmbed` with `autoPlay`)
+4. **Does external UI (buttons, tabs, routing) control which scene is shown?** → Programmatic mode (`SceneEmbed` with `progress` prop, or raw `SceneEngine` + `useGoToScene`)
+5. **Is it a single interactive 3D region with no scene progression?** → Canvas region mode (`SceneEmbed` with `interactive`)

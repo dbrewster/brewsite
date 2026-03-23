@@ -217,6 +217,9 @@ export class DiagramRenderer {
       if (scene) {
         this.envMapManager.apply(scene, state.themeConfig.envMapUrl, state.themeConfig.envMapIntensity);
       }
+      // Flow pulse animations are driven by a uTime shader uniform that must
+      // advance every frame regardless of whether the diagram state changed.
+      this.edgeRenderer.tickPulseUniforms();
       return;
     }
 

@@ -359,3 +359,91 @@ describe('DiagramRenderer — constructor architecture (Stream H)', () => {
     expect(group.children.length).toBeGreaterThanOrEqual(0);
   });
 });
+
+// ─── Edge pulse animation on early-out path ───────────────────────────────────
+
+describe('DiagramRenderer — edge pulse uTime updates on same-reference early-out', () => {
+  /** Helper to build a flow edge with NVS control points. */
+  function makeFlowEdge(): DiagramEdgeState {
+    return {
+      id: 'pulse-edge',
+      fromId: 'n1',
+      toId: 'n2',
+      label: undefined,
+      style: 'solid',
+      arrowStart: 'none',
+      arrowEnd: 'filled',
+      color: '#00ff00',
+      flow: 'forward',
+      flowColor: undefined,
+      thickness: 0.04,
+      path: {
+        commands: [{ kind: 'line', from: [0.2, 0.5, 0], to: [0.8, 0.5, 0] }],
+        startTangent: [1, 0, 0],
+        endTangent: [-1, 0, 0],
+        punctures: [],
+      },
+      controlPoints: [[0.2, 0.5, 0], [0.8, 0.5, 0]],
+      opacity: 1,
+      routing: 'straight',
+    };
+  }
+
+  /** Extract the uTime uniform value from an edge tube mesh's userData pulse data. */
+  function getPulseUTime(group: THREE.Group): number | null {
+    // The diagram group contains edge groups; each edge group's first child is the tube mesh.
+    for (const child of group.children) {
+      if (!(child instanceof THREE.Group)) continue;
+      for (const sub of child.children) {
+        if (!(sub instanceof THREE.Mesh)) continue;
+        const mat = sub.material as THREE.MeshStandardMaterial;
+        const pulseData = mat.userData['__brewsite_edge_pulse'] as
+          | { uniforms: { uTime: { value: number } } }
+          | undefined;
+        if (pulseData) return pulseData.uniforms.uTime.value;
+      }
+    }
+    return null;
+  }
+
+  /** Reset the uTime uniform to a sentinel value so we can detect if it's updated. */
+  function resetPulseUTime(group: THREE.Group, sentinel: number): void {
+    for (const child of group.children) {
+      if (!(child instanceof THREE.Group)) continue;
+      for (const sub of child.children) {
+        if (!(sub instanceof THREE.Mesh)) continue;
+        const mat = sub.material as THREE.MeshStandardMaterial;
+        const pulseData = mat.userData['__brewsite_edge_pulse'] as
+          | { uniforms: { uTime: { value: number } } }
+          | undefined;
+        if (pulseData) pulseData.uniforms.uTime.value = sentinel;
+      }
+    }
+  }
+
+  it('updates uTime on edges even when state reference is unchanged (early-out path)', () => {
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
+    const state = makeDiagramState([makeFlowEdge()], []);
+
+    // First call: creates edge, sets up pulse material, writes uTime.
+    renderer.update(state, group, coords);
+
+    const uTimeAfterFirst = getPulseUTime(group);
+    expect(uTimeAfterFirst).not.toBeNull();
+
+    // Set uTime to a sentinel so we can detect whether the second call updates it.
+    const SENTINEL = -999;
+    resetPulseUTime(group, SENTINEL);
+    expect(getPulseUTime(group)).toBe(SENTINEL);
+
+    // Second call with the SAME state reference triggers the early-out path
+    // (prev === state). Pulse uniforms must still be updated.
+    renderer.update(state, group, coords);
+
+    const uTimeAfterSecond = getPulseUTime(group);
+    expect(uTimeAfterSecond).not.toBe(SENTINEL);
+    expect(uTimeAfterSecond).toBeGreaterThan(0);
+  });
+});

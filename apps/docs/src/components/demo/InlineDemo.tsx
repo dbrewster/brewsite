@@ -1,17 +1,16 @@
-import { JSX, ReactNode } from 'react';
+import { type JSX, type ReactNode } from 'react';
 import {
   corePlugin,
-  ControlledInput,
-  SceneReel,
+  SceneEmbed,
 } from '@brewsite/core';
 
 // Module-level stable plugin list for InlineDemo instances.
-// MUST be module-level — if recreated on every render, SceneReel would
+// MUST be module-level — if recreated on every render, SceneEngine would
 // rebuild the entire Three.js driver, causing constant flicker.
 const INLINE_DEMO_PLUGINS = [corePlugin()];
 
 interface InlineDemoProps {
-  /** Scene JSX children for this demo's SceneReel instance */
+  /** Scene JSX children for this demo's SceneEmbed instance */
   children: ReactNode;
   /** Height of the demo container in pixels. Default: 360 */
   height?: number;
@@ -25,7 +24,7 @@ interface InlineDemoProps {
 /**
  * InlineDemo — a self-contained 3D demo embedded in a scene's DocPanel.
  *
- * Creates a separate SceneReel instance, fully independent of the docs engine.
+ * Creates a separate SceneEmbed instance, fully independent of the docs engine.
  * Progress is driven externally via `controlledProgress`, which is typically
  * wired to `useDemoProgress()` from DemoProgressProvider.
  *
@@ -48,16 +47,15 @@ export function InlineDemo({
         background: 'var(--bg-demo)',
       }}
     >
-      <SceneReel
+      <SceneEmbed
         height={height}
         plugins={INLINE_DEMO_PLUGINS}
         timingProfile={{ qualityPreset: 'performance' }}
+        progress={controlledProgress}
+        visibility="autopause"
       >
         {children}
-        {controlledProgress !== undefined && (
-          <ControlledInput value={controlledProgress} />
-        )}
-      </SceneReel>
+      </SceneEmbed>
     </div>
   );
 }

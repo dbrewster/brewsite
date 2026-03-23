@@ -3,7 +3,7 @@ title: BrewSite Overview
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-21
+updated: 2026-03-23
 ---
 
 ## What BrewSite Is
@@ -28,9 +28,9 @@ Scene DSL (JSX) → resolveSceneFromDsl() → SceneFrame[]
 ## The Four Embedding Modes
 
 - **Scroll-driven** — a `ScrollStage` containing the canvas; window or container scroll drives scene progression. Best for landing pages where users scroll through a story.
-- **Embedded player** — `SceneReel` convenience wrapper with `TimeInput` for auto-advance. Best for docs pages, presentations, and fixed-size embeds that run on their own.
-- **Programmatic / controlled** — external UI (buttons, tabs) drives a `ControlledInput` value or calls `useGoToScene()`. Best when you need nav buttons, step indicators, or external state controlling the scene.
-- **Canvas region** — `SceneReel` with `InputCoordinator` for camera orbit/zoom/pan. Default bindings work out of the box. Best for interactive product viewers or standalone 3D regions with no scene sequencing.
+- **Embedded player** — `SceneEmbed` component with `autoPlay` for auto-advance. Best for docs pages, presentations, and fixed-size embeds that run on their own.
+- **Programmatic / controlled** — external UI (buttons, tabs) drives `SceneEmbed` via the `progress` prop or calls `useGoToScene()`. Best when you need nav buttons, step indicators, or external state controlling the scene.
+- **Canvas region** — `SceneEmbed` with `interactive` for camera orbit/zoom/pan. Default bindings work out of the box. Best for interactive product viewers or standalone 3D regions with no scene sequencing.
 
 Full details for each mode: search for `embedding-modes`.
 
@@ -38,7 +38,7 @@ Full details for each mode: search for `embedding-modes`.
 
 | Package | What lives there |
 |---|---|
-| `@brewsite/core` | `Scene`, `ProgressManager`, `View`, `ViewLayout`, `InputController`, `Action`, `Transition`, `Camera`, `Lighting`, `Background`, `Environment`, `Floor`, `SpotlightRig` DSL; all player components (`SceneEngine`, `ScrollStage`, `SceneReel`, `SceneCanvas`, etc.) |
+| `@brewsite/core` | `Scene`, `ProgressManager`, `View`, `ViewLayout`, `InputController`, `Action`, `Transition`, `Camera`, `Lighting`, `Background`, `Environment`, `Floor`, `SpotlightRig` DSL; all player components (`SceneEngine`, `ScrollStage`, `SceneEmbed`, `SceneCanvas`, etc.) |
 | `@brewsite/diagram` | `Diagram`, `DiagramCanvas`, `ImagePanel`, `Screen` DSL elements; diagram theming and rendering |
 | `@brewsite/model` | `Model`, `Playback`, `Animation`, `LabelItem`, `LabelPositioner` DSL; GLTF model loading and label system |
 | `@brewsite/charts` | `ChartWidget` and chart DSL elements; 3D chart rendering |
