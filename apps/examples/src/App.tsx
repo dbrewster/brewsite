@@ -16,6 +16,7 @@ const MediaScreenDemoPage = lazy(() => import('./media-screen-demo/MediaScreenDe
 const ModelShowcasePage = lazy(() => import('./model-showcase/ModelShowcasePage'));
 const CanvasRegionPage = lazy(() => import('./canvas-region/CanvasRegionPage'));
 const CarouselSelectionPage = lazy(() => import('./carousel-selection/CarouselSelectionPage'));
+const MdxEmbedPage = lazy(() => import('./mdx-embed/MdxEmbedPage'));
 
 function Loading(): JSX.Element {
   return <div className="ex-loading">Loading example...</div>;
@@ -74,6 +75,7 @@ export default function ExamplesApp(): JSX.Element {
         <Route path="/model-showcase" element={<ModelShowcasePage />} />
         <Route path="/canvas-region" element={<CanvasRegionPage />} />
         <Route path="/carousel-selection" element={<CarouselSelectionPage />} />
+        <Route path="/mdx-embed" element={<MdxEmbedPage />} />
         <Route path="/" element={<LandingPage />} />
       </Routes>
     </Suspense>

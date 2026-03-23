@@ -71,6 +71,11 @@ export const EXAMPLES: ExampleEntry[] = [
     description: 'Side-by-side visual comparison of all theme family and polarity variants.',
     badge: '@brewsite/themes',
   },
+  {
+    path: '/mdx-embed',
+    label: 'MDX Embed',
+    description: 'Markdown article with interactive 3D diagrams embedded inline via react-markdown.',
+  },
 ];
 
 // ─── Stats toggle (module-level store so any component can read it) ───────────
