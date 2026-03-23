@@ -1,13 +1,13 @@
 {
-  "@brewsite/core": "95d9528c8efa4c94107c7cd53b9aaeccadb83e68",
-  "@brewsite/diagram": "ba256413625a5149e7686f265532eaf6e87c76ef+95d9528c8efa4c94107c7cd53b9aaeccadb83e68",
-  "@brewsite/model": "5ae290ab41cc39835e04af2c865ad5c47d6959fe+95d9528c8efa4c94107c7cd53b9aaeccadb83e68",
-  "@brewsite/charts": "edecf83512e8a09c777587a22b0b577a6e6c1ea6+95d9528c8efa4c94107c7cd53b9aaeccadb83e68",
-  "@brewsite/screens": "7b62989add2c8fec8f13fc6cc99657e8982795ab+95d9528c8efa4c94107c7cd53b9aaeccadb83e68",
-  "@brewsite/textures": "0378a4e1f0b61682800ed3d1a1d1c7ccd90a0815+95d9528c8efa4c94107c7cd53b9aaeccadb83e68",
-  "@brewsite/slides": "2e9465aff3bd886c3c00815d6f9748d4effa1182+95d9528c8efa4c94107c7cd53b9aaeccadb83e68+ba256413625a5149e7686f265532eaf6e87c76ef+5ae290ab41cc39835e04af2c865ad5c47d6959fe+edecf83512e8a09c777587a22b0b577a6e6c1ea6",
-  "@brewsite/themes": "16d90b066ed04acc0bfa82ebd04994d309941c7e+95d9528c8efa4c94107c7cd53b9aaeccadb83e68+ba256413625a5149e7686f265532eaf6e87c76ef+edecf83512e8a09c777587a22b0b577a6e6c1ea6",
-  "@brewsite/claude-author": "cf5a19d1966b968161d12a420001cb86dd3b4ac4",
-  "create-brewsite": "66536c9b51150e8a8c9f6a06b499c343a76ad1f5",
-  "brewsite": "fff73b0a8194c331f93239bc211d86626b428e5c"
+  "@brewsite/core": "f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7",
+  "@brewsite/diagram": "bd146fe7fe6f4657d1b7e866b26c64226def812d+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7",
+  "@brewsite/model": "88d3d58de6c63004122c26474ee0e9350e3bd598+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7",
+  "@brewsite/charts": "9588049e6d1eeb9157a09fdefae154323e61973f+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7",
+  "@brewsite/screens": "bb3217a7728ef6562ea64ccffe6fa75073684ddf+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7",
+  "@brewsite/textures": "c6816d3c9e181e457e824d341042cd020a531c83+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7",
+  "@brewsite/slides": "d5267f801fcbf236c9e796110228af9d27488649+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7+bd146fe7fe6f4657d1b7e866b26c64226def812d+88d3d58de6c63004122c26474ee0e9350e3bd598+9588049e6d1eeb9157a09fdefae154323e61973f",
+  "@brewsite/themes": "705047f5eced38b170d9ee85b709dcbef37e0c22+f7e7e0997bbea0a0e8e5dd5977532f4bbdfe98f7+bd146fe7fe6f4657d1b7e866b26c64226def812d+9588049e6d1eeb9157a09fdefae154323e61973f",
+  "@brewsite/claude-author": "019d93947420d3422ce9d9294d4e4e60410b72fd",
+  "create-brewsite": "96bc220e3a6a8c280e3cd89349e6db38841a62f1",
+  "brewsite": "1a8bdde70f7dfb5fdffdc02a96171195e2d22fc3"
 }

@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/core",
-  "version": "0.7.3",
+  "version": "0.7.5",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",

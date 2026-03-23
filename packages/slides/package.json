@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/slides",
-  "version": "0.7.3",
+  "version": "0.7.5",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -28,13 +28,13 @@
     "coverage": "vitest run --coverage"
   },
   "peerDependencies": {
-    "@brewsite/core": "^0.7.3",
+    "@brewsite/core": "^0.7.5",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",
     "three": ">=0.170.0",
-    "@brewsite/diagram": "^0.7.3",
-    "@brewsite/model": "^0.7.3",
-    "@brewsite/charts": "^0.7.3"
+    "@brewsite/diagram": "^0.7.5",
+    "@brewsite/model": "^0.7.5",
+    "@brewsite/charts": "^0.7.5"
   },
   "peerDependenciesMeta": {
     "@brewsite/diagram": {
