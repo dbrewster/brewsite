@@ -20,17 +20,24 @@ export function detectPackageManager(projectRoot: string): 'pnpm' | 'npm' | 'yar
   return 'npm';
 }
 
+/** True when the project root is a pnpm workspace root (has pnpm-workspace.yaml). */
+function isPnpmWorkspaceRoot(projectRoot: string): boolean {
+  return existsSync(join(projectRoot, 'pnpm-workspace.yaml'));
+}
+
 /**
  * Build the install command string for a given package manager.
+ * Automatically adds `-w` when running at a pnpm workspace root.
  */
 export function buildInstallCommand(
   pm: 'pnpm' | 'npm' | 'yarn',
   packages: string[],
-  opts: { dev?: boolean } = {},
+  opts: { dev?: boolean; projectRoot?: string } = {},
 ): string {
   const devFlag = opts.dev ? (pm === 'npm' ? '--save-dev' : '-D') : '';
   if (pm === 'pnpm') {
-    return `pnpm add ${devFlag} ${packages.join(' ')}`.replace(/\s+/g, ' ').trim();
+    const wsFlag = opts.projectRoot && isPnpmWorkspaceRoot(opts.projectRoot) ? '-w' : '';
+    return `pnpm add ${wsFlag} ${devFlag} ${packages.join(' ')}`.replace(/\s+/g, ' ').trim();
   }
   if (pm === 'yarn') {
     return `yarn add ${devFlag} ${packages.join(' ')}`.replace(/\s+/g, ' ').trim();
@@ -47,7 +54,7 @@ function installPackages(
   opts: { dev?: boolean } = {},
 ): void {
   const pm = detectPackageManager(projectRoot);
-  const cmd = buildInstallCommand(pm, packages, opts);
+  const cmd = buildInstallCommand(pm, packages, { ...opts, projectRoot });
   execSync(cmd, { cwd: projectRoot, stdio: 'inherit' });
 }
 
