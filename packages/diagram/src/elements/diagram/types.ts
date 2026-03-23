@@ -214,16 +214,10 @@ export interface DiagramThemeEdgeConfig {
   readonly flowObstaclePadding: SceneLength;
   /** Bias toward direct target ingress after splitting from a flow trunk. */
   readonly flowTargetApproachBias: number;
-  /** Default depth below the authored diagram plane for underpass routing. */
-  readonly flowUnderpassDepth: SceneLength;
-  /** Default vertical clearance used when entering and leaving an underpass. */
-  readonly flowUnderpassClearance: SceneLength;
   /** Cost penalty multiplier for turns in the flow visibility search. */
   readonly flowTurnPenalty: number;
   /** Cost penalty applied when the flow router must puncture an obstacle. */
   readonly flowPunchthroughPenalty: number;
-  /** Cost penalty applied when the flow router uses a Z underpass. */
-  readonly flowUnderpassPenalty: number;
   /** Peak brightness multiplier applied to the flow pulse shader. Range: 0–2. Default: 0.9. */
   readonly flowPulseIntensity: number;
 }
@@ -935,7 +929,6 @@ export interface DiagramEdgePathState {
   readonly commands: ReadonlyArray<DiagramEdgePathCommand>;
   readonly startTangent: readonly [number, number, number];
   readonly endTangent: readonly [number, number, number];
-  readonly usedUnderpass: boolean;
   readonly punctures: ReadonlyArray<{
     readonly obstacleId: string;
     readonly obstacleKind: 'node' | 'group';
@@ -943,7 +936,7 @@ export interface DiagramEdgePathState {
 }
 
 export interface DiagramEdgePathDebug {
-  readonly routeKind: 'direct' | 'visibility' | 'clean-orthogonal' | 'underpass' | 'puncture-fallback' | string;
+  readonly routeKind: 'direct' | 'visibility' | 'clean-orthogonal' | 'puncture-fallback' | string;
   readonly obstacleIds: readonly string[];
   /** Winning candidate face pair (compile-time debug only). */
   readonly selectedFaces?: { readonly srcFace: string; readonly dstFace: string };
@@ -1042,9 +1035,6 @@ export interface DiagramEdgeState {
   readonly flowBundleStrength?: number;
   /** Optional per-edge override for direct target ingress preference after a split. */
   readonly flowTargetApproachBias?: number;
-  /** Enables the flow router's Z underpass escape hatch when true. */
-  readonly allowUnderpass?: boolean;
-
   /** Optional explicit source port from DSL; used to preserve live reroute intent. */
   readonly fromPort?: DiagramEdgePort;
 
@@ -1238,6 +1228,14 @@ export interface DiagramState {
    * render.ts reads this struct to apply env map, glow, 3D arrows, etc.
    */
   readonly themeConfig: DiagramThemeRenderConfig;
+
+  /**
+   * Whether this diagram is enabled. When false the widget hides its Three.js
+   * group entirely. Set to false by the compiler's `makeDisabledDefault` clone
+   * when the diagram is absent from a scene and `disableWhenAbsent` is true.
+   * Default: true (always present on compiled states).
+   */
+  readonly enabled: boolean;
 }
 
 // ─── DSL input types (used by dsl.tsx and consumed by compile.ts) ────────────
@@ -1379,8 +1377,6 @@ export interface DiagramEdgeDSL {
   readonly flowBundleStrength?: number;
   /** Optional per-edge override for direct target ingress preference after a split. */
   readonly flowTargetApproachBias?: number;
-  /** Enables the flow router's Z underpass escape hatch when true. */
-  readonly allowUnderpass?: boolean;
   /**
    * Explicit attachment port at the source node.
    * For `routing="flow"`, this selects the face and still attaches at the exact face center.

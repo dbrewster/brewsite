@@ -11,19 +11,37 @@ import {
   Scene,
 } from '@brewsite/core';
 import { NeonSign } from '../../widgets/neon-sign';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { CommandCard } from '../../landing/components/CommandCard';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
 import { isMobile } from '../../utils/viewport';
+import { useCommandCopyTelemetry } from '../../telemetry/useCommandCopyTelemetry';
 
 const SCROLL = isMobile ? 750 : 1000;
 const MIRROR_RES = isMobile ? 512 : 1024;
+const msg = getMessage('cta');
+const section = getSection('cta')!;
+
+/** CommandCard with telemetry wired in. */
+function CtaCommandCard(): JSX.Element {
+  const onCopy = useCommandCopyTelemetry();
+  return (
+    <CommandCard
+      command={msg.headline}
+      secondaryLabel="View on GitHub"
+      secondaryHref="https://github.com/nicholasgriffintn/brewsite"
+      onCopy={onCopy}
+    />
+  );
+};
 
 /**
  * Act 5: The Invitation.
  *
  * The neon sign returns — but warmer now, with amber glow underneath.
- * The cyan is the same, but the world around it has changed.
- * You've been on a journey from cold mystery to warm invitation.
- *
- * "npm create brewsite" is the only text that matters.
+ * "npm create brewsite" is the dominant action.
  */
 export const Scene05Cta = (): JSX.Element => (
   <Scene id="website-get-started">
@@ -56,7 +74,7 @@ export const Scene05Cta = (): JSX.Element => (
       enabled
       text="BrewSite"
       fontUrl="/fonts/DancingScript-Bold.woff"
-      x={0.15} y={0.06} w={0.7} h={0.22}
+      x={"15%"} y={"6%"} w={"70%"} h={"22%"}
       z={-4}
       tilt={0}
       color="#00f5ff"
@@ -67,36 +85,10 @@ export const Scene05Cta = (): JSX.Element => (
 
     {/* CTA — centered, warm */}
     <div key="cta-overlay" className="scene-overlay">
-      <div className="scene-overlay__content">
-        <div className="terminal-card terminal-card--warm" style={{ textAlign: 'left', pointerEvents: 'auto' }}>
-          <div className="terminal-card__bar">
-            <span className="terminal-card__dot terminal-card__dot--red" />
-            <span className="terminal-card__dot terminal-card__dot--yellow" />
-            <span className="terminal-card__dot terminal-card__dot--green" />
-          </div>
-          <div className="terminal-card__body">
-            <div className="terminal-card__line">
-              <span className="terminal-card__prompt">$</span>
-              <span className="terminal-card__command">npm create brewsite</span>
-            </div>
-            <div className="terminal-card__output">&ensp;Created my-project</div>
-            <div className="terminal-card__output">&ensp;Ready at localhost:5173</div>
-            <div style={{ height: 10 }} />
-            <div className="terminal-card__line">
-              <span className="terminal-card__prompt">$</span>
-              <span className="terminal-card__cursor" />
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 28, pointerEvents: 'auto' }}>
-          <a className="github-cta-button github-cta-button--warm"
-            href="https://github.com/nicholasgriffintn/brewsite"
-            target="_blank" rel="noopener noreferrer">
-            View on GitHub
-          </a>
-        </div>
-      </div>
+      <OverlayColumn tone="warm">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <CtaCommandCard />
+      </OverlayColumn>
     </div>
   </Scene>
 );

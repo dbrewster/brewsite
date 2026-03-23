@@ -7,6 +7,9 @@ last_updated: 2026-03-21
 change_history:
   - date: 2026-03-21
     author: "Toolkit Product"
+    summary: "2D edge routing rewrite: removed allowUnderpass prop from DiagramEdgeProps. DiagramEdgePort narrowed from 6 values to 4 — 'front' and 'back' removed (Z-axis ports not meaningful for 2D routing). Updated change_history entry for 2026-03-13 audit to remove allowUnderpass reference. Semver impact: major."
+  - date: 2026-03-21
+    author: "Toolkit Product"
     summary: "Scene unit system: all diagram DSL spatial props now require SceneLength/SceneAngle/SceneSize2/ScenePosition3/ScenePadding unit strings. DiagramNodeProps.size is SceneSize2, thickness/cornerRadius/iconDepth/borderWidth/borderHeight are SceneLength. DiagramEdgeProps.thickness/flowTurnRadius/flowFaceStub are SceneLength. DiagramProps.x/y/w/h are SceneLength, tilt is SceneAngle. All layout spacing/gap/margin/groupPadding/titleGap are SceneLength/SceneSize2/ScenePadding. Compiled DiagramState remains number. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-10
     author: "Toolkit Product"
@@ -16,7 +19,7 @@ change_history:
     summary: "Module architecture redesign: ghost node merge logic extracted to compiler/ghostNodeMerge.ts; hover state machine extracted to compiler/hoverStateMachine.ts; coordinate normalization extracted to compiler/normalizeToViewport.ts; node label arithmetic extracted to rendering/nodeLabelLayout.ts; IFocusRegionService interface + DiagramFocusRegionService class added to focusRegion.ts; DiagramRenderer now accepts optional IIconLoader injection; global dispose() side effect removed from render.ts. Updated Compilation Pipeline, Ghost Node Inheritance, Rendering Architecture, DiagramWidget Contract, and Technical Considerations sections."
   - date: 2026-03-13
     author: "Toolkit Product"
-    summary: "Audit corrections: DiagramWidget implements ILightingOverride (not IAnimationController — IAnimationController was removed, tickPriority and onTick() do not exist). DiagramWidget implements IDslComposite, ILoadable, INVSBounded, ILightingOverride. FlowLayout added to childDslComponents. DiagramNodeProps and DiagramEdgeProps gain new fields: labelPadding, boxColor (node-level boxColor), and per-edge flow routing overrides (flowTurnRadius, flowFaceStub, flowBundleStrength, flowTargetApproachBias, allowUnderpass). DiagramState gains contentAspect field. Camera auto-framing description removed — DiagramWidget does not implement IAnimationController and no longer performs auto-framing via onTick()."
+    summary: "Audit corrections: DiagramWidget implements ILightingOverride (not IAnimationController — IAnimationController was removed, tickPriority and onTick() do not exist). DiagramWidget implements IDslComposite, ILoadable, INVSBounded, ILightingOverride. FlowLayout added to childDslComponents. DiagramNodeProps and DiagramEdgeProps gain new fields: labelPadding, boxColor (node-level boxColor), and per-edge flow routing overrides (flowTurnRadius, flowFaceStub, flowBundleStrength, flowTargetApproachBias). DiagramState gains contentAspect field. Camera auto-framing description removed — DiagramWidget does not implement IAnimationController and no longer performs auto-framing via onTick()."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "NVS Universal Coordinate System: DiagramCanvas removed — <Diagram> is now the top-level authoring element. DiagramProps.viewportBounds (NVSRect) replaced by flat x/y/w/h props. DiagramProps.tilt changed from Vec3 to scalar (pitch only). DiagramWidget now implements ILoadable (env map) + INVSBounded. Overview updated to remove DiagramCanvasWidget reference. Non-Goals updated to remove DiagramCanvas/DiagramPipe mention. DSL section updated with new DiagramProps. Consumer integration updated to diagramPlugin({ diagrams: [...] }) pattern. Breaking change assessment updated to major."
@@ -284,7 +287,7 @@ export interface DiagramEdgeProps {
    * When specified, the edge attaches from this face center regardless of the
    * theme's landing algorithm.
    */
-  fromPort?: DiagramEdgePort;      // 'top' | 'bottom' | 'left' | 'right' | 'front' | 'back'
+  fromPort?: DiagramEdgePort;      // 'top' | 'bottom' | 'left' | 'right'
   /** Explicit attachment port at the destination node. */
   toPort?: DiagramEdgePort;
   /** Per-edge override for canonical flow turn radius as a SceneLength. Only applies when routing='flow'. */
@@ -295,8 +298,6 @@ export interface DiagramEdgeProps {
   flowBundleStrength?: number;
   /** Per-edge override for how strongly a flow edge prefers direct target ingress after splitting. */
   flowTargetApproachBias?: number;
-  /** Enables the flow router's Z underpass escape hatch for this edge. Default: from theme. */
-  allowUnderpass?: boolean;
 }
 ```
 

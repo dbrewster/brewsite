@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { SceneLength, SceneAngle } from '@brewsite/core/units/types';
 
 export type NeonSignProps = {
   enabled?: boolean;
@@ -8,13 +9,13 @@ export type NeonSignProps = {
   emissiveColor?: string;
   intensity?: number;
   opacity?: number;
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
+  x?: SceneLength;
+  y?: SceneLength;
+  w?: SceneLength;
+  h?: SceneLength;
   z?: number;
-  tilt?: number;
-  yRotation?: number;
+  tilt?: SceneAngle;
+  yRotation?: SceneAngle;
   children?: ReactNode;
 };
 

@@ -37,9 +37,9 @@ describe('unit system — uniformSizing flag', () => {
     const dsl = makeDSL({
       nodes: [{ id: 'a', label: 'A' }],
     });
-    // Enterprise theme uses % → uniformSizing=false
+    // Enterprise theme uses u → uniformSizing=true
     const state = compileDiagram(dsl, enterpriseTheme);
-    expect(state.nodes[0]!.uniformSizing).toBe(false);
+    expect(state.nodes[0]!.uniformSizing).toBe(true);
   });
 
   it('sets uniformSizing=true when ANY size-like prop uses u (mixed with theme defaults)', () => {
@@ -81,8 +81,8 @@ describe('unit system — uniformSizing flag', () => {
       groups: [{ id: 'g1', nodeIds: ['a'] }],
     });
     const state = compileDiagram(dsl, enterpriseTheme);
-    // Enterprise theme group defaults use % → uniformSizing=false
-    expect(state.groups[0]!.uniformSizing).toBe(false);
+    // Enterprise theme group defaults use u → uniformSizing=true
+    expect(state.groups[0]!.uniformSizing).toBe(true);
   });
 });
 

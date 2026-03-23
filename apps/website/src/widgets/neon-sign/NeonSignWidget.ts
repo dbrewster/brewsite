@@ -2,6 +2,7 @@ import {isValidElement} from 'react';
 import type {NodeHandler} from '@brewsite/core/compiler/sceneDslTypes';
 import type {AssetManifest, ILoadable, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext,} from '@brewsite/core/widget/types';
 import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
+import {resolveToNVS, resolveAngle} from '@brewsite/core/units/resolve';
 import {DEFAULT_NEON_SIGN_STATE, neonSignTransitionSpec} from './compile';
 import type {NeonSignProps} from './dsl';
 import {NeonSign} from './dsl';
@@ -36,13 +37,13 @@ export class NeonSignWidget
         emissiveColor: props.emissiveColor ?? base.emissiveColor,
         intensity: props.intensity ?? base.intensity,
         opacity: props.opacity ?? base.opacity,
-        x: props.x ?? base.x,
-        y: props.y ?? base.y,
-        w: props.w ?? base.w,
-        h: props.h ?? base.h,
+        x: props.x != null ? resolveToNVS(props.x) : base.x,
+        y: props.y != null ? resolveToNVS(props.y) : base.y,
+        w: props.w != null ? resolveToNVS(props.w) : base.w,
+        h: props.h != null ? resolveToNVS(props.h) : base.h,
         z: props.z ?? base.z,
-        tilt: props.tilt ?? base.tilt,
-        yRotation: props.yRotation ?? base.yRotation,
+        tilt: props.tilt != null ? resolveAngle(props.tilt) : base.tilt,
+        yRotation: props.yRotation != null ? resolveAngle(props.yRotation) : base.yRotation,
       };
       api.setWidgetState(this.widgetId, next);
     };

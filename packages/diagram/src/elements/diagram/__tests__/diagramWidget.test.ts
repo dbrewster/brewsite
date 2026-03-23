@@ -188,6 +188,68 @@ describe('DiagramWidget — dispose lifecycle', () => {
   });
 });
 
+// ─── disableWhenAbsent + enabled bail ────────────────────────────────────────
+
+describe('DiagramWidget — disableWhenAbsent visibility', () => {
+  it('declares disableWhenAbsent = true', () => {
+    const widget = new DiagramWidget('d1', makeDefaultDiagramState('d1'));
+    expect(widget.disableWhenAbsent).toBe(true);
+  });
+
+  it('apply() hides diagramGroup when state.enabled === false', () => {
+    const widget = new DiagramWidget('d1', makeDefaultDiagramState('d1'));
+    const scene = new THREE.Scene();
+    widget.initialize({ scene, widgetId: 'd1' });
+    const group = scene.children[0] as THREE.Group;
+
+    // First apply with enabled=true — group is visible
+    widget.apply(makeDefaultDiagramState('d1', { enabled: true }), makeRenderContext());
+    expect(group.visible).toBe(true);
+
+    // Apply with enabled=false — group is hidden
+    widget.apply(makeDefaultDiagramState('d1', { enabled: false }), makeRenderContext());
+    expect(group.visible).toBe(false);
+
+    widget.dispose();
+  });
+
+  it('apply() restores visibility when enabled flips back to true', () => {
+    const widget = new DiagramWidget('d1', makeDefaultDiagramState('d1'));
+    const scene = new THREE.Scene();
+    widget.initialize({ scene, widgetId: 'd1' });
+    const group = scene.children[0] as THREE.Group;
+
+    // Hide
+    widget.apply(makeDefaultDiagramState('d1', { enabled: false }), makeRenderContext());
+    expect(group.visible).toBe(false);
+
+    // Show again
+    widget.apply(makeDefaultDiagramState('d1', { enabled: true }), makeRenderContext());
+    expect(group.visible).toBe(true);
+
+    widget.dispose();
+  });
+
+  it('apply() with enabled=false does not update lastState or call renderer', () => {
+    const widget = new DiagramWidget('d1', makeDefaultDiagramState('d1'));
+    const scene = new THREE.Scene();
+    widget.initialize({ scene, widgetId: 'd1' });
+    const group = scene.children[0] as THREE.Group;
+
+    // Apply a real state first to position the group
+    const realState = makeDefaultDiagramState('d1', { scale: 3.0, enabled: true });
+    widget.apply(realState, makeRenderContext());
+    expect(group.scale.x).toBeCloseTo(3.0, 5);
+
+    // Apply disabled state — scale should NOT change (bail before renderer)
+    widget.apply(makeDefaultDiagramState('d1', { enabled: false, scale: 999 }), makeRenderContext());
+    expect(group.scale.x).toBeCloseTo(3.0, 5); // unchanged
+    expect(group.visible).toBe(false);
+
+    widget.dispose();
+  });
+});
+
 // ─── §9.3c: mergeSnapshot ────────────────────────────────────────────────────
 
 describe('DiagramWidget — mergeSnapshot', () => {

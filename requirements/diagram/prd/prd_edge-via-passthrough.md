@@ -3,11 +3,14 @@ title: "Edge Via Pass-Through Routing"
 doc_type: prd
 status: draft
 owner: Toolkit Product
-last_updated: 2026-03-19
+last_updated: 2026-03-21
 change_history:
   - date: 2026-03-19
     author: Toolkit Product
     summary: "Initial PRD created. Defines the `via` prop for DiagramEdge pass-through routing."
+  - date: 2026-03-21
+    author: Toolkit Product
+    summary: "Updated references to reflect the 2D routing pipeline rewrite. resolveFaces → selectSides in compiler/routing/sideSelect.ts. edgeRouter.ts → compiler/routing/edgeRouter.ts. Face → side terminology throughout. Updated dependency references."
 ---
 
 # Edge Via Pass-Through Routing
@@ -52,7 +55,7 @@ Today the only workaround is to split the edge into two separate `<DiagramEdge>`
 1. `<DiagramEdge>` accepts an optional `via` prop: an ordered array of node IDs through which the edge passes.
 2. For each intermediate node in `via`, the edge visually docks at the node's entry face and exits from the opposite face (or the face nearest to the next waypoint).
 3. The edge renders as a single continuous tube with a consistent flow animation pulse.
-4. Face selection at each intermediate node uses the same `nearestFace` algorithm used for source/destination faces.
+4. Side selection at each intermediate node uses the same `selectSides` algorithm used for source/destination sides.
 5. The intermediate segments are routed independently using the edge's `routing` algorithm (curved, flow, straight, organic).
 6. The `via` prop accepts 1–4 intermediate node IDs. More than 4 emits a compile warning and truncates.
 7. Edge labels, if present, are placed on the longest segment (source→first-via, or last-via→destination, or between vias — whichever is longest).
@@ -110,15 +113,15 @@ export interface DiagramEdgeState {
 The `via` prop is resolved during edge compilation in `compile.ts`:
 
 1. The compiler expands `from → via[0] → via[1] → ... → to` into N+1 sub-segments.
-2. Each sub-segment gets face selection (entry/exit faces) using the existing `resolveFaces` function.
-3. Each sub-segment is routed independently using the edge's routing profile (curved/flow/straight/organic).
+2. Each sub-segment gets side selection (entry/exit sides) using the existing `selectSides` function from `compiler/routing/sideSelect.ts`.
+3. Each sub-segment is routed independently using the edge's routing profile (curved/flow/straight/organic) via the `compiler/routing/` pipeline.
 4. The sub-segment paths are concatenated into a single `DiagramEdgePathState` with continuous commands.
-5. At each via dock point, the exit face anchor of segment N must equal the entry face anchor of segment N+1 (C0 continuity).
+5. At each via dock point, the exit side anchor of segment N must equal the entry side anchor of segment N+1 (C0 continuity).
 
 ### Edge Router Changes
 
-- `edgeRouter.ts`: The `EdgeRoutingInput` type adds `via?: string[]`. The `routeEdges` function detects via edges and routes each sub-segment separately, then concatenates results.
-- Face anchors at intermediate nodes are computed as exit/entry pairs: the entry face is the face nearest to the previous node, the exit face is nearest to the next node.
+- `compiler/routing/edgeRouter.ts`: The `EdgeRoutingRequest` type adds `via?: string[]`. The `routeEdges` function detects via edges and routes each sub-segment separately, then concatenates results.
+- Side anchors at intermediate nodes are computed as exit/entry pairs: the entry side is the side nearest to the previous node, the exit side is nearest to the next node.
 
 ### Flow Animation
 
@@ -134,9 +137,9 @@ Intermediate via nodes are excluded from the obstacle model for their own edge (
 
 ## Dependencies
 
-- Existing face selection (`resolveFaces` in `edgeRouter.ts`)
-- Existing routing profiles (curved, flow, straight, organic)
-- Existing path concatenation pattern (used by `buildFlowPathState` for multi-segment flow paths)
+- Existing side selection (`selectSides` in `compiler/routing/sideSelect.ts`)
+- Existing routing profiles (curved, flow, straight, organic) in `compiler/routing/pathBuilder.ts`
+- Existing path concatenation pattern for multi-segment paths
 
 ## Risks & Mitigations
 
@@ -158,7 +161,7 @@ Intermediate via nodes are excluded from the obstacle model for their own edge (
 - [ ] Compiled state includes `viaNodeIds` and `viaDockPoints`
 - [ ] Edge renders as single continuous tube through all intermediates
 - [ ] Flow animation pulse travels the full path without gaps
-- [ ] Face selection at intermediates uses `resolveFaces`
+- [ ] Side selection at intermediates uses `selectSides`
 - [ ] All existing edge routing tests pass unchanged
 - [ ] New e2e test with via pass-through in `archDiagramEdgeRouting.test.ts`
 - [ ] TypeScript types exported from `@brewsite/diagram`

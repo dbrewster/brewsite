@@ -51,7 +51,6 @@ export interface EdgeDefaults {
   readonly flowFaceStub: number;
   readonly flowBundleStrength: number;
   readonly flowTargetApproachBias: number;
-  readonly allowUnderpass: boolean;
   readonly flow: 'none';
   /** Whether the theme's edge spatial defaults use uniform (u) units. */
   readonly uniformSizing: boolean;
@@ -132,7 +131,6 @@ export function buildEdgeDefaults(theme: DiagramTheme): EdgeDefaults {
     flowFaceStub:            resolveToNVS(theme.edge.flowFaceStub),
     flowBundleStrength:      theme.edge.flowBundleStrength,
     flowTargetApproachBias:  theme.edge.flowTargetApproachBias,
-    allowUnderpass:          true,
     flow:                    'none',
     uniformSizing,
   };

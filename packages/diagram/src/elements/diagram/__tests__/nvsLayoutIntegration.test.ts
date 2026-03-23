@@ -213,8 +213,8 @@ describe('NVS layout integration', () => {
       expect(sz[1]).toBeCloseTo(firstH, 5);
     }
 
-    // Aspect ratio preserved: w/h should match default 0.15/0.08 = 1.875
-    expect(firstW / firstH).toBeCloseTo(0.15 / 0.08, 2);
+    // Aspect ratio preserved: w/h should match default 0.10/0.10 = 1.0 (uniform u units)
+    expect(firstW / firstH).toBeCloseTo(0.10 / 0.10, 2);
   });
 
   it('edge anchors align with node surfaces (no aspect distortion)', () => {
@@ -273,8 +273,8 @@ describe('NVS layout integration', () => {
     const node = state.nodes[0]!;
 
     // If scale-to-fit is active, thickness should be proportionally smaller
-    if (node.size[0] < 0.15) {
-      const scaleFactor = node.size[0] / 0.15;
+    if (node.size[0] < 0.10) {
+      const scaleFactor = node.size[0] / 0.10;
       const expectedThickness = 0.060 * scaleFactor;
       expect(node.thickness).toBeCloseTo(expectedThickness, 3);
     } else {

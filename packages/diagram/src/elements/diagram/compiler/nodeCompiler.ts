@@ -168,7 +168,6 @@ export function compileEdge(
     flowFaceStub,
     flowBundleStrength: dsl.flowBundleStrength ?? ed.flowBundleStrength,
     flowTargetApproachBias: dsl.flowTargetApproachBias ?? ed.flowTargetApproachBias,
-    allowUnderpass: dsl.allowUnderpass ?? ed.allowUnderpass,
     fromPort: dsl.fromPort,
     toPort: dsl.toPort,
     flow: dsl.flow ?? ed.flow,

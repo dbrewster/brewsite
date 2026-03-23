@@ -2,12 +2,15 @@
 title: "BrewSite Website Repositioning for Technical PMs"
 doc_type: prd
 owner: Toolkit Product
-status: draft
-updated: 2026-03-21
+status: approved
+updated: 2026-03-22
 change_history:
   - date: 2026-03-21
     author: "Codex"
     summary: "Created a new website PRD focused on technical PM positioning, broader content-creation messaging, and award-site design principles."
+  - date: 2026-03-22
+    author: "Toolkit PM"
+    summary: "Marked approved after full implementation delivery. The technical PM repositioning is now live in the website: hero defines the category with React toolkit framing; messaging hierarchy follows Awe→Recognition→Scope→Authoring→Team→Trust→Action arc; team/trust framing implemented in Act 4 ecosystem scene; CTA flow with npm create brewsite in Act 5. All recommended modules implemented: messaging.ts, siteMap.ts, overlay components, shared scene helpers, 3 advanced effect widgets (SignalField, ShaderSurface, PostFX), motionProfile, perfTier, and telemetry. Implementation plan archived."
 ---
 
 # BrewSite Website Repositioning for Technical PMs

@@ -50,6 +50,9 @@ change_history:
   - date: 2026-03-19
     author: "Toolkit Product"
     summary: "NVS thickness migration completed: all five remaining content-unit dimensional props (node thickness, edge thickness, group borderWidth, group borderHeight, node cornerRadius) migrated to NVS fractions. thicknessNormFactor eliminated — normalizeToViewport() returns scaleFactor only. GROUP_BORDER_PX_TO_UNITS constant deleted. cornerRadius now converted to world units in render.ts. Pipeline simplified to: authored_nvs × scaleFactor (compile) × uniformWorldW (render) = world units."
+  - date: 2026-03-21
+    author: "Toolkit Product"
+    summary: "2D edge routing rewrite: updated Module Source Structure to show new compiler/routing/ subdirectory (8 files replacing 16 former top-level compiler files). edgeRouter.ts moved from compiler/ to compiler/routing/. Old files deleted: routingTypes.ts, routingSpace.ts, edgeCandidatePlanner.ts, edgePortPlanner.ts, edgeGuidePlanner.ts, edgeCandidateScorer.ts, edgeCandidateSelector.ts, edgeRoutingProfiles.ts, curveKernel.ts, flowRouter.ts, flowPathBuilder.ts, flowVisibilityGraph.ts, flowObstacleModel.ts, edgeRenderOptimizer.ts, shapeEndpointSnap.ts. RoutingProfileContext and RoutingProfile types removed. allowUnderpass removed from all documentation references."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -137,7 +140,15 @@ packages/diagram/src/
     │   │   ├── normalizeToViewport.ts    ← pure coordinate transformation: center + uniform-scale-to-fit + Y-flip; directly unit-testable
     │   │   ├── transitionHelpers.ts
     │   │   ├── themeResolver.ts
-    │   │   ├── edgeRouter.ts
+    │   │   ├── routing/                 ← 2D edge routing pipeline (pure TypeScript, no Three.js)
+    │   │   │   ├── routingTypes.ts      ← types + consolidated Vec2/Vec3 math utilities
+    │   │   │   ├── sideSelect.ts        ← 2D side selection + port placement
+    │   │   │   ├── obstacleModel.ts     ← 2D obstacle rect construction with containment
+    │   │   │   ├── orthogonalRouter.ts  ← A* Manhattan routing with obstacle avoidance
+    │   │   │   ├── pathBuilder.ts       ← 4 profile builders + arc rounding + Z assignment
+    │   │   │   ├── shapeSnap.ts         ← XY-only polygon/circle endpoint snap
+    │   │   │   ├── trunkOptimizer.ts    ← shared trunk trimming
+    │   │   │   └── edgeRouter.ts        ← thin orchestrator
     │   │   └── layout/                  ← extracted layout algorithm modules
     │   │       ├── bounds.ts             ← computeBounds()
     │   │       ├── flowLayout.ts         ← resolveFlowLayout()

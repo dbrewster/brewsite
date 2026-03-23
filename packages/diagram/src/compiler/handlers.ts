@@ -252,6 +252,7 @@ function makeDefaultDiagramState(id: string): DiagramState {
     exit: undefined,
     enter: undefined,
     themeConfig: buildThemeRenderConfig(defaultDiagramTheme),
+    enabled: true,
   };
 }
 

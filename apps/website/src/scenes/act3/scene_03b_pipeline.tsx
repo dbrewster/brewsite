@@ -15,16 +15,22 @@ import {
   DiagramNode,
   FlowLayout,
 } from '@brewsite/diagram';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { OverlayHeadline } from '../../landing/components/OverlayHeadline';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
 import { isMobile } from '../../utils/viewport';
 
 const SCROLL = isMobile ? 900 : 1200;
+const msg = getMessage('authoring');
+const section = getSection('team')!;
 
 /**
  * Act 3b: The Pipeline.
  *
  * Warm amber → transitioning toward green/violet aurora.
  * The compiler pipeline visualized as a flowing chain.
- * One line of text: "Write state. Compile to film."
  */
 export const Scene03bPipeline = (): JSX.Element => (
   <Scene id="website-pipeline">
@@ -83,9 +89,14 @@ export const Scene03bPipeline = (): JSX.Element => (
     </View>
 
     <div key="pipeline-overlay" className="scene-overlay scene-overlay--bottom">
-      <div className="scene-overlay__content">
-        <h2 className="scene-punchline scene-punchline--warm">Write state. Compile to film.</h2>
-      </div>
+      <OverlayColumn vertical="bottom" tone="warm">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <OverlayHeadline
+          headline={msg.headline}
+          support={msg.support}
+          tone="warm"
+        />
+      </OverlayColumn>
     </div>
   </Scene>
 );

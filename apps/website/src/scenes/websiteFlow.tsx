@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { WEBSITE_SECTIONS } from '../content/siteMap';
 import { Scene00Hero } from './act0/scene_00_hero';
 import { Scene01FlatWorld } from './act1/scene_01_flat_world';
 import { Scene02aDimensionalShift } from './act2/scene_02a_dimensional_shift';
@@ -25,13 +26,8 @@ export const websiteFlowScenes: JSX.Element[] = [
   <Scene05Cta />,
 ];
 
-export const websiteNavTargets: WebsiteNavTarget[] = [
-  { num: '00', label: 'BrewSite',      sceneId: 'website-hero-00' },
-  { num: '01', label: 'The Problem',   sceneId: 'website-flat-world' },
-  { num: '02', label: 'Dimensional',   sceneId: 'website-dimensional-shift' },
-  { num: '03', label: 'The Toolkit',   sceneId: 'website-beyond-diagrams' },
-  { num: '04', label: 'The Code',      sceneId: 'website-the-code' },
-  { num: '05', label: 'The Engine',    sceneId: 'website-pipeline' },
-  { num: '06', label: 'Ecosystem',     sceneId: 'website-ecosystem' },
-  { num: '07', label: 'Get Started',   sceneId: 'website-get-started' },
-];
+export const websiteNavTargets: WebsiteNavTarget[] = WEBSITE_SECTIONS.map((s) => ({
+  num: s.navNumber,
+  label: s.navLabel,
+  sceneId: s.sceneId,
+}));

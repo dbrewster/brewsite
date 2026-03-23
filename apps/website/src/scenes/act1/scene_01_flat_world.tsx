@@ -16,16 +16,22 @@ import {
   DiagramNode,
   FlowLayout,
 } from '@brewsite/diagram';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { OverlayHeadline } from '../../landing/components/OverlayHeadline';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
 import { isMobile } from '../../utils/viewport';
 
 const SCROLL = isMobile ? 900 : 1200;
+const msg = getMessage('recognition');
+const section = getSection('problem')!;
 
 /**
  * Act 1: The Flat World.
  *
  * A compressed, deliberately dull scene. Flat diagram, muted lighting,
  * no mirror, no glow. Exists to create contrast with Scene 2.
- * Minimal text — just enough to name the feeling, not explain it.
  */
 export const Scene01FlatWorld = (): JSX.Element => (
   <Scene id="website-flat-world">
@@ -71,11 +77,17 @@ export const Scene01FlatWorld = (): JSX.Element => (
       </Diagram>
     </View>
 
-    {/* Minimal text — just a quiet observation */}
     <div key="flat-overlay" className="scene-overlay scene-overlay--bottom">
-      <div className="scene-overlay__content">
-        <p className="scene-whisper">Flat.</p>
-      </div>
+      <OverlayColumn vertical="bottom">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <OverlayHeadline
+          headline={msg.headline}
+          support={msg.support}
+        />
+        {msg.punchline && (
+          <p className="scene-whisper">{msg.punchline}</p>
+        )}
+      </OverlayColumn>
     </div>
   </Scene>
 );

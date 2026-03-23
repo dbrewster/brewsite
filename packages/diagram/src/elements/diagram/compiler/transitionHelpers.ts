@@ -4,8 +4,11 @@
 import type { DiagramNodeState, DiagramEdgeState, DiagramGroupState } from '../types';
 import type { EdgeRoutingAlgorithm, EdgeLandingAlgorithm } from '../types';
 import { blendOpacity, blendVec3, copyVec3, lerp } from '@brewsite/core';
-import { routeEdges, routeEdgesYDown } from './edgeRouter';
-import { optimizeSharedFlowTrunks } from './edgeRenderOptimizer';
+import { routeEdges } from './routing/edgeRouter';
+import type { EdgeRoutingInput } from './routing/edgeRouter';
+import type { NodeRect, FlowConfig, EdgeRouteResult, SideId } from './routing/routingTypes';
+import { DEFAULT_FLOW_CONFIG } from './routing/routingTypes';
+import { optimizeSharedFlowTrunks } from './routing/trunkOptimizer';
 
 type Vec3 = readonly [number, number, number];
 type NodeDimensions = readonly [number, number, number];
@@ -103,6 +106,11 @@ export function buildLiveNodeMaps(
   return { positions, sizes, groupIds, obstacleGroupIds };
 }
 
+/**
+ * Reroute live edges using the new 2D routing pipeline.
+ * External signature preserved — callers pass Vec3/NodeDimensions maps.
+ * Internal implementation converts to NodeRect and calls the new routeEdges().
+ */
 export function rerouteLiveEdges(
   toEdges: ReadonlyArray<DiagramEdgeState>,
   fromEdges: ReadonlyArray<DiagramEdgeState>,
@@ -113,55 +121,47 @@ export function rerouteLiveEdges(
   obstacleGroupIds: ReadonlySet<string>,
   defaultRouting?: EdgeRoutingAlgorithm,
   defaultLanding?: EdgeLandingAlgorithm,
-): ReturnType<typeof routeEdgesYDown> {
-  const edgesForRouting = toEdges.map((e) => ({
+): Map<string, EdgeRouteResult> {
+  // Convert Vec3/NodeDimensions to NodeRect
+  const nodeRects = new Map<string, NodeRect>();
+  for (const [id, pos] of livePositions) {
+    const size = liveSizes.get(id);
+    if (!size) continue;
+    nodeRects.set(id, {
+      id, cx: pos[0], cy: pos[1], hw: size[0] / 2, hh: size[1] / 2,
+      z: pos[2], depth: size[2],
+    });
+  }
+
+  // Map routing profile names.
+  const profileMap: Record<string, 'flow' | 'curved' | 'straight' | 'organic'> = {
+    flow: 'flow',
+    curved: 'curved',
+    straight: 'straight',
+    organic: 'organic',
+  };
+
+  // Build edge routing inputs from DiagramEdgeState
+  const edgesForRouting: EdgeRoutingInput[] = [
+    ...toEdges,
+    ...fromEdges.filter((e) => !toEdgeIds.has(e.id)),
+  ].map((e) => ({
     id: e.id,
-    from: e.fromId,
-    to: e.toId,
-    routing: e.routing,
-    flowTurnRadius: e.flowTurnRadius,
-    flowFaceStub: e.flowFaceStub,
-    flowBundleStrength: e.flowBundleStrength,
-    flowTargetApproachBias: e.flowTargetApproachBias,
-    allowUnderpass: e.allowUnderpass,
-    fromPort: e.fromPort,
-    toPort: e.toPort,
+    fromId: e.fromId,
+    toId: e.toId,
+    profile: profileMap[e.routing] ?? (profileMap[defaultRouting ?? 'curved'] ?? 'curved'),
+    fromPort: e.fromPort as SideId | undefined,
+    toPort: e.toPort as SideId | undefined,
     thickness: e.thickness,
   }));
-  const fadingEdgesForRouting = fromEdges
-    .filter((e) => !toEdgeIds.has(e.id))
-    .map((e) => ({
-      id: e.id,
-      from: e.fromId,
-      to: e.toId,
-      routing: e.routing,
-      flowTurnRadius: e.flowTurnRadius,
-      flowFaceStub: e.flowFaceStub,
-      flowBundleStrength: e.flowBundleStrength,
-      flowTargetApproachBias: e.flowTargetApproachBias,
-      allowUnderpass: e.allowUnderpass,
-      fromPort: e.fromPort,
-      toPort: e.toPort,
-      thickness: e.thickness,
-    }));
-  return routeEdgesYDown(
-    [...edgesForRouting, ...fadingEdgesForRouting],
-    livePositions,
-    liveSizes,
-    defaultRouting,
-    defaultLanding,
-    undefined,
-    undefined,
-    undefined,
-    groupIds,
-    obstacleGroupIds,
-  );
+
+  return routeEdges(edgesForRouting, nodeRects, groupIds, obstacleGroupIds, DEFAULT_FLOW_CONFIG);
 }
 
 export function blendDiagramEdges(
   fromEdges: ReadonlyArray<DiagramEdgeState>,
   toEdges: ReadonlyArray<DiagramEdgeState>,
-  liveRoutes: ReturnType<typeof routeEdges>,
+  liveRoutes: Map<string, EdgeRouteResult>,
   t: number,
 ): { blended: DiagramEdgeState[]; fading: DiagramEdgeState[] } {
   const fromEdgeMap = new Map(fromEdges.map((edge) => [edge.id, edge]));

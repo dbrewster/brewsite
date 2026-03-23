@@ -43,7 +43,7 @@ const makeEdge = (id: string, controlPoints: ReadonlyArray<readonly [number, num
       : [],
     startTangent: [1, 0, 0],
     endTangent: [-1, 0, 0],
-    usedUnderpass: false,
+
     punctures: [],
   },
   controlPoints,

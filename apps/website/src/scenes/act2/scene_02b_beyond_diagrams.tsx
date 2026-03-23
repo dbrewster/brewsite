@@ -18,17 +18,23 @@ import {
   DiagramNode,
   FlowLayout,
 } from '@brewsite/diagram';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { OverlayHeadline } from '../../landing/components/OverlayHeadline';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
 import { isMobile } from '../../utils/viewport';
 
 const SCROLL = isMobile ? 1050 : 1400;
 const MIRROR_RES = isMobile ? 512 : 1024;
+const msg = getMessage('scope');
+const section = getSection('primitives')!;
 
 /**
- * Act 2b: Beyond Diagrams — the toolkit showcase.
+ * Act 2b: Beyond Diagrams — content surfaces from one story.
  *
- * Warmer still. Pink + coral lighting. Three capability nodes
- * arranged in space showing the breadth of the toolkit.
- * Text is minimal — just naming what you see.
+ * Warmer still. Pink + coral lighting. Multiple output surfaces
+ * arranged in space, broadening beyond diagrams into the full toolkit.
  */
 export const Scene02bBeyondDiagrams = (): JSX.Element => (
   <Scene id="website-beyond-diagrams">
@@ -65,25 +71,37 @@ export const Scene02bBeyondDiagrams = (): JSX.Element => (
       >
         <FlowLayout direction="left-right" gap={"10%"} />
         <DiagramGroup id="tk-group" variant="cluster" label="">
-          <DiagramNode id="tk-model" label="3D Models" sublabel="GLTF · Animations · Labels"
-            icon="ui:sparkles" position={["18%", "40%", "200%"]}
-            size={["18u", "15u"]} glow={{ intensity: 0.25 }} />
+          <DiagramNode id="tk-diagrams" label="Diagrams" sublabel="Architecture · Flow · System"
+            icon="ui:squares-2x2" position={["12%", "30%", "200%"]}
+            size={["16u", "14u"]} glow={{ intensity: 0.25 }} />
+          <DiagramNode id="tk-model" label="Models" sublabel="GLTF · Animations · Labels"
+            icon="ui:sparkles" position={["36%", "55%", "100%"]}
+            size={["16u", "14u"]} glow={{ intensity: 0.25 }} />
           <DiagramNode id="tk-charts" label="Charts" sublabel="Bar · Line · Area · Pie"
-            icon="ui:chart-bar" position={["50%", "35%", 0]}
-            size={["18u", "15u"]} glow={{ intensity: 0.3 }} />
-          <DiagramNode id="tk-screens" label="Screens & Slides" sublabel="Presentations · Mockups"
-            icon="ui:computer-desktop" position={["82%", "40%", "-200%"]}
-            size={["18u", "15u"]} glow={{ intensity: 0.25 }} />
+            icon="ui:chart-bar" position={["60%", "30%", 0]}
+            size={["16u", "14u"]} glow={{ intensity: 0.3 }} />
+          <DiagramNode id="tk-slides" label="Slides" sublabel="Decks · Presentations"
+            icon="ui:presentation-chart-bar" position={["84%", "55%", "-100%"]}
+            size={["16u", "14u"]} glow={{ intensity: 0.2 }} />
+          <DiagramNode id="tk-screens" label="Screens" sublabel="Mockups · Demos"
+            icon="ui:computer-desktop" position={["60%", "75%", "-200%"]}
+            size={["16u", "14u"]} glow={{ intensity: 0.2 }} />
         </DiagramGroup>
+        <DiagramEdge from="tk-diagrams" to="tk-model" style="dashed" />
         <DiagramEdge from="tk-model" to="tk-charts" style="dashed" />
+        <DiagramEdge from="tk-charts" to="tk-slides" style="dashed" />
         <DiagramEdge from="tk-charts" to="tk-screens" style="dashed" />
       </Diagram>
     </View>
 
     <div key="beyond-overlay" className="scene-overlay scene-overlay--bottom">
-      <div className="scene-overlay__content">
-        <h2 className="scene-punchline">Models. Charts. Screens. All React.</h2>
-      </div>
+      <OverlayColumn vertical="bottom">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <OverlayHeadline
+          headline={msg.headline}
+          support={msg.support}
+        />
+      </OverlayColumn>
     </div>
   </Scene>
 );

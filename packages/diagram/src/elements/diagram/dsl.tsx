@@ -208,8 +208,6 @@ export interface DiagramEdgeProps {
   flowBundleStrength?: number;
   /** Optional per-edge override for how strongly a flow edge prefers direct target ingress after splitting. */
   flowTargetApproachBias?: number;
-  /** Enables the flow router's Z underpass escape hatch when true. */
-  allowUnderpass?: boolean;
   /**
    * Explicit attachment port at the source node (requires landing: 'port' or
    * automatically enables port landing for this edge). In `flow` mode this still

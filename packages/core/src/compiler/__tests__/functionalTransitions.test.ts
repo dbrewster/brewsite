@@ -613,4 +613,132 @@ describe('functional transitions', () => {
     expect(terminalTick?.sceneIndex).toBe(1);
     expect(track.transitionBlocks?.[terminalTick.sceneIndex]).toBeUndefined();
   });
+
+  // ── Backward-scroll exit consistency ──────────────────────────────────────
+  // When scrolling backward through an exit block, the post-exit region
+  // (bp >= effectiveExitEnd) must use the exit function's endpoint state —
+  // NOT the widget's raw defaultState, which may have different dimensions.
+
+  it('disableWhenAbsent exit closure uses makeDisabledDefault for post-exit region', () => {
+    // When disableWhenAbsent=true, the post-exit region uses a disabled clone
+    // of defaultState (enabled=false, opacity=0). The widget's apply() method
+    // should check enabled and hide its Three.js group, avoiding any rendering
+    // of the defaultState's pre-normalized dimensions.
+    const exitWidgetId = 'exitDisableWidget';
+    type DisableState = { opacity: number; scale: number; enabled: boolean };
+
+    const disableSpec: FunctionalTransitionSpec<DisableState> = {
+      exitFn: (from) => (ctx) => ({
+        opacity: from.opacity * (1 - ctx.t),
+        scale: from.scale,
+        enabled: ctx.t < 1,
+      }),
+      enterFn: (to) => (ctx) => ({
+        opacity: to.opacity * ctx.t,
+        scale: to.scale,
+        enabled: ctx.t > 0,
+      }),
+      interpolateFn: (from, to) => (ctx) => ({
+        opacity: from.opacity + (to.opacity - from.opacity) * ctx.t,
+        scale: from.scale + (to.scale - from.scale) * ctx.t,
+        enabled: true,
+      }),
+    };
+
+    const widget: ISceneElement<DisableState> = {
+      widgetId: exitWidgetId,
+      defaultState: { opacity: 1, scale: 1, enabled: true },
+      transitionSpec: disableSpec,
+      DslComponent: (() => null) as any,
+      disableWhenAbsent: true,
+    };
+
+    const registry = new WidgetRegistry().register(widget);
+    const scenes: SceneDefinition[] = [
+      {
+        id: 's1',
+        getFrame: (): SceneFrame => ({
+          id: 's1',
+          scrollProgress: 0,
+          widgets: { [exitWidgetId]: { opacity: 1, scale: 5, enabled: true } },
+          transitionWindow: { exit: [0, 0.5] },
+        }),
+      },
+      makeScene('s2', undefined),
+    ];
+    const track = compileTrack(scenes, registry);
+    const fn = track.transitionBlocks?.[0]?.widgetFns[exitWidgetId];
+    expect(fn?.kind).toBe('exit');
+
+    // Post-exit region: disableWhenAbsent=true → makeDisabledDefault →
+    // enabled=false, opacity=0. The widget hides its group entirely.
+    const postExit = fn?.fn(0.5) as DisableState;
+    expect(postExit.enabled).toBe(false);
+    expect(postExit.opacity).toBe(0);
+
+    // At bp=1.0 (backward entry point), same disabled state
+    const atEnd = fn?.fn(1.0) as DisableState;
+    expect(atEnd.enabled).toBe(false);
+    expect(atEnd.opacity).toBe(0);
+
+    // During exit animation, scale is preserved from the compiled scene
+    const duringExit = fn?.fn(0.25) as DisableState;
+    expect(duringExit.scale).toBe(5);
+    expect(duringExit.opacity).toBeGreaterThan(0);
+    expect(duringExit.opacity).toBeLessThan(1);
+  });
+
+  it('enter closure pre-enter still uses absentDefault (not next-scene data)', () => {
+    // Verifies that the ENTER path does NOT leak next-scene data into the
+    // pre-enter region. The pre-enter region uses absentDefault (widget.defaultState).
+    const enterWidgetId = 'enterLeakWidget';
+    type LeakState = { value: number; sceneData: string };
+
+    const leakSpec: FunctionalTransitionSpec<LeakState> = {
+      exitFn: (from) => (ctx) => ({ ...from, value: from.value * (1 - ctx.t) }),
+      enterFn: (to) => (ctx) => ({ ...to, value: to.value * ctx.t }),
+      interpolateFn: (from, to) => (ctx) => ({
+        value: from.value + (to.value - from.value) * ctx.t,
+        sceneData: ctx.t < 0.5 ? from.sceneData : to.sceneData,
+      }),
+    };
+
+    const widget: ISceneElement<LeakState> = {
+      widgetId: enterWidgetId,
+      defaultState: { value: 0, sceneData: 'default' },
+      transitionSpec: leakSpec,
+      DslComponent: (() => null) as any,
+    };
+
+    const registry = new WidgetRegistry().register(widget);
+    const scenes: SceneDefinition[] = [
+      makeScene('s1', undefined),
+      {
+        id: 's2',
+        getFrame: (): SceneFrame => ({
+          id: 's2',
+          scrollProgress: 0,
+          widgets: { [enterWidgetId]: { value: 100, sceneData: 'scene2-content' } },
+          transitionWindow: { enter: [0.5, 1] },
+        }),
+      },
+    ];
+    const track = compileTrack(scenes, registry);
+    const fn = track.transitionBlocks?.[0]?.widgetFns[enterWidgetId];
+    expect(fn?.kind).toBe('enter');
+
+    // Pre-enter region must NOT contain next-scene data
+    const preEnter = fn?.fn(0) as LeakState;
+    expect(preEnter.sceneData).toBe('default');  // absentDefault, not 'scene2-content'
+    expect(preEnter.value).toBe(0);
+
+    // At bp=0.49 still pre-enter
+    const justBefore = fn?.fn(0.49) as LeakState;
+    expect(justBefore.sceneData).toBe('default');
+
+    // At bp=1.0 the enter is complete — now we see scene2 data
+    const atEnd = fn?.fn(1.0) as LeakState;
+    expect(atEnd.sceneData).toBe('scene2-content');
+    expect(atEnd.value).toBe(100);
+  });
 });

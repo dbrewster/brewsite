@@ -8,19 +8,22 @@ import {
   ProgressManager,
   Scene,
 } from '@brewsite/core';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { OverlayHeadline } from '../../landing/components/OverlayHeadline';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
 import { isMobile } from '../../utils/viewport';
 
 const SCROLL = isMobile ? 1200 : 1600;
+const msg = getMessage('authoring');
+const section = getSection('authoring')!;
 
 /**
- * Act 3: The Code Reveal.
+ * Act 3a: The Code Reveal.
  *
  * Golden-amber lighting. The mood shifts to intimacy and discovery.
- * No diagram in this scene — the code block IS the visual.
- * The punchline: "That was JSX." Then the code appears.
- *
- * This is the magic-trick reveal. The audience just saw something
- * beautiful, and now they see how simple the source is.
+ * The code block IS the visual — showing how simple the JSX authoring is.
  */
 export const Scene03aTheCode = (): JSX.Element => (
   <Scene id="website-the-code">
@@ -41,12 +44,15 @@ export const Scene03aTheCode = (): JSX.Element => (
 
     {/* The code reveal — centered, the star of the scene */}
     <div key="code-overlay" className="scene-overlay">
-      <div className="scene-overlay__content">
-        <h2 className="scene-punchline scene-punchline--warm" style={{ marginBottom: 28 }}>
-          That was JSX.
-        </h2>
+      <OverlayColumn align="left" tone="warm">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <OverlayHeadline
+          headline={msg.headline}
+          support={msg.support}
+          tone="warm"
+        />
 
-        <div className="code-block code-block--warm" style={{ textAlign: 'left', pointerEvents: 'auto' }}>
+        <div className="code-block code-block--warm" style={{ textAlign: 'left', pointerEvents: 'auto', marginTop: 24 }}>
           <div className="code-block__header">
             <span className="code-block__dot code-block__dot--red" />
             <span className="code-block__dot code-block__dot--yellow" />
@@ -63,7 +69,7 @@ export const Scene03aTheCode = (): JSX.Element => (
             {'  '}<span className="tok-jsx">{'<'}</span>
             <span className="tok-keyword">Camera</span>
             <span className="tok-prop"> position</span>={'{'}<span className="tok-string">[4, 8, 16]</span>{'}'}{' '}
-            <span className="tok-prop">fov</span>={'{'}<span className="tok-string">48</span>{'}'}{' '}
+            <span className="tok-prop">fov</span>={'{'}<span className="tok-string">"48deg"</span>{'}'}{' '}
             <span className="tok-jsx">{'/>'}</span>
             {'\n'}
             {'  '}<span className="tok-jsx">{'<'}</span>
@@ -97,25 +103,22 @@ export const Scene03aTheCode = (): JSX.Element => (
             {'\n'}
             {'  '}<span className="tok-jsx">{'<'}</span>
             <span className="tok-keyword">Diagram</span>
-            <span className="tok-prop"> tilt</span>={'{'}<span className="tok-string">-0.35</span>{'}'}{' '}
+            <span className="tok-prop"> tilt</span>={'{'}<span className="tok-string">"-20deg"</span>{'}'}{' '}
             <span className="tok-jsx">{'>'}</span>
             {'\n'}
             {'    '}<span className="tok-jsx">{'<'}</span>
             <span className="tok-keyword">DiagramNode</span>
-            <span className="tok-prop"> label</span>=<span className="tok-string">"Frontend"</span>
-            <span className="tok-prop"> position</span>={'{'}<span className="tok-string">[.15,.4,3]</span>{'}'}{' '}
+            <span className="tok-prop"> label</span>=<span className="tok-string">"Frontend"</span>{' '}
             <span className="tok-jsx">{'/>'}</span>
             {'\n'}
             {'    '}<span className="tok-jsx">{'<'}</span>
             <span className="tok-keyword">DiagramNode</span>
-            <span className="tok-prop"> label</span>=<span className="tok-string">"API"</span>
-            <span className="tok-prop"> position</span>={'{'}<span className="tok-string">[.42,.3,0]</span>{'}'}{' '}
+            <span className="tok-prop"> label</span>=<span className="tok-string">"API"</span>{' '}
             <span className="tok-jsx">{'/>'}</span>
             {'\n'}
             {'    '}<span className="tok-jsx">{'<'}</span>
             <span className="tok-keyword">DiagramNode</span>
-            <span className="tok-prop"> label</span>=<span className="tok-string">"Database"</span>
-            <span className="tok-prop"> position</span>={'{'}<span className="tok-string">[.72,.6,-3]</span>{'}'}{' '}
+            <span className="tok-prop"> label</span>=<span className="tok-string">"Database"</span>{' '}
             <span className="tok-jsx">{'/>'}</span>
             {'\n'}
             {'    '}<span className="tok-jsx">{'<'}</span>
@@ -133,7 +136,7 @@ export const Scene03aTheCode = (): JSX.Element => (
             <span className="tok-jsx">{'>'}</span>
           </div>
         </div>
-      </div>
+      </OverlayColumn>
     </div>
   </Scene>
 );

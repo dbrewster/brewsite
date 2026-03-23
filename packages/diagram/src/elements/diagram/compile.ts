@@ -16,10 +16,14 @@ import { blendOpacity, blendVec3, lerp, validateNVSRect, validateNVSPosition, re
 import { defaultDiagramTheme } from './themes/enterprise';
 import { resolveDiagramTheme } from './themeRegistry';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
-import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
+import { routeEdges } from './compiler/routing/edgeRouter';
+import type { EdgeRoutingInput } from './compiler/routing/edgeRouter';
+import type { NodeRect, FlowConfig, SideId } from './compiler/routing/routingTypes';
 import { compileNode, compileEdge } from './compiler/nodeCompiler';
 import { buildNodeDefaults, buildEdgeDefaults, buildGroupDefaults } from './compiler/defaultsCompiler';
-import { optimizeSharedFlowTrunks } from './compiler/edgeRenderOptimizer';
+import { optimizeSharedFlowTrunks } from './compiler/routing/trunkOptimizer';
+import { snapEndpointsToShape } from './compiler/routing/shapeSnap';
+import type { ShapeInfo } from './compiler/routing/shapeSnap';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import { normalizeToViewport } from './compiler/normalizeToViewport';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
@@ -31,7 +35,6 @@ import {
   rerouteLiveEdges,
   blendDiagramEdges,
 } from './compiler/transitionHelpers';
-import { snapEdgePathToShapeBoundaries } from './compiler/shapeEndpointSnap';
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.
@@ -258,50 +261,71 @@ export function compileDiagram(
 
   // Route edges with normalized positions (routing math is scale-invariant)
   const ed = buildEdgeDefaults(theme);
-  const edgesForRouting = dsl.edges.map((edge) => ({
-    ...edge,
-    thickness: edge.thickness !== undefined ? resolveToNVS(edge.thickness) : ed.thickness,
-    flowTurnRadius: edge.flowTurnRadius !== undefined ? resolveToNVS(edge.flowTurnRadius) : undefined,
-    flowFaceStub: edge.flowFaceStub !== undefined ? resolveToNVS(edge.flowFaceStub) : undefined,
-  }));
-  const normalizedEdgeRoutes = routeEdgesYDown(
+
+  // Build NodeRect maps from normalized positions/sizes for the new 2D router.
+  const nodeRects = new Map<string, NodeRect>();
+  for (const [id, pos] of normalizedPositions) {
+    const size = normalizedSizeWithDepthMap.get(id);
+    if (!size) continue;
+    nodeRects.set(id, {
+      id, cx: pos[0], cy: pos[1], hw: size[0] / 2, hh: size[1] / 2,
+      z: pos[2], depth: size[2],
+    });
+  }
+
+  // Build node shape info map for shape-aware edge endpoint snapping.
+  const nodeShapeInfoMap = new Map(
+    nodes.map((node) => [node.id, {
+      cx: node.position[0],
+      cy: node.position[1],
+      size: node.size,
+      shape: node.shape,
+    }] as const),
+  );
+
+  // Map routing profile names from old format to new.
+  const profileMap: Record<string, 'flow' | 'curved' | 'straight' | 'organic'> = {
+    flow: 'flow',
+    curved: 'curved',
+    straight: 'straight',
+    organic: 'organic',
+  };
+
+  const edgesForRouting: EdgeRoutingInput[] = dsl.edges.map((edge, index) => {
+    const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
+    const routing = edge.routing ?? theme.edge.routing;
+    return {
+      id,
+      fromId: edge.from,
+      toId: edge.to,
+      profile: profileMap[routing] ?? 'curved',
+      fromPort: edge.fromPort as SideId | undefined,
+      toPort: edge.toPort as SideId | undefined,
+      thickness: edge.thickness !== undefined ? resolveToNVS(edge.thickness) : ed.thickness,
+    };
+  });
+
+  const flowConfig: FlowConfig = {
+    turnRadius: resolveToNVS(theme.edge.flowTurnRadius),
+    faceStub: resolveToNVS(theme.edge.flowFaceStub),
+    obstaclePadding: resolveToNVS(theme.edge.flowObstaclePadding),
+    turnPenalty: theme.edge.flowTurnPenalty,
+    punchthroughPenalty: theme.edge.flowPunchthroughPenalty,
+    bundleStrength: theme.edge.flowBundleStrength,
+    organicVariation: theme.edge.organicVariation,
+  };
+
+  const normalizedEdgeRoutes = routeEdges(
     edgesForRouting,
-    normalizedPositions,
-    normalizedSizeWithDepthMap,
-    theme.edge.routing,
-    theme.edge.landing,
-    onWarn,
-    theme.edge.organicVariation,
-    {
-      flowTurnRadius: resolveToNVS(theme.edge.flowTurnRadius),
-      flowFaceStub: resolveToNVS(theme.edge.flowFaceStub),
-      flowBundleStrength: theme.edge.flowBundleStrength,
-      flowObstaclePadding: resolveToNVS(theme.edge.flowObstaclePadding),
-      flowTargetApproachBias: theme.edge.flowTargetApproachBias,
-      flowUnderpassDepth: resolveToNVS(theme.edge.flowUnderpassDepth),
-      flowUnderpassClearance: resolveToNVS(theme.edge.flowUnderpassClearance),
-      flowTurnPenalty: theme.edge.flowTurnPenalty,
-      flowPunchthroughPenalty: theme.edge.flowPunchthroughPenalty,
-      flowUnderpassPenalty: theme.edge.flowUnderpassPenalty,
-    },
+    nodeRects,
     new Set(normalizedGroups.keys()),
     new Set(
       dsl.groups
         .filter((group) => (group.variant ?? groupDefaults.variant) !== 'container')
         .map((group) => group.id),
     ),
-  );
-
-  // Build node shape info map for shape-aware edge endpoint snapping.
-  // Edge routing uses rectangular bounding boxes for all shapes; polygon
-  // shapes (hexagon, octagon, circle, etc.) need their endpoints projected
-  // onto the actual shape surface so edges visually connect to the geometry.
-  const nodeShapeInfoMap = new Map(
-    nodes.map((node) => [node.id, {
-      position: node.position,
-      size: node.size,
-      shape: node.shape,
-    }] as const),
+    flowConfig,
+    onWarn,
   );
 
   const rawEdges = dsl.edges.map((edge, index) => {
@@ -311,15 +335,16 @@ export function compileDiagram(
       commands: [],
       startTangent: [0, 0, 0] as const,
       endTangent: [0, 0, 0] as const,
-      usedUnderpass: false,
       punctures: [],
     };
     // Snap edge endpoints to the actual polygon/circle surface.
-    const snappedPath = snapEdgePathToShapeBoundaries(
-      routePath,
-      nodeShapeInfoMap.get(edge.from),
-      nodeShapeInfoMap.get(edge.to),
+    // Done AFTER routing (which returns Y-down NVS) so shape coordinates match.
+    const snappedCommands = snapEndpointsToShape(
+      routePath.commands,
+      nodeShapeInfoMap.get(edge.from) as ShapeInfo | undefined,
+      nodeShapeInfoMap.get(edge.to) as ShapeInfo | undefined,
     );
+    const snappedPath = { ...routePath, commands: snappedCommands };
     const compiled = compileEdge(
       edge,
       snappedPath,
@@ -396,6 +421,7 @@ export function compileDiagram(
     exit: compileExitConfig(dsl.exit),
     enter: compileEnterConfig(dsl.enter),
     themeConfig: buildThemeRenderConfig(theme),
+    enabled: true,
   };
 }
 

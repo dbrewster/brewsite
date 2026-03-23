@@ -12,7 +12,7 @@ const linePath = {
   commands: [{ kind: 'line' as const, from: [0, 0, 0] as const, to: [1, 0, 0] as const }],
   startTangent: [1, 0, 0] as const,
   endTangent: [-1, 0, 0] as const,
-  usedUnderpass: false,
+
   punctures: [],
 };
 
@@ -257,7 +257,7 @@ describe('blendDiagramEdges', () => {
         commands: [{ kind: 'line' as const, from: [1, 1, 1] as const, to: [2, 2, 2] as const }],
         startTangent: [1, 0, 0] as const,
         endTangent: [-1, 0, 0] as const,
-        usedUnderpass: false,
+      
         punctures: [],
       },
       controlPoints: [[1, 1, 1], [2, 2, 2]] as const,

@@ -7,6 +7,9 @@ last_updated: 2026-03-21
 change_history:
   - date: 2026-03-21
     author: "Toolkit Product"
+    summary: "2D edge routing rewrite: removed three underpass-related fields from DiagramThemeEdgeConfig — flowUnderpassDepth, flowUnderpassClearance, flowUnderpassPenalty. These fields are eliminated because the routing pipeline now operates in 2D (no Z-axis path deviation). All 12 theme preset files updated. Custom themes using these fields must remove them. Semver impact: major."
+  - date: 2026-03-21
+    author: "Toolkit Product"
     summary: "Scene unit system: all dimensional theme default values now use SceneLength/SceneSize2 unit strings. defaultSize is SceneSize2 (e.g. ['15%', '8%']). Layout defaults (spacing, groupPadding, titleGap, margin, gap) use SceneLength/SceneSize2. Node defaults (thickness, cornerRadius, borderWidth, borderHeight, iconDepth) use SceneLength. Edge defaults (thickness) uses SceneLength. Updated NVS layout values table with unit strings. Semver major breaking change. Migration guide: packages/claude-author/docs/migration/unit-system.md."
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -343,16 +346,10 @@ export interface DiagramThemeEdgeConfig {
   readonly flowObstaclePadding: number;
   /** Bias toward direct target ingress after splitting from a flow trunk. */
   readonly flowTargetApproachBias: number;
-  /** Default depth below the authored diagram plane for underpass routing. */
-  readonly flowUnderpassDepth: number;
-  /** Default vertical clearance used when entering and leaving an underpass. */
-  readonly flowUnderpassClearance: number;
   /** Cost penalty multiplier for turns in the flow visibility search. */
   readonly flowTurnPenalty: number;
   /** Cost penalty applied when the flow router must puncture an obstacle. */
   readonly flowPunchthroughPenalty: number;
-  /** Cost penalty applied when the flow router uses a Z underpass. */
-  readonly flowUnderpassPenalty: number;
 }
 
 export interface DiagramThemeGroupConfig {
@@ -728,7 +725,7 @@ const myTheme = {
 **Post-2026-03-08 additions (additional required and optional fields):**
 - New required field on `DiagramThemeNodeConfig`: `defaultLabelPadding` — any custom theme constructed from scratch (not spread from a preset) must add this field.
 - New optional fields on `DiagramThemeNodeConfig`: `nodeEnvMapIntensity`, `defaultBoxColor` — spread-based themes inherit defaults; no migration required.
-- New required fields on `DiagramThemeEdgeConfig`: `flowTurnRadius`, `flowFaceStub`, `flowBundleStrength`, `flowObstaclePadding`, `flowTargetApproachBias`, `flowUnderpassDepth`, `flowUnderpassClearance`, `flowTurnPenalty`, `flowPunchthroughPenalty`, `flowUnderpassPenalty` — custom themes constructed from scratch must add these fields.
+- New required fields on `DiagramThemeEdgeConfig`: `flowTurnRadius`, `flowFaceStub`, `flowBundleStrength`, `flowObstaclePadding`, `flowTargetApproachBias`, `flowTurnPenalty`, `flowPunchthroughPenalty` — custom themes constructed from scratch must add these fields. (Note: `flowUnderpassDepth`, `flowUnderpassClearance`, and `flowUnderpassPenalty` were formerly required but have been removed in the 2D routing rewrite — custom themes must delete these fields.)
 - New optional field on `DiagramTheme`: `sdfGlyphSize` — no migration required.
 - New fields on `DiagramThemeRenderConfig`: `nodeEnvMapIntensity`, `nodeSdfGlyphSize`, `nodeLabelPadding` — consumers constructing `DiagramThemeRenderConfig` directly (which is not a supported pattern) must add these; use `buildThemeRenderConfig(theme)` instead.
 

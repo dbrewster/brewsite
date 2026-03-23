@@ -179,6 +179,7 @@ export class DiagramWidget
   readonly widgetId: string;
   readonly defaultState: DiagramState;
   readonly transitionSpec = functionalDiagramTransitionSpec;
+  readonly disableWhenAbsent = true;
   readonly DslComponent = Diagram;
   readonly childDslComponents: IDslComposite['childDslComponents'] = [
     { component: DiagramNode as React.ComponentType<unknown>, displayName: 'DiagramNode', topLevelError: true },
@@ -294,6 +295,17 @@ export class DiagramWidget
 
   apply(state: DiagramState, context: WidgetRenderContext): void {
     if (!this.scene || !this.diagramGroup) return;
+
+    // When the widget is absent from the current scene, the compiler provides
+    // a disabled clone of defaultState (enabled=false) via disableWhenAbsent.
+    // Hide the diagram group entirely and bail — the renderer must not process
+    // stale geometry from the defaultState's pre-normalized dimensions.
+    if (state.enabled === false) {
+      this.diagramGroup.visible = false;
+      return;
+    }
+    this.diagramGroup.visible = true;
+
     this.lastState = state;
 
     if (process.env.NODE_ENV !== 'production') {

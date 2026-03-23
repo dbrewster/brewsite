@@ -17,17 +17,25 @@ import {
   DiagramGroup,
   DiagramNode,
 } from '@brewsite/diagram';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { OverlayHeadline } from '../../landing/components/OverlayHeadline';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
+import { TrustStrip } from '../../landing/components/TrustStrip';
 import { isMobile } from '../../utils/viewport';
 
 const SCROLL = isMobile ? 900 : 1200;
 const MIRROR_RES = isMobile ? 512 : 1024;
+const teamMsg = getMessage('team');
+const trustMsg = getMessage('trust');
+const section = getSection('trust')!;
 
 /**
  * Act 4: The Ecosystem — Aurora.
  *
- * Full aurora palette: violet + green + gold. The world is fully alive.
- * Package constellation with core at center. The node labels ARE the text —
- * no overlay copy needed. The visual communicates completeness and life.
+ * Full aurora palette: violet + green + gold. Package constellation
+ * with core at center. Overlay adds team and trust meaning.
  */
 export const Scene04Ecosystem = (): JSX.Element => (
   <Scene id="website-ecosystem">
@@ -109,19 +117,22 @@ export const Scene04Ecosystem = (): JSX.Element => (
       </Diagram>
     </View>
 
-    {/* No wall of text. Just the essential facts. */}
+    {/* Team + trust overlay */}
     <div key="eco-overlay" className="scene-overlay scene-overlay--bottom">
-      <div className="scene-overlay__content">
-        <div className="meta-strip meta-strip--warm">
-          <span>MIT Licensed</span>
-          <span className="meta-strip__dot">·</span>
-          <span>TypeScript</span>
-          <span className="meta-strip__dot">·</span>
-          <span>React 18+</span>
-          <span className="meta-strip__dot">·</span>
-          <span>v0.7.3</span>
-        </div>
-      </div>
+      <OverlayColumn vertical="bottom" tone="warm">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <OverlayHeadline
+          headline={teamMsg.headline}
+          support={teamMsg.support}
+          tone="warm"
+        />
+        <OverlayHeadline
+          headline={trustMsg.headline}
+          support={trustMsg.support}
+          tone="warm"
+        />
+        <TrustStrip items={['MIT Licensed', 'TypeScript', 'React 19+', 'Published Packages', 'Starter CLI']} />
+      </OverlayColumn>
     </div>
   </Scene>
 );

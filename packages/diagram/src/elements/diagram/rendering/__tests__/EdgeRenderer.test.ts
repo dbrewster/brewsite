@@ -12,7 +12,6 @@ const makeEdge = (overrides: Partial<{
     >;
     startTangent: readonly [number, number, number];
     endTangent: readonly [number, number, number];
-    usedUnderpass: boolean;
     punctures: ReadonlyArray<{ obstacleId: string; obstacleKind: 'node' | 'group' }>;
   };
   controlPoints: ReadonlyArray<readonly [number, number, number]>;
@@ -145,7 +144,7 @@ describe('EdgeRenderer', () => {
         ],
         startTangent: [1, 0, 0],
         endTangent: [-1, 0, 0],
-        usedUnderpass: false,
+
         punctures: [],
       },
       controlPoints: [[0, 0, 0], [1, 0, 0], [1.4, 0, 0], [1.6, 1, 0], [2, 1, 0]],

@@ -18,19 +18,23 @@ import {
   DiagramNode,
   FlowLayout,
 } from '@brewsite/diagram';
+import { getMessage } from '../../content/messaging';
+import { getSection } from '../../content/siteMap';
+import { OverlayColumn } from '../../landing/components/OverlayColumn';
+import { OverlayHeadline } from '../../landing/components/OverlayHeadline';
+import { SectionLabelRow } from '../../landing/components/SectionLabelRow';
 import { isMobile } from '../../utils/viewport';
 
 const SCROLL = isMobile ? 1200 : 1600;
 const MIRROR_RES = isMobile ? 512 : 1024;
+const msg = getMessage('scope');
+const section = getSection('surfaces')!;
 
 /**
  * Act 2a: The Dimensional Shift.
  *
  * THE emotional peak. Same nodes from Scene 1, now exploded into Z-space
  * with violet/pink lighting, floor mirror, dramatic camera.
- * The color temperature shifts from grey to violet — the world comes alive.
- *
- * Text appears only AFTER the transformation lands: "Same data. New dimension."
  */
 export const Scene02aDimensionalShift = (): JSX.Element => (
   <Scene id="website-dimensional-shift">
@@ -104,9 +108,13 @@ export const Scene02aDimensionalShift = (): JSX.Element => (
 
     {/* The punchline — appears after the visual lands */}
     <div key="dim-overlay" className="scene-overlay scene-overlay--bottom">
-      <div className="scene-overlay__content">
-        <h2 className="scene-punchline">Same data. New dimension.</h2>
-      </div>
+      <OverlayColumn vertical="bottom">
+        <SectionLabelRow number={section.navNumber} label={section.navLabel} />
+        <OverlayHeadline
+          headline={msg.headline}
+          support={msg.support}
+        />
+      </OverlayColumn>
     </div>
   </Scene>
 );

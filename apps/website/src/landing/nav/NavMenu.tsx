@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { JSX } from 'react';
 import { useCurrentScene, useGoToScene } from '@brewsite/core';
-import { websiteNavTargets } from '../../scenes/websiteFlow';
+import { WEBSITE_SECTIONS } from '../../content/siteMap';
 import '../hero/hero.css';
 
 export function NavMenu(): JSX.Element {
@@ -54,15 +54,15 @@ export function NavMenu(): JSX.Element {
             ×
           </button>
 
-          {websiteNavTargets.map(({ num, label, sceneId }) => (
+          {WEBSITE_SECTIONS.map(({ navNumber, navLabel, sceneId }) => (
             <button
               key={sceneId}
               className="nav-link"
               onClick={() => handleNavClick(sceneId)}
               aria-current={sceneId === currentSceneId ? 'page' : undefined}
             >
-              <span className="nav-link__num">{num}</span>
-              {label}
+              <span className="nav-link__num">{navNumber}</span>
+              {navLabel}
             </button>
           ))}
         </nav>

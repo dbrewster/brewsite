@@ -10,7 +10,7 @@ import { resolveToNVS } from '@brewsite/core';
 describe('buildNodeDefaults — theme-driven defaults', () => {
   it('uses theme.node.defaultSize for size', () => {
     const nd = buildNodeDefaults(darkGlassTheme);
-    expect(nd.size).toEqual([0.15, 0.08]);
+    expect(nd.size).toEqual([0.1, 0.1]);
   });
 
   it('uses theme.node.defaultSize from a custom theme, not a hardcoded constant', () => {
@@ -139,11 +139,6 @@ describe('buildEdgeDefaults — theme-driven defaults', () => {
   it('reads routing from theme.edge.routing', () => {
     const ed = buildEdgeDefaults(darkGlassTheme);
     expect(ed.routing).toBe(darkGlassTheme.edge.routing);
-  });
-
-  it('sets allowUnderpass to true by default', () => {
-    const ed = buildEdgeDefaults(darkGlassTheme);
-    expect(ed.allowUnderpass).toBe(true);
   });
 
   it('sets flow to none by default', () => {

@@ -1,14 +1,17 @@
-import type {JSX} from 'react';
-import {Ambient, Background, Camera, Directional, Floor, FloorMirror, Lighting, ProgressManager, Scene} from '@brewsite/core';
-import {NeonSign} from '../../widgets/neon-sign';
-import {HeroBezel} from '../../landing/hero/HeroBezel';
-import {ScrollIndicator} from '../../landing/hero/ScrollIndicator';
-import {isMobile} from '../../utils/viewport';
-import {dwellFn} from '../../utils/pacing';
+import type { JSX } from 'react';
+import { Ambient, Background, Camera, Directional, Floor, FloorMirror, Lighting, ProgressManager, Scene } from '@brewsite/core';
+import { NeonSign } from '../../widgets/neon-sign';
+import { getMessage } from '../../content/messaging';
+import { HeroBezel } from '../../landing/hero/HeroBezel';
+import { ScrollIndicator } from '../../landing/hero/ScrollIndicator';
+import { ProofRail } from '../../landing/components/ProofRail';
+import { isMobile } from '../../utils/viewport';
+import { dwellFn } from '../../utils/pacing';
 
 const MIRROR_RES = isMobile ? 512 : 1024;
+const msg = getMessage('hero');
 
-export const Scene00Hero = () => (
+export const Scene00Hero = (): JSX.Element => (
   <Scene id="website-hero-00">
     <ProgressManager
       scrollUnits={3600}
@@ -40,7 +43,7 @@ export const Scene00Hero = () => (
       enabled
       text="BrewSite"
       fontUrl="/fonts/DancingScript-Bold.woff"
-      x={0.1} y={0.1} w={0.8} h={0.35}
+      x={"10%"} y={"10%"} w={"80%"} h={"35%"}
       z={-2}
       tilt={0}
       color="#00f5ff"
@@ -55,28 +58,21 @@ export const Scene00Hero = () => (
       <section className="hero-section">
         <HeroBezel />
 
-        {/* Beat 2: Positioning statement */}
+        {/* Category-first hero copy */}
         <div className="hero-statement">
-          <span className="hero-statement__eyebrow">The React toolkit for</span>
-          <h1 className="hero-statement__headline">3D storytelling.</h1>
-          <span className="hero-statement__tagline">Scenes as React. Rendered like film.</span>
+          <span className="hero-statement__eyebrow">{msg.eyebrow}</span>
+          <h1 className="hero-statement__headline">{msg.headline}</h1>
+          <span className="hero-statement__tagline">{msg.support}</span>
         </div>
 
-        {/* Beat 3: Package badges */}
-        <div className="hero-content hero-content--below-sign">
-          <div className="hero-packages">
-            <span className="hero-package-badge">@brewsite/core</span>
-            <span className="hero-package-badge">@brewsite/diagram</span>
-            <span className="hero-package-badge">@brewsite/model</span>
-            <span className="hero-package-badge">@brewsite/charts</span>
-            <span className="hero-package-badge">@brewsite/slides</span>
-            <span className="hero-package-badge">@brewsite/screens</span>
-            <span className="hero-package-badge">@brewsite/textures</span>
-            <span className="hero-package-badge">@brewsite/themes</span>
+        {/* Proof rail beneath support line */}
+        {msg.proofRail && (
+          <div className="hero-content hero-content--below-sign">
+            <ProofRail items={msg.proofRail} />
           </div>
-        </div>
+        )}
 
-        {/* Beat 4: Scroll indicator */}
+        {/* Scroll indicator */}
         <ScrollIndicator />
       </section>
     </div>

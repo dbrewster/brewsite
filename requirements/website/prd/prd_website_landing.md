@@ -1,9 +1,9 @@
 ---
 title: "BrewSite Marketing Website — Landing Page Redesign"
 doc_type: prd
-status: draft
+status: approved
 owner: Toolkit Product
-last_updated: 2026-03-21
+last_updated: 2026-03-22
 change_history:
   - date: 2026-03-21
     author: "Toolkit PM"
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-03-21
     author: "Toolkit PM"
     summary: "Complete rewrite of creative direction. Replaced cerebral feature-marketing with visceral experience-first approach. New color temperature arc (cold→violet→pink→amber→aurora→warm). Reduced overlay text to 3-7 words per scene. Removed eyebrow labels, body paragraphs, and explanatory copy. Informed by Awwwards SOTY research, Stripe gradient study, Apple product page analysis, and color psychology findings."
+  - date: 2026-03-22
+    author: "Toolkit PM"
+    summary: "Marked approved after full implementation delivery. All 8 scenes implemented across 6 acts. 4 website-local widgets shipped (SignalField, ShaderSurface, PostFX, NeonSign migrated to unit system). Overlay component system, telemetry, reduced-motion gating, error handling, and performance tiering all delivered. 139 tests passing across 11 test files, 14/14 packages typecheck clean. No published package changes. Implementation plan archived."
 ---
 
 # BrewSite Marketing Website — Landing Page Redesign
