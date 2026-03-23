@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 import type { SceneDefinition } from '../sceneTypes';
-import type { SceneFrame } from '../sceneTrackTypes';
+import { ABSENT_STATE, type SceneFrame } from '../sceneTrackTypes';
 import type { ISceneElement } from '../../widget/types';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 
@@ -740,5 +740,94 @@ describe('functional transitions', () => {
     const atEnd = fn?.fn(1.0) as LeakState;
     expect(atEnd.sceneData).toBe('scene2-content');
     expect(atEnd.value).toBe(100);
+  });
+
+  // ── ABSENT_STATE compiler tagging ─────────────────────────────────────────
+
+  it('disableWhenAbsent: absent-from-both pre-baked frames have ABSENT_STATE tag', () => {
+    // When a widget with disableWhenAbsent=true is absent from both scenes in a
+    // transition block, the pre-baked frames should have the ABSENT_STATE symbol
+    // so the runtime can skip apply() and hide the root object.
+    const absentWidgetId = 'absent-tagged';
+    const widget: ISceneElement<TestState> = {
+      widgetId: absentWidgetId,
+      defaultState: { value: 0, active: false },
+      transitionSpec: testFunctionalSpec,
+      DslComponent: (() => null) as any,
+      disableWhenAbsent: true,
+    };
+
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', undefined), // widget absent
+      makeScene('s2', undefined), // widget absent
+    ];
+    const track = compileTrack(scenes, registry);
+
+    // Pre-baked frame state for the absent widget should have the ABSENT_STATE tag.
+    const frameState = track.ticks[0]?.state.widgets[absentWidgetId];
+    expect(frameState).toBeDefined();
+    expect((frameState as any)[ABSENT_STATE]).toBe(true);
+  });
+
+  it('disableWhenAbsent: exit closure post-exit returns ABSENT_STATE-tagged state', () => {
+    // After the exit animation completes (bp >= effectiveExitEnd), the closure
+    // returns absentDefault which should be tagged with ABSENT_STATE.
+    const exitWidgetId = 'exit-tagged';
+    const widget: ISceneElement<TestState> = {
+      widgetId: exitWidgetId,
+      defaultState: { value: 0, active: false },
+      transitionSpec: testFunctionalSpec,
+      DslComponent: (() => null) as any,
+      disableWhenAbsent: true,
+    };
+
+    const registry = new WidgetRegistry().register(widget);
+    const scenes: SceneDefinition[] = [
+      {
+        id: 's1',
+        getFrame: (): SceneFrame => ({
+          id: 's1',
+          scrollProgress: 0,
+          widgets: { [exitWidgetId]: { value: 10, active: true } },
+          transitionWindow: { exit: [0, 0.5] },
+        }),
+      },
+      makeScene('s2', undefined),
+    ];
+    const track = compileTrack(scenes, registry);
+    const fn = track.transitionBlocks?.[0]?.widgetFns[exitWidgetId];
+    expect(fn?.kind).toBe('exit');
+
+    // Post-exit (bp >= 0.5) should return ABSENT_STATE-tagged state
+    const postExit = fn?.fn(0.5);
+    expect((postExit as any)[ABSENT_STATE]).toBe(true);
+
+    // During exit (bp < 0.5) should NOT be tagged
+    const duringExit = fn?.fn(0.25);
+    expect((duringExit as any)?.[ABSENT_STATE]).toBeUndefined();
+  });
+
+  it('disableWhenAbsent=false: absent state does NOT have ABSENT_STATE tag', () => {
+    // Widgets without disableWhenAbsent use raw defaultState, not makeDisabledDefault.
+    const normalWidgetId = 'no-disable';
+    const widget: ISceneElement<TestState> = {
+      widgetId: normalWidgetId,
+      defaultState: { value: 0, active: false },
+      transitionSpec: testFunctionalSpec,
+      DslComponent: (() => null) as any,
+      // disableWhenAbsent NOT set
+    };
+
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', undefined),
+      makeScene('s2', undefined),
+    ];
+    const track = compileTrack(scenes, registry);
+
+    const frameState = track.ticks[0]?.state.widgets[normalWidgetId];
+    expect(frameState).toBeDefined();
+    expect((frameState as any)[ABSENT_STATE]).toBeUndefined();
   });
 });

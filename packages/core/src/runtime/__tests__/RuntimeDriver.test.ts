@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { RuntimeDriverImpl } from '../RuntimeDriver';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { VariableStore } from '../../widget/VariableStore';
-import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
+import { ABSENT_STATE, type SceneTrack, type SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 import type { IAnimationController, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IContainedRenderable, IRenderContributor, RenderContribution } from '../../widget/types';
 
@@ -727,5 +727,253 @@ describe('RuntimeDriverImpl', () => {
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 1 });
 
     expect(effectiveDelta).toBeCloseTo(0.05, 6);
+  });
+
+  // ─── ABSENT_STATE runtime-managed visibility tests ───────────────────────
+
+  it('ABSENT_STATE: skips apply() and hides rootObject when state has ABSENT_STATE marker', () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    let applyCalled = false;
+
+    class AbsentWidget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'absent';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      readonly rootObject = new THREE.Group();
+      initialize(): void {}
+      apply(): void { applyCalled = true; }
+      dispose(): void {}
+    }
+
+    const widget = new AbsentWidget();
+    registry.register(widget);
+
+    // Build state with ABSENT_STATE marker
+    const absentState = { value: 0, [ABSENT_STATE]: true };
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0, widgets: { absent: absentState } }),
+      ],
+      tickStep: 1,
+      subTickCount: 1,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    driver.initialize(scene);
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
+
+    expect(applyCalled).toBe(false);
+    expect(widget.rootObject.visible).toBe(false);
+  });
+
+  it('ABSENT_STATE: restores visibility when transitioning from absent to present state', () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    const appliedValues: number[] = [];
+
+    class Widget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'w';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      readonly rootObject = new THREE.Group();
+      initialize(): void {}
+      apply(state: { value: number }): void { appliedValues.push(state.value); }
+      dispose(): void {}
+    }
+
+    const widget = new Widget();
+    registry.register(widget);
+
+    const absentState = { value: 0, [ABSENT_STATE]: true };
+    const presentState = { value: 42 };
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0, widgets: { w: absentState } }),
+        makeTick({ index: 1, progress: 1, sceneIndex: 0, blockProgress: 1, widgets: { w: presentState } }),
+      ],
+      tickStep: 1,
+      subTickCount: 2,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    driver.initialize(scene);
+
+    // First tick: absent state — rootObject hidden, apply() skipped
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
+    expect(appliedValues).toHaveLength(0);
+    expect(widget.rootObject.visible).toBe(false);
+
+    // Second tick: present state — rootObject restored, apply() called
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 1, deltaProgress: 0 });
+    expect(appliedValues).toHaveLength(1);
+    expect(appliedValues[0]).toBe(42);
+    expect(widget.rootObject.visible).toBe(true);
+  });
+
+  it('ABSENT_STATE: does not stomp visible when widget was not previously hidden by runtime', () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+
+    class Widget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'w';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      readonly rootObject = new THREE.Group();
+      initialize(): void {}
+      apply(): void {}
+      dispose(): void {}
+    }
+
+    const widget = new Widget();
+    registry.register(widget);
+
+    // rootObject starts hidden — simulating external logic (e.g. ViewWidget) hiding it
+    widget.rootObject.visible = false;
+
+    const presentState = { value: 5 };
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0, widgets: { w: presentState } }),
+      ],
+      tickStep: 1,
+      subTickCount: 1,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    driver.initialize(scene);
+
+    // Tick with a present (non-absent) state. The runtime should NOT change
+    // visible because it never hid this widget — the external code did.
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
+    expect(widget.rootObject.visible).toBe(false);
+  });
+
+  // ─── Scene-change patch clearing ─────────────────────────────────────────
+
+  it('clears widget state patches when the scene index changes', () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    let lastAppliedValue: number | null = null;
+
+    class Widget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'w';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { lastAppliedValue = state.value; }
+      dispose(): void {}
+    }
+
+    const widget = new Widget();
+    registry.register(widget);
+
+    // Two scenes, each with a different compiled value for widget 'w'.
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0, widgets: { w: { value: 10 } } }),
+        makeTick({ index: 1, progress: 0.5, sceneIndex: 0, blockProgress: 1, widgets: { w: { value: 10 } } }),
+        makeTick({ index: 2, progress: 1, sceneIndex: 1, blockProgress: 0, widgets: { w: { value: 20 } } }),
+      ],
+      tickStep: 0.5,
+      subTickCount: 3,
+      sceneWindows: [
+        { id: 'scene-0', index: 0, start: 0, end: 0.5 },
+        { id: 'scene-1', index: 1, start: 0.5, end: 1 },
+      ],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    driver.initialize(scene);
+
+    // Tick on scene 0 — compiled value=10
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
+    expect(lastAppliedValue).toBe(10);
+
+    // Apply a patch (simulating carousel rotation) — overrides to value=99
+    driver.setWidgetStatePatches({ w: { value: 99 } });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
+    expect(lastAppliedValue).toBe(99);
+
+    // Scroll to scene 1 (sceneIndex changes 0 → 1) — patches should be cleared.
+    // Widget receives the compiled value=20 from scene 1, not the stale patch=99.
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 1, deltaProgress: 0.5 });
+    expect(lastAppliedValue).toBe(20);
+  });
+
+  it('does NOT clear patches while staying on the same scene', () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    let lastAppliedValue: number | null = null;
+
+    class Widget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'w';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { lastAppliedValue = state.value; }
+      dispose(): void {}
+    }
+
+    const widget = new Widget();
+    registry.register(widget);
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0, widgets: { w: { value: 10 } } }),
+        makeTick({ index: 1, progress: 0.5, sceneIndex: 0, blockProgress: 0.5, widgets: { w: { value: 10 } } }),
+        makeTick({ index: 2, progress: 1, sceneIndex: 0, blockProgress: 1, widgets: { w: { value: 10 } } }),
+      ],
+      tickStep: 0.5,
+      subTickCount: 3,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    driver.initialize(scene);
+
+    // Patch value to 99
+    driver.setWidgetStatePatches({ w: { value: 99 } });
+
+    // Tick at different progress values within the same scene — patch should persist
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
+    expect(lastAppliedValue).toBe(99);
+
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0.5 });
+    expect(lastAppliedValue).toBe(99);
+
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 1, deltaProgress: 0.5 });
+    expect(lastAppliedValue).toBe(99);
   });
 });

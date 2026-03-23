@@ -23,6 +23,13 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
   readonly defaultState: ImagePanelState;
   readonly transitionSpec = functionalImagePanelTransitionSpec;
   readonly DslComponent = ImagePanel;
+  readonly disableWhenAbsent = true;
+
+  /** Root Three.js group — all WebGL panel content is parented under this. */
+  private readonly rootGroup = new THREE.Group();
+
+  /** Root Three.js object for runtime absent-widget visibility management. */
+  get rootObject(): THREE.Group { return this.rootGroup; }
 
   private renderer = new ImagePanelRenderer();
   private scene: THREE.Scene | null = null;
@@ -43,6 +50,7 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
 
   initialize({ scene }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
+    this.scene.add(this.rootGroup);
   }
 
   apply(state: ImagePanelState, context: WidgetRenderContext): void {
@@ -89,12 +97,13 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
       position: [worldX, worldY, worldZ],
       width: worldW,
       height: worldHeight,
-    }, this.scene);
+    }, this.rootGroup as unknown as THREE.Scene);
   }
 
   dispose(): void {
     if (!this.scene) return;
-    this.renderer.dispose(this.widgetId, this.scene);
+    this.renderer.dispose(this.widgetId, this.rootGroup as unknown as THREE.Scene);
+    this.scene.remove(this.rootGroup);
     this.scene = null;
     this.cachedWorldScale = null;
   }

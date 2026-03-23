@@ -141,7 +141,7 @@ export const LinearCarouselScene = (): JSX.Element => {
         </Action>
       </InputController>
 
-      <ViewLayout id={'linear-carousel-layout'} kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id={'linear-carousel-layout'} kind="carousel" focusedIndex={0} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
         <CarouselTray />
       </ViewLayout>

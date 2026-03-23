@@ -9,6 +9,7 @@ import type {
   ILoadable,
   IRenderable,
   ISceneElement,
+  IViewChild,
   AssetManifest,
   NVSRect,
   WidgetInitContext,
@@ -174,7 +175,7 @@ export function DiagramEnter(_props: DiagramEnterProps): null {
  * the main Three.js scene using a diagramGroup positioned via NVSCoordService.
  */
 export class DiagramWidget
-  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, ILoadable, INVSBounded, IDslComposite, ILightingOverride
+  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, ILoadable, INVSBounded, IDslComposite, ILightingOverride, IViewChild
 {
   readonly widgetId: string;
   readonly defaultState: DiagramState;
@@ -223,6 +224,10 @@ export class DiagramWidget
   private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private mouseLeaveHandler: (() => void) | null = null;
   private hovered: HoverTarget | null = null;
+  /** Position set by apply() last frame — compared against the group's actual
+   *  position at the start of the next apply() to detect external moves
+   *  (ViewWidget carousel repositioning) that invalidate hover highlights. */
+  private _lastAppliedPos: { x: number; y: number } | null = null;
 
   // Reuse raycaster / NDC vector across clicks to avoid per-click allocation.
   private readonly raycaster = new THREE.Raycaster();
@@ -297,15 +302,23 @@ export class DiagramWidget
   apply(state: DiagramState, context: WidgetRenderContext): void {
     if (!this.scene || !this.diagramGroup) return;
 
-    // When the widget is absent from the current scene, the compiler provides
-    // a disabled clone of defaultState (enabled=false) via disableWhenAbsent.
-    // Hide the diagram group entirely and bail — the renderer must not process
-    // stale geometry from the defaultState's pre-normalized dimensions.
-    if (state.enabled === false) {
-      this.diagramGroup.visible = false;
-      return;
+    // Detect external position changes (e.g., ViewWidget carousel repositioning).
+    // ViewWidget.apply() runs AFTER DiagramWidget.apply() and overwrites the group
+    // position. If the group's current position differs from what we set last frame,
+    // something moved the diagram — clear hover AND brute-force reset all emissive
+    // overrides on the renderer. The event-dispatch path (clearHover → onMouseLeave
+    // → user handler → setNodeEmissive) is fragile because user handlers may not
+    // undo the highlight. Resetting the overrides map directly is authoritative.
+    if (this._lastAppliedPos) {
+      const pos = this.diagramGroup.position;
+      if (
+        Math.abs(pos.x - this._lastAppliedPos.x) > 0.001 ||
+        Math.abs(pos.y - this._lastAppliedPos.y) > 0.001
+      ) {
+        this.clearHover();
+        this.renderer.clearNodeEmissiveOverrides(this.widgetId);
+      }
     }
-    this.diagramGroup.visible = true;
 
     this.lastState = state;
 
@@ -324,6 +337,7 @@ export class DiagramWidget
     // Internal Z layering (groups at local 0, nodes at local +NODE_RENDER_Z_OFFSET)
     // is handled by render.ts — the root group position stays at the NVS-composed Z.
     this.diagramGroup.position.set(worldCX, worldCY, worldCZ);
+    this._lastAppliedPos = { x: worldCX, y: worldCY };
     this.diagramGroup.rotation.set(
       state.tiltRotation[0] + this._tiltDelta.x,
       state.tiltRotation[1] + this._tiltDelta.y,
@@ -552,6 +566,16 @@ export class DiagramWidget
     if (!this.lastState || !this.hovered) return;
     this.dispatchHoverEvents(this.hovered, null);
     this.hovered = null;
+  }
+
+  /**
+   * IViewChild — called by ViewWidget when view opacity changes (carousel transitions).
+   * Clears any active hover highlight so it doesn't persist after the diagram
+   * moves to a new carousel position. The user's mouse is stationary during
+   * carousel animation, so no mousemove fires to naturally clear the highlight.
+   */
+  applyViewOpacity(_opacity: number): void {
+    this.clearHover();
   }
 
   private createHoverControls(defaultDiagramId: string): DiagramHoverControls {

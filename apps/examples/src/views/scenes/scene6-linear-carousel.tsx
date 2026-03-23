@@ -58,7 +58,7 @@ const dataEpsilon = [
   { quarter: 'Q4', value: 80 },
 ];
 
-/** Shared views for all linear carousel scenes — only activeIndex changes. */
+/** Shared views for all linear carousel scenes — only focusedIndex changes. */
 function LinearCarouselViews(): JSX.Element {
   return (
     <>
@@ -111,7 +111,7 @@ function LinearCarouselViews(): JSX.Element {
   );
 }
 
-/** Linear carousel — activeIndex 0 (first view centered, rest fan right). */
+/** Linear carousel — focusedIndex 0 (first view centered, rest fan right). */
 export const LinearCarouselScene1 = (): JSX.Element => {
   return (
     <Scene id="linear-carousel-1" primaryCarouselId="lin-carousel-1-layout">
@@ -121,14 +121,14 @@ export const LinearCarouselScene1 = (): JSX.Element => {
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <ViewLayout id="lin-carousel-1-layout" kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id="lin-carousel-1-layout" kind="carousel" focusedIndex={0} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
       </ViewLayout>
     </Scene>
   );
 };
 
-/** Linear carousel — activeIndex 1 (second view centered). */
+/** Linear carousel — focusedIndex 1 (second view centered). */
 export const LinearCarouselScene2 = (): JSX.Element => {
   return (
     <Scene id="linear-carousel-2" primaryCarouselId="lin-carousel-2-layout">
@@ -138,14 +138,14 @@ export const LinearCarouselScene2 = (): JSX.Element => {
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <ViewLayout id="lin-carousel-2-layout" kind="carousel" activeIndex={1} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id="lin-carousel-2-layout" kind="carousel" focusedIndex={1} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
       </ViewLayout>
     </Scene>
   );
 };
 
-/** Linear carousel — activeIndex 2 (middle view centered). */
+/** Linear carousel — focusedIndex 2 (middle view centered). */
 export const LinearCarouselScene3 = (): JSX.Element => {
   return (
     <Scene id="linear-carousel-3" primaryCarouselId="lin-carousel-3-layout">
@@ -155,7 +155,7 @@ export const LinearCarouselScene3 = (): JSX.Element => {
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <ViewLayout id="lin-carousel-3-layout" kind="carousel" activeIndex={2} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id="lin-carousel-3-layout" kind="carousel" focusedIndex={2} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
       </ViewLayout>
     </Scene>

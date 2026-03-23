@@ -132,6 +132,7 @@ export class ViewWidget implements IRenderable<ViewState> {
     this.currentWorldCenter = { x: newCx, y: newCy, z: state.z };
 
     // Apply with lerp animation to each child object.
+    let anyChildMoved = false;
     for (const childId of this.childWidgetIds) {
       const obj = this.resolveChildObject(childId);
       if (!obj) continue;
@@ -154,11 +155,18 @@ export class ViewWidget implements IRenderable<ViewState> {
         current = { x: targetX, y: targetY, z: targetZ, scaleRatio: targetScaleRatio };
         this.childCurrentState.set(childId, current);
       } else {
+        // Detect position change before lerp — if the child moves, hover highlights
+        // on diagrams may become stale (the mouse is stationary but the geometry moved).
+        const prevX = current.x;
+        const prevY = current.y;
         // Subsequent frames: lerp toward target for smooth carousel animation.
         current.x += (targetX - current.x) * LERP_FACTOR;
         current.y += (targetY - current.y) * LERP_FACTOR;
         current.z += (targetZ - current.z) * LERP_FACTOR;
         current.scaleRatio += (targetScaleRatio - current.scaleRatio) * LERP_FACTOR;
+        if (Math.abs(current.x - prevX) > 0.001 || Math.abs(current.y - prevY) > 0.001) {
+          anyChildMoved = true;
+        }
       }
 
       obj.position.set(current.x, current.y, current.z);
@@ -184,7 +192,10 @@ export class ViewWidget implements IRenderable<ViewState> {
       ? targetOpacity
       : this.currentOpacity;
 
-    if (snappedOpacity !== this.lastAppliedOpacity) {
+    // Notify children when opacity OR position changes. Position changes matter
+    // because carousel rotations move diagrams while the mouse stays still —
+    // hover highlights become stale if the diagram moves out from under the pointer.
+    if (snappedOpacity !== this.lastAppliedOpacity || anyChildMoved) {
       for (const child of this.viewChildren) {
         child.applyViewOpacity(snappedOpacity);
       }

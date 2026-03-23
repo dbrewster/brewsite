@@ -207,7 +207,7 @@ export const RingCarouselScene = (): JSX.Element => {
         </Action>
       </InputController>
 
-      <ViewLayout id={'ring-carousel-layout'} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={"10%"} w={"80%"}>
+      <ViewLayout id={'ring-carousel-layout'} kind="carousel" loop focusedIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={"10%"} w={"80%"}>
         <RingCarouselViews />
         <CarouselTray metalness={.1} />
         <Highlight viewId="rc1" variant="primary" mode="holographic" smoke beamHeight={4} pulseSpeed={1.2} pulseIntensity={0.6} />

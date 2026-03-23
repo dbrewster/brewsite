@@ -5,6 +5,10 @@ import type { ReactNode } from 'react';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { TransitionEasing } from '../input/transitionAnimator';
 
+/** Marker placed on states produced by makeDisabledDefault. The runtime
+ *  checks this symbol to skip apply() and hide the widget's root object. */
+export const ABSENT_STATE: unique symbol = Symbol('ABSENT_STATE');
+
 /**
  * Per-scene transition window configuration.
  * exit — sub-window within block progress [0,1] where the outgoing scene fades out.

@@ -1574,7 +1574,11 @@ export function applyCarouselScrubber(
     mergedHighlights = merged;
   }
 
-  const hasHighlights = mergedHighlights.some(h => h.mode !== 'none');
+  // A highlight is "active" only if its mode is not 'none' AND it has positive
+  // intensity. During transition cross-fades, intensity reaches 0 while mode
+  // stays 'holographic' — treat that as inactive so the cleanup branch fires
+  // and disposes the scene-parented highlight meshes.
+  const hasHighlights = mergedHighlights.some(h => h.mode !== 'none' && (h.intensity ?? 0) > 0);
   if (coords && hasHighlights) {
     const highlightTopY = trayPos ? trayPos.topY : 0;
     applyViewHighlights(mergedHighlights, cache, scene, highlightTopY, coords, state.nvsBounds, runtimeRegistry ?? null);

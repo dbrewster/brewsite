@@ -18,13 +18,17 @@ export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRend
   readonly defaultState: MediaScreenState;
   readonly transitionSpec = functionalMediaScreenTransitionSpec;
   readonly DslComponent = MediaScreen;
+  readonly disableWhenAbsent = true;
 
   /**
    * Internal root group for this widget's 3D content.
-   * Not exposed publicly — IGroupOwner has been removed.
    * ViewWidget applies opacity via applyViewOpacity() instead of reparenting.
+   * Exposed via rootObject getter for runtime absent-widget visibility management.
    */
   private readonly rootGroup = new THREE.Group();
+
+  /** Root Three.js object for runtime absent-widget visibility management. */
+  get rootObject(): THREE.Group { return this.rootGroup; }
 
   private renderer = new MediaScreenRenderer();
   private scene: THREE.Scene | null = null;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { PerspectiveCamera, Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
-import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
+import { ABSENT_STATE, type SceneTrack, type SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
 import type { RuntimeDriver as IRuntimeDriver, RealtimeClock, SceneLoadPolicy, SceneMembership } from './types';
 import type {
@@ -105,6 +105,11 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   /** Widget state patches applied on top of compiled state each tick. Set via patchWidgetStates(). */
   private _widgetStatePatches: Record<string, unknown> = {};
+
+  /** Widget IDs whose root Three.js objects we have hidden due to ABSENT_STATE.
+   *  Tracked so we restore visibility only for widgets WE hid, not those hidden
+   *  externally (e.g. by ViewWidget for opacity=0 reasons). */
+  private absentHiddenWidgets = new Set<string>();
 
 
   setAssetsReady(ready: boolean): void {
@@ -540,9 +545,18 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.currentTick = tick;
 
     // Trigger preload-ahead on scene change (lazy loading mode).
-    if (this.loadPolicy && tick && tick.sceneIndex !== this._lastObservedSceneIndex) {
+    // Also clear widget state patches — patches from carousel rotations etc.
+    // are scene-local and must not persist across scene boundaries. Keeping
+    // them would override compiled state (e.g., tray viewHighlights=[]) on
+    // scenes where the carousel is absent, causing stale highlights.
+    if (tick && tick.sceneIndex !== this._lastObservedSceneIndex) {
+      if (this._lastObservedSceneIndex !== -1 && Object.keys(this._widgetStatePatches).length > 0) {
+        this._widgetStatePatches = {};
+      }
       this._lastObservedSceneIndex = tick.sceneIndex;
-      this._preloadAhead(tick.sceneIndex);
+      if (this.loadPolicy) {
+        this._preloadAhead(tick.sceneIndex);
+      }
     }
 
     // ── Step 2: Compute effectiveDeltaSeconds ────────────────────────────────
@@ -631,6 +645,27 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
             tick.state.widgets[renderable.widgetId] ??
             this.defaultStateById.get(renderable.widgetId);
         }
+
+        // Runtime-managed visibility: when the state is the disabled default
+        // (tagged with ABSENT_STATE by makeDisabledDefault), skip apply() and
+        // hide the widget's root Three.js object. This centralizes the
+        // absent-widget hide logic — individual widgets don't need enabled checks.
+        if (state && typeof state === 'object' && (state as any)[ABSENT_STATE]) {
+          const root = 'rootObject' in renderable ? (renderable as any).rootObject : null;
+          if (root && 'visible' in root) root.visible = false;
+          this.absentHiddenWidgets.add(renderable.widgetId);
+          continue;
+        }
+
+        // If the runtime previously hid this widget, restore visibility now
+        // that it has a real (non-absent) state. Only restore for widgets WE
+        // hid — not widgets hidden by ViewWidget for opacity=0 reasons.
+        if (this.absentHiddenWidgets.has(renderable.widgetId)) {
+          this.absentHiddenWidgets.delete(renderable.widgetId);
+          const root = 'rootObject' in renderable ? (renderable as any).rootObject : null;
+          if (root && 'visible' in root) root.visible = true;
+        }
+
         const extra = tick.widgetExtras?.[renderable.widgetId];
         renderable.apply(state as never, { ...renderCtx, extra });
       } catch (e) {
@@ -718,6 +753,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   dispose(): void {
     this.loadErroredWidgets.clear();
     this.applyErroredWidgets.clear();
+    this.absentHiddenWidgets.clear();
     this._loadedScenes.clear();
     this._loadingScenes.clear();
     this._sceneLoadListeners.clear();

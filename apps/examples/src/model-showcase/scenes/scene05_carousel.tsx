@@ -1,7 +1,7 @@
 // scene05_carousel.tsx — Three robot instances in a carousel layout.
 //
 // ViewLayout kind="carousel" positions three Views in a linear fan:
-//   - activeIndex=1 → center panel is robot-carousel-b
+//   - focusedIndex=1 → center panel is robot-carousel-b
 //   - inactiveScale=0.72 → side panels render at 72% scale
 //   - zStep=9 → side panels pushed 9 world-units back in Z
 //
@@ -37,7 +37,7 @@ export function Scene05Carousel(): JSX.Element {
       <ViewLayout
         id="model-carousel-layout"
         kind="carousel"
-        activeIndex={1}
+        focusedIndex={1}
         inactiveScale={0.72}
         zStep={9}
         gap={"3%"}

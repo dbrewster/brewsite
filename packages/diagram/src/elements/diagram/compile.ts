@@ -421,7 +421,6 @@ export function compileDiagram(
     exit: compileExitConfig(dsl.exit),
     enter: compileEnterConfig(dsl.enter),
     themeConfig: buildThemeRenderConfig(theme),
-    enabled: true,
   };
 }
 

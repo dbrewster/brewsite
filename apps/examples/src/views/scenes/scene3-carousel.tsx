@@ -1,5 +1,5 @@
 // Scene 3: <ViewLayout kind="carousel"> with three views.
-// Three separate <Scene> elements cycle activeIndex 0 → 1 → 2.
+// Three separate <Scene> elements cycle focusedIndex 0 → 1 → 2.
 import type {JSX} from 'react';
 import {
   Action,
@@ -102,7 +102,7 @@ function SharedEnv(): JSX.Element {
   );
 }
 
-/** The views are identical across carousel scenes — only activeIndex changes.
+/** The views are identical across carousel scenes — only focusedIndex changes.
  *
  *  View order (indices 0–6): chart, DIAGRAM, chart, chart, chart, chart, chart.
  *  Placing the diagram at index 1 keeps it within one ring step of the chart
@@ -223,7 +223,7 @@ function CarouselViews(): JSX.Element {
   );
 }
 
-// Scene activeIndex values match the view order above:
+// Scene focusedIndex values match the view order above:
 //   index 0 → cv1 (chart),  index 1 → cv5 (diagram),  index 2–6 → charts
 // Diagram is adjacent to chart scenes so the ring z-offset is ≈−2.8 (one step),
 // not ≈−12.2 (four steps apart as it was before).
@@ -248,7 +248,7 @@ export const CarouselScene1 = (): JSX.Element => {
         </Action>
       </InputController>
 
-      <ViewLayout id="carousel-1-layout" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
+      <ViewLayout id="carousel-1-layout" kind="carousel" loop focusedIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
         <CarouselViews />
         <CarouselTray metalness={.1} />
         <Highlight viewId='cv5' mode="holographic" color="#E36A2E" smoke />

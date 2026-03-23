@@ -270,7 +270,7 @@ export const AllMapsScene = (): JSX.Element => {
         </Action>
       </InputController>
 
-      <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={12} fadeMin={0.2} spread={0.65}>
+      <ViewLayout id={LAYOUT_ID} kind="carousel" loop focusedIndex={0} zStep={12} fadeMin={0.2} spread={0.65}>
         <AllMapsViews />
       </ViewLayout>
 

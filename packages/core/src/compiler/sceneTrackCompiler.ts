@@ -2,17 +2,18 @@ import type { ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneDefinition } from './sceneTypes';
 import type { ActiveTheme, SceneTheme } from '../theme/types';
-import type {
-  SceneFrame,
-  SceneTrack,
-  SceneTrackTick,
-  SceneWindow,
-  SceneFrameDelta,
-  SceneTrackTransitionBlock,
-  CompileWarning,
-  ProgressManagerSpec,
-  SceneProgressProfile,
-  SceneProgressSegment,
+import {
+  ABSENT_STATE,
+  type SceneFrame,
+  type SceneTrack,
+  type SceneTrackTick,
+  type SceneWindow,
+  type SceneFrameDelta,
+  type SceneTrackTransitionBlock,
+  type CompileWarning,
+  type ProgressManagerSpec,
+  type SceneProgressProfile,
+  type SceneProgressSegment,
 } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { isFunctionalSpec } from './transitions/transitionTypes';
@@ -369,6 +370,10 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     if (clone.model && typeof clone.model === 'object' && 'enabled' in (clone.model as object)) {
       (clone.model as Record<string, unknown>).enabled = false;
     }
+    // Tag the clone so the runtime can intercept it, skip apply(), and hide
+    // the widget's root Three.js object. This centralizes absent-widget
+    // visibility — individual widgets don't need their own enabled checks.
+    (clone as any)[ABSENT_STATE] = true;
     return clone as T;
   };
 

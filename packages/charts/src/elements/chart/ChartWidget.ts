@@ -15,6 +15,7 @@ import type {
   IDslComposite,
   ILoadable,
   INVSBounded,
+  IViewChild,
   NVSCoordService,
   NVSRect,
   WidgetInitContext,
@@ -79,7 +80,8 @@ export class ChartWidget
     IAnimationController,
     IDslComposite,
     ILoadable,
-    INVSBounded
+    INVSBounded,
+    IViewChild
 {
   readonly widgetId: string;
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
@@ -283,6 +285,16 @@ export class ChartWidget
       console.error(`[ChartWidget] apply() called but scene is null for id="${this.widgetId}" — widget not initialized`);
       return;
     }
+
+    // When the widget is absent from the current scene, the compiler provides
+    // a disabled clone of defaultState (enabled=false) via disableWhenAbsent.
+    // Hide the chart group entirely and bail — the renderer must not process
+    // stale geometry from the defaultState's pre-normalized dimensions.
+    if (state.enabled === false) {
+      this.rootObject.visible = false;
+      return;
+    }
+    this.rootObject.visible = true;
 
     if (process.env.NODE_ENV !== 'production') {
       validateNVSScalar(state.nvsX, 'nvsX', `ChartWidget(${this.widgetId})`);
@@ -502,6 +514,22 @@ export class ChartWidget
       case 'named':  return dataSource.name;
       case 'async':  return this.asyncDataLoaded ? `__async__${this.widgetId}` : '';
     }
+  }
+
+  /**
+   * IViewChild — called by ViewWidget when the carousel position or opacity changes.
+   * Clears any active hover/tooltip/projection state so highlights don't persist
+   * after the chart moves to a new carousel position (the mouse stays still during
+   * carousel animation, so no mousemove/mouseleave fires to clear naturally).
+   */
+  applyViewOpacity(_opacity: number): void {
+    if (this.lastTooltipState) {
+      chartTooltipStore.clear(this.widgetId);
+    }
+    if (this.lastTooltipState?.projection) {
+      this.chartRenderer.updateProjection(null, this.lastEffectiveTheme ?? resolveChartTheme('default'));
+    }
+    this.onHover?.(null);
   }
 
   private attachDomListeners(dom: HTMLElement): void {

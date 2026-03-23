@@ -1229,13 +1229,6 @@ export interface DiagramState {
    */
   readonly themeConfig: DiagramThemeRenderConfig;
 
-  /**
-   * Whether this diagram is enabled. When false the widget hides its Three.js
-   * group entirely. Set to false by the compiler's `makeDisabledDefault` clone
-   * when the diagram is absent from a scene and `disableWhenAbsent` is true.
-   * Default: true (always present on compiled states).
-   */
-  readonly enabled: boolean;
 }
 
 // ─── DSL input types (used by dsl.tsx and consumed by compile.ts) ────────────

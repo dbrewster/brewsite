@@ -278,6 +278,13 @@ export type ChartState = {
    */
   readonly _morphFromTransforms?: readonly DataTransform[];
   /**
+   * Whether this chart is enabled. When false the widget hides its Three.js
+   * group entirely. Set to false by the compiler's `makeDisabledDefault` clone
+   * when the chart is absent from a scene and `disableWhenAbsent` is true.
+   * Default: true (always present on compiled states).
+   */
+  readonly enabled: boolean;
+  /**
    * V2.1: Whether bars animate upward from y=0 on scene entry.
    * Driven by blockProgress via ChartWidget.onTick(). Currently scoped to BarRenderer only.
    * @default false

@@ -38,6 +38,13 @@ export class ScreenWidget
   readonly defaultState: ScreenState;
   readonly transitionSpec = functionalScreenTransitionSpec;
   readonly DslComponent = Screen;
+  readonly disableWhenAbsent = true;
+
+  /** Root Three.js group — all WebGL screen content is parented under this. */
+  private readonly rootGroup = new THREE.Group();
+
+  /** Root Three.js object for runtime absent-widget visibility management. */
+  get rootObject(): THREE.Group { return this.rootGroup; }
 
   private renderer: ScreenRenderer | null = null;
   private scene: THREE.Scene | null = null;
@@ -57,6 +64,7 @@ export class ScreenWidget
     this.scene = scene as THREE.Scene;
     this.webglRenderer = (renderer as THREE.WebGLRenderer) ?? null;
     this.camera = (camera as THREE.PerspectiveCamera) ?? null;
+    this.scene.add(this.rootGroup);
 
     const parent = (renderer as THREE.WebGLRenderer)?.domElement?.parentElement ?? null;
     if (!parent) {
@@ -111,7 +119,7 @@ export class ScreenWidget
       width: worldW,
       height: worldH,
       css3DScale,
-    }, this.scene);
+    }, this.rootGroup as unknown as THREE.Scene);
   }
 
   /** IExtraRenderPass — called by useSceneEngine after renderer.render(scene, camera). */
@@ -128,7 +136,8 @@ export class ScreenWidget
 
   dispose(): void {
     if (!this.scene || !this.renderer) return;
-    this.renderer.dispose(this.widgetId, this.scene);
+    this.renderer.dispose(this.widgetId, this.rootGroup as unknown as THREE.Scene);
+    this.scene.remove(this.rootGroup);
     if (this.canvasParent) releaseCSS3DContext(this.canvasParent);
     this.scene = null;
     this.renderer = null;
