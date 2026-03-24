@@ -52,7 +52,7 @@ export type SceneSnapshotContext = {
 export type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 
 /**
- * @internal Constructed by ScenePlayer from registered <Scene> elements.
+ * @internal Constructed by SceneEngine from registered <Scene> elements.
  */
 export type SceneDefinition = {
   id: string;

@@ -84,21 +84,6 @@
   border-top: 1px solid var(--ex-border, rgba(255, 255, 255, 0.06));
 }
 
-.mdx-diagram-error {
-  padding: 2rem;
-  text-align: center;
-  font-size: 13px;
-  opacity: 0.5;
-  background: var(--ex-surface, rgba(255, 255, 255, 0.03));
-  border-radius: var(--ex-radius-lg, 12px);
-  border: 1px dashed var(--ex-border, rgba(255, 255, 255, 0.12));
-  margin: 1.5rem 0 2rem;
-}
-
-.mdx-diagram-error code {
-  color: var(--ex-accent, #6ea8fe);
-}
-
 /* ── Table ─────────────────────────────────────────────────────────── */
 
 .mdx-table-wrapper {

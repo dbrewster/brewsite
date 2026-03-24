@@ -37,16 +37,17 @@ SlideMetaDsl.displayName = 'SlideMetaDsl';
  * Takes no arguments — visual tokens come from SceneTheme via core's ThemeContext.
  * Behavioral tokens come from SlideTheme via SlidePlayer's container CSS vars.
  */
-export function slidesPlugin(): WidgetPlugin {
-  const metaWidget = new SlideMetaWidget();
+/** Widget ID for SlideMetaWidget — matches SlideMetaWidget.widgetId. */
+const SLIDE_META_WIDGET_ID = 'slide-meta';
 
+export function slidesPlugin(): WidgetPlugin {
   return {
-    createWidgets: () => [metaWidget, new SlideNavWidget()],
+    createWidgets: () => [new SlideMetaWidget(), new SlideNavWidget()],
 
     registerHandlers: () => {
       registerNode(SlideMetaDsl, (node, api) => {
         const props = node.props as SlideMetaDslProps;
-        api.setWidgetState(metaWidget.widgetId, {
+        api.setWidgetState(SLIDE_META_WIDGET_ID, {
           slideKey: props.slideKey,
           logicalIndex: props.logicalIndex,
           totalSlides: props.totalSlides,

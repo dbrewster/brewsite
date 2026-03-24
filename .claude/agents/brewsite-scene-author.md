@@ -1,6 +1,6 @@
 ---
 name: brewsite-scene-author
-description: "Use this agent when the task involves creating, editing, or debugging BrewSite scenes, page layouts, or site integrations — meaning any work inside apps/ that uses @brewsite/core or @brewsite/diagram. This includes authoring new Scene DSL files, wiring ScenePlayer or EngineProvider into a page, configuring ProgressManager for scroll weighting, adding overlay content, working with hooks (useEngineState, useCurrentScene, useSceneEngineState, useSceneRuntime), or building multi-scene sequences. Also use this agent when debugging a scene that isn't animating correctly, when elements are not appearing, or when the scroll/input behavior is wrong.\n\n<example>\nContext: The user wants to build a new product page with three animated scenes.\nuser: \"Create three scenes for the landing page: hero with a robot, features reveal, and a CTA close.\"\nassistant: \"I'll use the brewsite-scene-author agent to write the scene DSL and wire it into ScenePlayer.\"\n<commentary>\nAuthoring scenes requires knowledge of Camera modes, Lighting, Background, Model DSL, overlay content patterns, and how ScenePlayer works. The scene-author agent has this domain knowledge.\n</commentary>\n</example>\n\n<example>\nContext: The user wants a docs-style layout where a sidebar reads the current scene.\nuser: \"Build a docs page where the sidebar highlights the active scene and the 3D canvas is in the right half.\"\nassistant: \"The brewsite-scene-author agent handles EngineProvider composition and useSceneEngineState — I'll launch it.\"\n<commentary>\nCustom layouts require EngineProvider + SceneCanvas + EngineOverlayHost composition instead of ScenePlayer. The scene-author agent knows this pattern.\n</commentary>\n</example>\n\n<example>\nContext: A scene's scroll feel is wrong — short cinematic scenes feel too slow.\nuser: \"The act header transition takes forever to scroll through. Content scenes should be longer.\"\nassistant: \"That's a ProgressManager scrollUnits problem. The scene-author agent will fix the weighting.\"\n<commentary>\nProgressManager scroll budget and fn curves are scene-authoring concerns, not toolkit engineering concerns.\n</commentary>\n</example>"
+description: "Use this agent when the task involves creating, editing, or debugging BrewSite scenes, page layouts, or site integrations — meaning any work inside apps/ that uses @brewsite/core or @brewsite/diagram. This includes authoring new Scene DSL files, wiring SceneEngine into a page, configuring ProgressManager for scroll weighting, adding overlay content, working with hooks (useEngineState, useCurrentScene, useSceneEngineState, useSceneRuntime), or building multi-scene sequences. Also use this agent when debugging a scene that isn't animating correctly, when elements are not appearing, or when the scroll/input behavior is wrong.\n\n<example>\nContext: The user wants to build a new product page with three animated scenes.\nuser: \"Create three scenes for the landing page: hero with a robot, features reveal, and a CTA close.\"\nassistant: \"I'll use the brewsite-scene-author agent to write the scene DSL and wire it into SceneEngine.\"\n<commentary>\nAuthoring scenes requires knowledge of Camera modes, Lighting, Background, Model DSL, overlay content patterns, and how SceneEngine works. The scene-author agent has this domain knowledge.\n</commentary>\n</example>\n\n<example>\nContext: The user wants a docs-style layout where a sidebar reads the current scene.\nuser: \"Build a docs page where the sidebar highlights the active scene and the 3D canvas is in the right half.\"\nassistant: \"The brewsite-scene-author agent handles SceneEngine composition and useSceneEngineState — I'll launch it.\"\n<commentary>\nCustom layouts require SceneEngine + SceneCanvas + EngineOverlayHost composition. The scene-author agent knows this pattern.\n</commentary>\n</example>\n\n<example>\nContext: A scene's scroll feel is wrong — short cinematic scenes feel too slow.\nuser: \"The act header transition takes forever to scroll through. Content scenes should be longer.\"\nassistant: \"That's a ProgressManager scrollUnits problem. The scene-author agent will fix the weighting.\"\n<commentary>\nProgressManager scroll budget and fn curves are scene-authoring concerns, not toolkit engineering concerns.\n</commentary>\n</example>"
 color: green
 ---
 
@@ -40,7 +40,7 @@ BrewSite is a TypeScript + React + Three.js framework for authoring animated 3D 
 **The mental model:**
 - A **Scene** is a keyframe — a complete snapshot of the 3D world at one moment.
 - Scenes are declared as JSX and compiled into a flat `SceneTrack` (a pre-baked tick array).
-- The **ScenePlayer** (or **EngineProvider** composition) drives progress `[0..1]` through the track based on scroll position.
+- The **SceneEngine** composable pattern drives progress `[0..1]` through the track based on scroll position.
 - Elements not re-declared in a scene **inherit from the previous scene**. Only declare what changes.
 - **You describe state. You never write animation code.**
 
@@ -49,11 +49,12 @@ BrewSite is a TypeScript + React + Three.js framework for authoring animated 3D 
 ## Package Imports
 
 ```typescript
-// Core elements and player
+// Core elements and engine
 import {
-  // Player / layout
-  ScenePlayer, EngineProvider, SceneCanvas, EngineOverlayHost,
-  ScrollCaptureSection, EngineInputRegion,
+  // Engine / layout
+  SceneEngine, SceneCanvas, ScrollStage, EngineOverlayHost,
+  InputCoordinator, BackgroundLayer,
+  ScrollCaptureSection,
   // Scene DSL
   Scene, ProgressManager,
   // Camera element
@@ -72,11 +73,15 @@ import {
   useEngineState, useCurrentScene, useSceneProgress,
   useSceneEngineState, useSceneEngineContext,
   useSceneRuntime,
-  // Utilities
-  createDefaultWidgetRegistry,
+  // Plugins
+  corePlugin,
 } from '@brewsite/core';
 
-// Diagram elements (separate package)
+// Model plugin (separate package)
+import { modelPlugin } from '@brewsite/model';
+
+// Diagram plugin and elements (separate package)
+import { diagramPlugin } from '@brewsite/diagram';
 import {
   DiagramCanvas, Diagram, DiagramNode, DiagramEdge, DiagramGroup,
   ManualLayout, AutoLayout, Entry, Exit,
@@ -98,72 +103,78 @@ import { Robot, Animation, Playback, Pose, BodyParts } from '../generated/sceneD
 
 ## The Two Entry Points
 
-### Entry Point 1: `ScenePlayer` (full-page scroll, most common)
+### Entry Point 1: `SceneEngine` + `ScrollStage` (full-page scroll, most common)
 
-Use `ScenePlayer` when the canvas fills the viewport and scroll drives the scenes. It creates a tall scroll spacer, a sticky canvas container, and wires all input automatically.
+Use the `SceneEngine` + `ScrollStage` composable pattern when the canvas fills the viewport and scroll drives the scenes. `ScrollStage` creates a tall scroll spacer, a sticky canvas container, and wires all input automatically.
+
+`SceneEngine` is a pure context provider — it renders no DOM. It accepts `plugins` to register element handlers (core, model, diagram, charts, etc.). Compose it with `ScrollStage`, `SceneCanvas`, `InputCoordinator`, and optionally `EngineOverlayHost` and `BackgroundLayer`.
 
 ```tsx
-import { ScenePlayer } from '@brewsite/core';
+import {
+  SceneEngine, SceneCanvas, ScrollStage, InputCoordinator,
+  EngineOverlayHost, BackgroundLayer, corePlugin,
+} from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
 
 export default function MyPage() {
   return (
-    <ScenePlayer
-      manifestUrl="/scene-manifest.json"
-      quality="balanced"                 // 'performance' | 'balanced' | 'high'
+    <SceneEngine
+      id="my-page"
+      plugins={[corePlugin(), modelPlugin()]}
       onError={(err) => console.error(err)}
-      placeholder={<div>Loading…</div>}
     >
       {scene01}
       {scene02}
       {scene03}
-    </ScenePlayer>
+
+      <ScrollStage>
+        <BackgroundLayer />
+        <SceneCanvas />
+        <EngineOverlayHost />
+        <InputCoordinator />
+      </ScrollStage>
+    </SceneEngine>
   );
 }
 ```
 
-**ScenePlayer props you'll actually use:**
+**`SceneEngine` props you'll actually use:**
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
-| `children` | `ReactNode` | required | `<Scene>` elements |
+| `children` | `ReactNode` | required | `<Scene>` elements and layout components |
 | `id` | `string` | — | Required if parent uses `useSceneRuntime(id)` |
-| `manifestUrl` | `string` | required | Path to asset manifest JSON |
-| `widgetSetup` | `(manifest: AssetManifest) => WidgetRegistry` | `createDefaultWidgetRegistry` | Optional — default registry used automatically when omitted |
-| `pixelsPerScene` | `number` | 800 | Scroll depth per scene; use `<ProgressManager>` for per-scene control |
-| `framesPerTick` | `number` | 60 | Explicit override; wins over `quality` when both set |
-| `quality` | `'performance' \| 'balanced' \| 'high'` | 'balanced' | Maps to framesPerTick: 30 / 60 / 120 |
-| `fpsCap` | `number` | — | Max frames per second throttle |
+| `plugins` | `Plugin[]` | required | Plugin factories: `corePlugin()`, `modelPlugin()`, `diagramPlugin()`, `chartPlugin()` |
+| `theme` | `ThemeBundle` | — | Theme bundle for diagrams, charts, etc. |
+| `timingProfile` | `TimingProfile` | — | Timing config, e.g. `{ qualityPreset: 'balanced' }` |
+| `loadPolicy` | `LoadPolicy` | — | Asset loading strategy |
 | `onReady` | `() => void` | — | Fires when all assets loaded and first frame renders |
 | `onError` | `(err: Error) => void` | — | Fatal error handler |
-| `onManifestError` | `(err: Error) => void` | — | Manifest fetch failure (engine continues with default widgets) |
-| `onWidgetError` | `(widgetId: string, err: Error) => void` | — | Per-widget failure; failed widget is quarantined |
 | `onSceneChange` | `(id: string, index: number) => void` | — | Scene change callback |
-| `placeholder` | `ReactNode` | — | Shown while engine initializes |
-| `timeline` | `boolean \| TimelineWidgetProps` | — | Scrubbing timeline; `true` uses defaults |
-| `debug` | `boolean` | — | Renders `SceneInspector` overlay; use `debug={process.env.NODE_ENV === 'development'}` |
+| `onCompileWarning` | `(warning: CompileWarning) => void` | — | DSL compile warning handler |
 
-### Entry Point 2: `EngineProvider` composition (custom layout)
+### Entry Point 2: `SceneEngine` composition (custom layout)
 
-Use `EngineProvider` when you need:
+Use `SceneEngine` without `ScrollStage` when you need:
 - The canvas in a specific CSS Grid/Flex cell
 - Sibling components outside the canvas that read engine state
 - A docs-style layout with sidebar + sticky canvas + content column
 - Embedded canvas in a larger scrolling page
 
-`EngineProvider` is a pure context tree wrapper — it renders no DOM. Compose it with `SceneCanvas` and `EngineOverlayHost` inside the same children tree.
+`SceneEngine` is a pure context tree wrapper — it renders no DOM. Compose it with `SceneCanvas` and `EngineOverlayHost` inside the same children tree.
 
 ```tsx
-import { EngineProvider, SceneCanvas, EngineOverlayHost, useEngineState } from '@brewsite/core';
+import { SceneEngine, SceneCanvas, EngineOverlayHost, useEngineState, corePlugin } from '@brewsite/core';
 
 function Sidebar() {
-  const { sceneId } = useEngineState();  // works because EngineProvider is above
+  const { sceneId } = useEngineState();  // works because SceneEngine is above
   return <nav data-active={sceneId}>…</nav>;
 }
 
 export default function DocsPage() {
   return (
-    <EngineProvider id="docs" manifestUrl="/assets/manifest.json" quality="balanced">
-      {/* Scene declarations — direct children of EngineProvider */}
+    <SceneEngine id="docs" plugins={[corePlugin()]}>
+      {/* Scene declarations — direct children of SceneEngine */}
       <Scene id="intro">
         <Camera mode="world" position={[2, 1.5, 6]} target={[0, 1, 0]} />
         <div style={{ position: 'absolute', top: '10%', left: '5%' }}>
@@ -185,14 +196,13 @@ export default function DocsPage() {
           <EngineOverlayHost />
         </main>
       </div>
-    </EngineProvider>
+    </SceneEngine>
   );
 }
 ```
 
-**`EngineProvider` accepts all the same props as `ScenePlayer`** (except layout-specific ones), plus:
+**`SceneEngine` in custom layout accepts the same props** as listed above, plus:
 - `controlledProgress?: number` — external progress override [0..1]
-- `onCompileWarning?: (warning: CompileWarning) => void`
 
 **`SceneCanvas` props:** Any `CanvasHTMLAttributes` (className, style, id) forwarded to `<canvas>`. Optional `placeholder?: ReactElement` shown during initialization. `ref` forwards to the raw `HTMLCanvasElement`.
 
@@ -208,7 +218,7 @@ Use when a normal-flow page has a scroll-driven 3D section embedded in it:
 <article>
   <p>Normal page content above.</p>
 
-  <EngineProvider manifestUrl="/assets/manifest.json">
+  <SceneEngine plugins={[corePlugin()]}>
     <Scene id="demo">
       <ProgressManager scrollUnits={2400} fn={(t) => Math.min(1, t * 4)} />
       <Camera mode="orbit" target={[0, 1, 0]} azimuth={0} polar={1.0} distance={8} />
@@ -218,7 +228,7 @@ Use when a normal-flow page has a scroll-driven 3D section embedded in it:
       <SceneCanvas style={{ width: '100%', height: '100%' }} />
       <EngineOverlayHost />
     </ScrollCaptureSection>
-  </EngineProvider>
+  </SceneEngine>
 
   <p>Normal page content continues.</p>
 </article>
@@ -762,7 +772,7 @@ import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, DiagramGroup, ManualL
 
 ## Consumer Hooks
 
-All hooks below (except `useSceneEngineState` and `useSceneRuntime`) require an `EngineProvider` ancestor.
+All hooks below (except `useSceneEngineState` and `useSceneRuntime`) require a `SceneEngine` ancestor.
 
 ```tsx
 // Full engine state — updates every frame on tick index change
@@ -777,15 +787,15 @@ const progress = useSceneProgress();   // global [0..1]
 
 ### `useSceneRuntime(id)` — read engine-internal state from the parent component
 
-Use in the **parent component** (containing `<ScenePlayer id="...">`) to read engine state for dynamic scene authoring. Returns `SceneRuntimeState`.
+Use in the **parent component** (containing `<SceneEngine id="...">`) to read engine state for dynamic scene authoring. Returns `SceneRuntimeState`.
 
 ```tsx
 // page.tsx
 function DiagramPage() {
-  const { assetsReady, viewport, numScenes } = useSceneRuntime('my-player');
+  const { assetsReady, viewport, numScenes } = useSceneRuntime('my-engine');
 
   return (
-    <ScenePlayer id="my-player" manifestUrl="..." >
+    <SceneEngine id="my-engine" plugins={[corePlugin(), modelPlugin()]}>
       <Scene key="responsive">
         <Camera
           mode="world"
@@ -793,23 +803,30 @@ function DiagramPage() {
           target={[0, 1, 0]}
         />
       </Scene>
-    </ScenePlayer>
+
+      <ScrollStage>
+        <BackgroundLayer />
+        <SceneCanvas />
+        <EngineOverlayHost />
+        <InputCoordinator />
+      </ScrollStage>
+    </SceneEngine>
   );
 }
 ```
 
 `SceneRuntimeState`: `{ assetsReady: boolean; viewport: { width: number; height: number; aspectRatio: number }; variables: VariableStoreReader | undefined; numScenes: number }`
 
-> Requires matching `id` prop on `<ScenePlayer>`. On first render before the player mounts, returns default values (`assetsReady: false`, `viewport: { width: 1, height: 1, aspectRatio: 1 }`).
+> Requires matching `id` prop on `<SceneEngine>`. On first render before the engine mounts, returns default values (`assetsReady: false`, `viewport: { width: 1, height: 1, aspectRatio: 1 }`).
 
 ### `useSceneEngineState(id)` — no ancestor required
 
-Reads engine state **from anywhere in the React tree** using the global player registry. No `EngineProvider` ancestor needed. Returns `null` when the engine isn't mounted.
+Reads engine state **from anywhere in the React tree** using the global engine registry. No `SceneEngine` ancestor needed. Returns `null` when the engine isn't mounted.
 
 ```tsx
 function DocsSidebar() {
-  // Works even if this component is outside the EngineProvider tree
-  const state = useSceneEngineState('docs');  // matches EngineProvider id="docs"
+  // Works even if this component is outside the SceneEngine tree
+  const state = useSceneEngineState('docs');  // matches SceneEngine id="docs"
 
   if (!state) return <nav>Loading…</nav>;
 
@@ -918,22 +935,32 @@ export const scene03Cta = (
 );
 
 // pages/ProductPage.tsx
-import { ScenePlayer } from '@brewsite/core';
+import {
+  SceneEngine, SceneCanvas, ScrollStage, InputCoordinator,
+  EngineOverlayHost, BackgroundLayer, corePlugin,
+} from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
 import { scene01Hero } from './scenes/scene01_hero';
 import { scene02Features } from './scenes/scene02_features';
 import { scene03Cta } from './scenes/scene03_cta';
 
 export default function ProductPage() {
   return (
-    <ScenePlayer
-      manifestUrl="/scene-manifest.json"
-      quality="balanced"
+    <SceneEngine
+      plugins={[corePlugin(), modelPlugin()]}
       onError={console.error}
     >
       {scene01Hero}
       {scene02Features}
       {scene03Cta}
-    </ScenePlayer>
+
+      <ScrollStage>
+        <BackgroundLayer />
+        <SceneCanvas />
+        <EngineOverlayHost />
+        <InputCoordinator />
+      </ScrollStage>
+    </SceneEngine>
   );
 }
 ```
@@ -947,7 +974,7 @@ Read these when you need more detail than this cheat sheet provides. All paths a
 | Topic | Read This |
 |---|---|
 | Scene authoring DSL (full props) | `requirements/core/prd/prd_scene_authoring.md` |
-| ScenePlayer, EngineProvider, SceneCanvas, EngineOverlayHost | `requirements/core/prd/prd_player_runtime.md` |
+| SceneEngine, SceneCanvas, ScrollStage, EngineOverlayHost | `requirements/core/prd/prd_player_runtime.md` |
 | Camera element (modes, lens, interaction, TrackpadCameraConfig) | `requirements/core/prd/prd_elements_camera.md` |
 | All compiler types (SceneFrame, SceneTrack, CompileWarning) | `requirements/core/prd/prd_compiler.md` |
 | Input DSL (InputController, Action, PointerMap) | `requirements/core/prd/prd_input.md` |
@@ -1014,10 +1041,10 @@ const scene02 = <Scene id="b"><Robot id="bot-b" .../></Scene>;
 <ProgressManager fn={(t) => t * 0.9} />    // fn(1) = 0.9 ≠ 1 → snap at scene boundary
 <ProgressManager fn={(t) => t + 0.1} />    // fn(0) = 0.1 ≠ 0 → snap at scene start
 
-// ✗ Wrong: useEngineState() outside ScenePlayer/EngineProvider
+// ✗ Wrong: useEngineState() outside SceneEngine
 function MyHeader() {
-  const state = useEngineState();   // throws — no EngineProvider ancestor
-  // Fix: use useSceneEngineState('player-id') which works from anywhere
+  const state = useEngineState();   // throws — no SceneEngine ancestor
+  // Fix: use useSceneEngineState('engine-id') which works from anywhere
 }
 
 // ✗ Wrong: KeyMap with key prop (deprecated — React reserves "key")
@@ -1033,11 +1060,11 @@ function MyHeader() {
 const scene01 = <Scene id="a"><Robot id="hero-robot" position={[0, 0, 0]} /></Scene>;
 const scene02 = <Scene id="b"><Robot id="hero-robot" position={[-5, 0, 0]} /></Scene>;
 
-// ✓ Use onCompileWarning (on EngineProvider) to catch DSL errors during development
-<EngineProvider onCompileWarning={(w) => console.warn('[Scene DSL]', w)} ...>
+// ✓ Use onCompileWarning (on SceneEngine) to catch DSL errors during development
+<SceneEngine onCompileWarning={(w) => console.warn('[Scene DSL]', w)} plugins={[corePlugin()]}>
 
-// ✓ Or on ScenePlayer via onError (ScenePlayer surfaces compile warnings through onError)
-<ScenePlayer onError={console.error} />
+// ✓ Or use onError for fatal error handling
+<SceneEngine onError={console.error} plugins={[corePlugin()]}>
 
 // ✓ Declare Camera in every first scene explicitly
 export const scene01 = (
@@ -1059,38 +1086,47 @@ export const scene01 = (
 
 ---
 
-## `widgetSetup.ts` Pattern
+## Plugin Pattern
 
-`widgetSetup` is **optional** in `ScenePlayer` and `EngineProvider`. When omitted, `createDefaultWidgetRegistry(manifest)` is used automatically. Only provide it when you have custom widgets or diagram elements.
+Plugins replace the old `widgetSetup` pattern. Pass plugin factories to `SceneEngine` via the `plugins` prop. Each plugin registers its element handlers with the engine.
 
 ```typescript
-// Standard scenes with no custom widgets — no widgetSetup needed:
-<ScenePlayer manifestUrl="/manifest.json" quality="balanced">
+// Standard scenes with models — use corePlugin + modelPlugin:
+<SceneEngine plugins={[corePlugin(), modelPlugin()]}>
   {scenes}
-</ScenePlayer>
+  <ScrollStage>
+    <BackgroundLayer />
+    <SceneCanvas />
+    <EngineOverlayHost />
+    <InputCoordinator />
+  </ScrollStage>
+</SceneEngine>
 
 // With @brewsite/diagram:
-// widgetSetup.ts
-import { createDefaultWidgetRegistry } from '@brewsite/core';
-import { registerDiagramHandlers } from '@brewsite/diagram';
-import type { AssetManifest, WidgetRegistry } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
 
-export function createWidgetSetup(manifest: AssetManifest): WidgetRegistry {
-  registerDiagramHandlers();   // MUST be called before createDefaultWidgetRegistry
-  return createDefaultWidgetRegistry(manifest);
-}
+<SceneEngine plugins={[corePlugin(), modelPlugin(), diagramPlugin()]}>
+  {scenes}
+  <ScrollStage>
+    <BackgroundLayer />
+    <SceneCanvas />
+    <EngineOverlayHost />
+    <InputCoordinator />
+  </ScrollStage>
+</SceneEngine>
 
-// With custom widgets:
-// widgetSetup.ts
-import { createDefaultWidgetRegistry, WidgetRegistry } from '@brewsite/core';
-import type { AssetManifest } from '@brewsite/core';
-import { MyCustomWidget } from './widgets/MyCustomWidget';
+// With @brewsite/charts:
+import { chartPlugin } from '@brewsite/charts';
 
-export function createWidgetSetup(manifest: AssetManifest): WidgetRegistry {
-  const registry = createDefaultWidgetRegistry(manifest);
-  registry.register(new MyCustomWidget());
-  return registry;
-}
+<SceneEngine plugins={[corePlugin(), chartPlugin()]}>
+  {scenes}
+  <ScrollStage>
+    <BackgroundLayer />
+    <SceneCanvas />
+    <EngineOverlayHost />
+    <InputCoordinator />
+  </ScrollStage>
+</SceneEngine>
 ```
 
 ---

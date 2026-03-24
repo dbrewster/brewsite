@@ -18,7 +18,7 @@ export type { CameraInteractionDefaults } from '../elements/camera/types';
 
 /**
  * Internal scene spec linking a scene registration key to its compiled content.
- * Shared between ScenePlayer, SceneEngine, and useSceneEngine.
+ * Shared between SceneEngine and useSceneEngine.
  */
 export type InternalSceneSpec = {
   readonly sceneKey: string;

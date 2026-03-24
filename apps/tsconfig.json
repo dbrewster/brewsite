@@ -44,6 +44,7 @@
     "./website/src/**/*.tsx",
     "./examples/src/**/*.ts",
     "./examples/src/**/*.tsx",
+    "./examples/src/**/*.mdx",
     "../packages/core/src/types/process.d.ts",
     "../packages/diagram/src/types/troika-three-text.d.ts",
     "../packages/charts/src/types/troika-three-text.d.ts"

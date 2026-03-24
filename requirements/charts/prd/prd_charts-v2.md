@@ -3,7 +3,7 @@ title: "@brewsite/charts V2 — Charts Package"
 doc_type: prd
 status: current
 owner: brewsite-product-manager
-last_updated: 2026-03-21
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
@@ -440,7 +440,7 @@ import type { ChartAccessorFunctions } from '@brewsite/charts';
 // Only effective when the chart's SceneTrack dataSource.type === 'inline'.
 // Named/async sources are unaffected.
 useLiveChartData(chartsPlugin, 'revenue-chart', revenueRows);
-// chartsPlugin: value returned by chartPlugin(), passed to ScenePlayer's plugins prop.
+// chartsPlugin: value returned by chartPlugin(), passed to SceneEngine's plugins prop.
 // chartId: matches the `id` prop on <BarChart id="revenue-chart" data={initialRows}>.
 // rows: any DataInput (row array or columnar). Hook normalizes before registering.
 

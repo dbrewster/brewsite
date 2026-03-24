@@ -3,7 +3,7 @@ title: "Continuous Natural-Scroll Docs — Implementation Plan"
 doc_type: plan
 owner: brewsite-architect
 status: reviewed
-updated: 2026-03-06
+updated: 2026-03-23
 change_history:
   - date: 2026-03-05
     author: "brewsite-architect"
@@ -30,7 +30,7 @@ Two toolkit deliverables in `@brewsite/core` must land before the docs rewrite b
 ```
 Phase 1 (core toolkit — no docs work until this is merged)
   ├── Stream A: RuntimeLoop.pause()/resume()        [core only — no conflicts with B]
-  └── Stream B: EngineProvider viewport-relative    [core only — no conflicts with A]
+  └── Stream B: SceneEngine viewport-relative    [core only — no conflicts with A]
 
 Phase 2A (BLOCKING — must land on main before Phase 2B branches are cut)
   └── Stream F-1: *Panel stub exports (25 files, 3 lines each)
@@ -52,7 +52,7 @@ Phase 2B (parallel — all after F-1 merges; zero file conflicts between streams
 | Stream | Exclusively owns |
 |---|---|
 | A | `packages/core/src/runtime/RuntimeLoop.ts`, `packages/core/src/player/useSceneEngine.ts`, `packages/core/src/runtime/__tests__/RuntimeLoop.test.ts` |
-| B | `packages/core/src/player/engineTypes.ts`, `packages/core/src/player/useViewportRelativeScroll.ts` (new), `packages/core/src/player/EngineProvider.tsx`, `packages/core/src/player/index.ts`, `packages/core/src/player/__tests__/useViewportRelativeScroll.test.ts` (new) |
+| B | `packages/core/src/player/engineTypes.ts`, `packages/core/src/player/useViewportRelativeScroll.ts` (new), `packages/core/src/player/SceneEngine.tsx`, `packages/core/src/player/index.ts`, `packages/core/src/player/__tests__/useViewportRelativeScroll.test.ts` (new) |
 | C | `apps/docs/src/layout/DocsLayout.tsx` (new, includes all ProseBlock content), `apps/docs/src/App.tsx`, `apps/docs/src/routes.tsx`, `apps/docs/src/style/layout.css`, `apps/docs/src/style/variables.css` |
 | D | `apps/docs/src/components/ScenePanel.tsx` (new), `apps/docs/src/components/ActHeader.tsx` (new), `apps/docs/src/components/ProseBlock.tsx` (new) |
 | E | `apps/docs/src/nav/NavContext.tsx` (new), `apps/docs/src/nav/types.ts`, `apps/docs/src/nav/docs-nav.ts`, `apps/docs/src/components/layout/DocsSidebar.tsx` |
@@ -334,7 +334,7 @@ describe('RuntimeLoop.setCanvas()', () => {
 
 ---
 
-## 3. Phase 1, Stream B — `EngineProvider scrollSource: 'viewport-relative'`
+## 3. Phase 1, Stream B — `SceneEngine scrollSource: 'viewport-relative'`
 
 ### 3.1 File: `packages/core/src/player/engineTypes.ts`
 
@@ -343,7 +343,7 @@ Add the new scroll source variant. The existing file already imports `RefObject`
 ```typescript
 /**
  * Viewport-relative scroll source configuration.
- * When used as EngineProvider's scrollSource, the engine computes progress
+ * When used as SceneEngine's scrollSource, the engine computes progress
  * from how far the user has scrolled through the containerRef element,
  * and manages WebGL context acquisition/release via IntersectionObserver.
  */
@@ -378,7 +378,7 @@ Add a new derived type for internal use (keeps `useEngineScroll` and `useSceneEn
 ```typescript
 /**
  * Subset of ScrollSource that useSceneEngine and useEngineScroll understand.
- * ViewportRelativeScrollSource is intercepted by EngineProvider before being
+ * ViewportRelativeScrollSource is intercepted by SceneEngine before being
  * passed to useSceneEngine — useSceneEngine never sees it.
  */
 export type EngineInternalScrollSource = Exclude<ScrollSource, ViewportRelativeScrollSource>;
@@ -386,7 +386,7 @@ export type EngineInternalScrollSource = Exclude<ScrollSource, ViewportRelativeS
 
 ### 3.2 New file: `packages/core/src/player/useViewportRelativeScroll.ts`
 
-This hook encapsulates two responsibilities for viewport-relative EngineProvider panels:
+This hook encapsulates two responsibilities for viewport-relative SceneEngine panels:
 1. Computes per-panel scroll progress by listening to `window` scroll events.
 2. Manages the WebGL context lifecycle using `IntersectionObserver` and `WEBGL_lose_context`.
 
@@ -394,7 +394,7 @@ Create this file at `packages/core/src/player/useViewportRelativeScroll.ts` with
 
 ```typescript
 // Viewport-relative scroll progress + WebGL context lifecycle for inline ScenePanels.
-// Called from EngineProvider when scrollSource.kind === 'viewport-relative'.
+// Called from SceneEngine when scrollSource.kind === 'viewport-relative'.
 
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
@@ -402,7 +402,7 @@ import type { ViewportRelativeScrollSource } from './engineTypes';
 
 export type UseViewportRelativeScrollOptions = {
   /**
-   * The viewport-relative scroll source, or null when the EngineProvider is not
+   * The viewport-relative scroll source, or null when the SceneEngine is not
    * in viewport-relative mode. When null, this hook is a no-op.
    */
   source: ViewportRelativeScrollSource | null;
@@ -494,7 +494,7 @@ export function useViewportRelativeScroll(options: UseViewportRelativeScrollOpti
     if (!canvasRef) return;
 
     // canvasRef.current is populated by the time this effect runs because
-    // SceneCanvas's forwardRef effect runs before EngineProvider's effects
+    // SceneCanvas's forwardRef effect runs before SceneEngine's effects
     // (React effects fire children-before-parent).
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -505,7 +505,7 @@ export function useViewportRelativeScroll(options: UseViewportRelativeScrollOpti
 
         if (entry.isIntersecting) {
           if (!initializedRef.current) {
-            // First intersection: EngineProvider + SceneCanvas acquire the
+            // First intersection: SceneEngine + SceneCanvas acquire the
             // WebGL context through normal initialization. Nothing to do here.
             initializedRef.current = true;
           } else {
@@ -542,7 +542,7 @@ export function useViewportRelativeScroll(options: UseViewportRelativeScrollOpti
 }
 ```
 
-### 3.3 Changes to `packages/core/src/player/EngineProvider.tsx`
+### 3.3 Changes to `packages/core/src/player/SceneEngine.tsx`
 
 **Three changes required:**
 
@@ -553,7 +553,7 @@ import { useViewportRelativeScroll } from './useViewportRelativeScroll';
 import type { ViewportRelativeScrollSource, EngineInternalScrollSource } from './engineTypes';
 ```
 
-**Change 2** — Inside the `EngineProvider` function body, before the `useSceneEngine` call, add:
+**Change 2** — Inside the `SceneEngine` function body, before the `useSceneEngine` call, add:
 
 ```typescript
 // Detect viewport-relative scroll source.
@@ -596,11 +596,11 @@ Add the following type exports after the existing type exports:
 // Types only — consumers need ViewportRelativeScrollSource to type their refs when
 // constructing scrollSource={{ kind: 'viewport-relative', containerRef, canvasRef }}.
 // The hook (useViewportRelativeScroll) is an internal implementation detail of
-// EngineProvider and is NOT exported. Consumers must not call it directly.
+// SceneEngine and is NOT exported. Consumers must not call it directly.
 export type { ViewportRelativeScrollSource, EngineInternalScrollSource } from './engineTypes';
 ```
 
-**Do NOT export `useViewportRelativeScroll` or `UseViewportRelativeScrollOptions`.** Exporting the hook would expose an internal contract to consumers, creating API regret risk if the hook's signature changes. Consumers interact with the viewport-relative feature exclusively through the `scrollSource` prop on `EngineProvider`.
+**Do NOT export `useViewportRelativeScroll` or `UseViewportRelativeScrollOptions`.** Exporting the hook would expose an internal contract to consumers, creating API regret risk if the hook's signature changes. Consumers interact with the viewport-relative feature exclusively through the `scrollSource` prop on `SceneEngine`.
 
 ### 3.5 Test file: `packages/core/src/player/__tests__/useViewportRelativeScroll.test.ts`
 
@@ -721,7 +721,7 @@ describe('useViewportRelativeScroll — context lifecycle', () => {
 
 ### 4.1 Delete file: `apps/docs/src/components/layout/DocsApp.tsx`
 
-This file is replaced by `DocsLayout.tsx`. All EngineProvider usage moves to individual `ScenePanel` components. Delete the file entirely.
+This file is replaced by `DocsLayout.tsx`. All SceneEngine usage moves to individual `ScenePanel` components. Delete the file entirely.
 
 ### 4.2 New file: `apps/docs/src/layout/DocsLayout.tsx`
 
@@ -972,7 +972,7 @@ export function DocsLayout(): JSX.Element {
 
 ### 4.3 Changes to `apps/docs/src/App.tsx` (or `routes.tsx`)
 
-Read the current `App.tsx` and `routes.tsx` to understand how `DocsApp` is mounted. Replace all references to `DocsApp` with `DocsLayout`. The docs route should render `<DocsLayout />` directly. No `EngineProvider` wrapper at the route level — each `ScenePanel` is its own `EngineProvider`.
+Read the current `App.tsx` and `routes.tsx` to understand how `DocsApp` is mounted. Replace all references to `DocsApp` with `DocsLayout`. The docs route should render `<DocsLayout />` directly. No `SceneEngine` wrapper at the route level — each `ScenePanel` is its own `SceneEngine`.
 
 Remove the deep-link hash scroll effect that was in `DocsApp.tsx`. In the new design, the browser handles `#section-id` anchors natively because `id` attributes are real HTML ids on DOM elements.
 
@@ -1015,10 +1015,10 @@ Remove any CSS that was supporting:
 
 ```tsx
 // Block-level 3D scene panel in normal document flow.
-// Each ScenePanel owns its EngineProvider and WebGL context lifecycle.
+// Each ScenePanel owns its SceneEngine and WebGL context lifecycle.
 
 import { useEffect, useRef, type JSX, type ReactNode } from 'react';
-import { EngineProvider, SceneCanvas } from '@brewsite/core';
+import { SceneEngine, SceneCanvas } from '@brewsite/core';
 import type { WidgetPlugin } from '@brewsite/core';
 
 export interface ScenePanelProps {
@@ -1038,7 +1038,7 @@ export interface ScenePanelProps {
    */
   height: string;
 
-  /** WidgetPlugin array for this panel's EngineProvider. */
+  /** WidgetPlugin array for this panel's SceneEngine. */
   plugins: WidgetPlugin[];
 
   /** Asset manifest URL. Default: '/scene-manifest.json'. */
@@ -1052,7 +1052,7 @@ export interface ScenePanelProps {
  * ScenePanel — a fixed-height block element in normal document flow containing
  * a real <canvas> for 3D scene rendering.
  *
- * WebGL context lifecycle: IntersectionObserver (via EngineProvider viewport-relative
+ * WebGL context lifecycle: IntersectionObserver (via SceneEngine viewport-relative
  * scroll source) acquires context on intersection entry and releases it via
  * WEBGL_lose_context on exit. At any moment only 1–2 visible panels hold live
  * GPU contexts — Safari's ~8-context limit is never approached regardless of
@@ -1102,10 +1102,9 @@ export function ScenePanel({
         height,
       }}
     >
-      <EngineProvider
-        manifestUrl={manifestUrl}
+      <SceneEngine
         plugins={plugins}
-        quality="balanced"
+        timingProfile="balanced"
         scrollSource={{
           kind: 'viewport-relative',
           containerRef,
@@ -1133,7 +1132,7 @@ export function ScenePanel({
             height: '100vh',
           }}
         />
-      </EngineProvider>
+      </SceneEngine>
     </div>
   );
 }
@@ -1143,10 +1142,10 @@ export function ScenePanel({
 
 ### 5.2 New file: `apps/docs/src/components/ActHeader.tsx`
 
-CSS-only full-width section separator. No EngineProvider, no WebGL, zero GPU cost.
+CSS-only full-width section separator. No SceneEngine, no WebGL, zero GPU cost.
 
 ```tsx
-// CSS-only act header — no WebGL, no EngineProvider.
+// CSS-only act header — no WebGL, no SceneEngine.
 // Real HTML element with id for native anchor links.
 
 import { type JSX } from 'react';
@@ -1525,7 +1524,7 @@ export const docsNav: NavSection[] = [
     title: 'Player & Hooks',
     actId: 'act-player-hooks',
     items: [
-      { label: 'ScenePlayer & EngineProvider', id: 'scene-player' },
+      { label: 'SceneEngine', id: 'scene-player' },
       { label: 'Hooks Reference',              id: 'scene-hooks' },
     ],
   },
@@ -1556,7 +1555,7 @@ Replace the entire file. No longer reads from `useSceneEngineState('docs')` or `
 
 ```tsx
 // Docs sidebar — reads active section from NavContext, not from engine registry.
-// Sidebar is outside any EngineProvider — uses NavContext for all engine-independent nav.
+// Sidebar is outside any SceneEngine — uses NavContext for all engine-independent nav.
 
 import { type JSX } from 'react';
 import { useNavContext } from '../../nav/NavContext';
@@ -1700,7 +1699,7 @@ export function SceneWhatIsBrewSitePanel(): JSX.Element {
 2. Every scene gets a `base` scene and an `arrived` scene (minimum 2 scenes — compiler hard constraint).
 3. The `base` scene camera is the arrived camera with z+2 (world) or distance+2 (orbit). All other state is identical.
 4. The `arrived` scene has `<ProgressManager fn={DWELL_FN} />` (no `scrollUnits`). It is the reading pose.
-5. **ALL HTML content is removed from scene files — no exceptions.** This includes `DocPanel`, all `*Content()` functions, `CodeBlock`, `PropTable`, `Callout`, and any inline HTML. Scene files become pure 3D DSL: `<Scene>`, `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, etc. The arrived `<Scene>` node must contain only BrewSite DSL elements. No React HTML. No overlay prose. HTML prose goes to `<ProseBlock>` in `DocsLayout.tsx` (Stream C's responsibility). `InlineDemo` demo widgets go to ProseBlock as well — they create their own EngineProvider internally and are document-flow elements, not overlays. This is the fundamental goal of the redesign: documentation text must be in real HTML document flow (findable by Ctrl+F, selectable, accessible to screen readers), not floating canvas overlays.
+5. **ALL HTML content is removed from scene files — no exceptions.** This includes `DocPanel`, all `*Content()` functions, `CodeBlock`, `PropTable`, `Callout`, and any inline HTML. Scene files become pure 3D DSL: `<Scene>`, `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, etc. The arrived `<Scene>` node must contain only BrewSite DSL elements. No React HTML. No overlay prose. HTML prose goes to `<ProseBlock>` in `DocsLayout.tsx` (Stream C's responsibility). `InlineDemo` demo widgets go to ProseBlock as well — they create their own SceneEngine internally and are document-flow elements, not overlays. This is the fundamental goal of the redesign: documentation text must be in real HTML document flow (findable by Ctrl+F, selectable, accessible to screen readers), not floating canvas overlays.
 6. The `*Content` functions (e.g., `WhatIsBrewSiteContent`, `HudContent`, `CameraContent`, etc.) and all their imports (`DocPanel`, `CodeBlock`, `PropTable`, `Callout`, `InlineDemo`, `DemoProgressProvider`) are deleted from scene files. After Stream F-2, a scene file should import only from `@brewsite/core` and `../../sceneUtils`.
 7. The `key` prop on `<Scene>` is replaced by `id` (ids serve as both identity and DOM anchor).
 8. `DemoProgressProvider` import and usage are deleted everywhere. `InlineDemo` components move to ProseBlock in DocsLayout (Stream C extracts them from the old scene files).
@@ -1860,7 +1859,7 @@ Simplified `InlineDemo`:
 // For animated scroll-driven demos, use <ScenePanel> instead of InlineDemo.
 
 import { type JSX, type ReactNode } from 'react';
-import { corePlugin, EngineProvider, EngineInputRegion, SceneCanvas } from '@brewsite/core';
+import { corePlugin, SceneEngine, EngineInputRegion, SceneCanvas } from '@brewsite/core';
 
 // Module-level stable plugin list.
 const INLINE_DEMO_PLUGINS = [corePlugin()];
@@ -1890,23 +1889,22 @@ export function InlineDemo({
         background: 'var(--bg-demo)',
       }}
     >
-      <EngineProvider
-        manifestUrl={manifestUrl}
+      <SceneEngine
         plugins={INLINE_DEMO_PLUGINS}
-        quality="performance"
+        timingProfile="performance"
         controlledProgress={controlledProgress}
       >
         {children}
         <EngineInputRegion fillContainer>
           <SceneCanvas style={{ width: '100%', height: '100%' }} />
         </EngineInputRegion>
-      </EngineProvider>
+      </SceneEngine>
     </div>
   );
 }
 ```
 
-`InlineDemo` retains its own `EngineProvider` (static controlled mode). It does NOT use `scrollSource: 'viewport-relative'` — it is a small embedded widget, not a full scroll-driven panel. To avoid contributing to the browser's context limit, the `quality="performance"` setting is intentional (30fps, smaller GPU footprint). Inline demos in prose that need to be scroll-driven should be converted to a `<ScenePanel>` in `DocsLayout` instead.
+`InlineDemo` retains its own `SceneEngine` (static controlled mode). It does NOT use `scrollSource: 'viewport-relative'` — it is a small embedded widget, not a full scroll-driven panel. To avoid contributing to the browser's context limit, the `timingProfile="performance"` setting is intentional (30fps, smaller GPU footprint). Inline demos in prose that need to be scroll-driven should be converted to a `<ScenePanel>` in `DocsLayout` instead.
 
 ---
 
@@ -1920,7 +1918,7 @@ export function InlineDemo({
 │  RuntimeLoop.pause()/resume(), useSceneEngine.ts, RuntimeLoop.test.ts       │
 │                                                                             │
 │  Stream B ──────────────────────────────────────────────────────────────►  │
-│  engineTypes.ts, useViewportRelativeScroll.ts, EngineProvider.tsx,          │
+│  engineTypes.ts, useViewportRelativeScroll.ts, SceneEngine.tsx,             │
 │  player/index.ts, useViewportRelativeScroll.test.ts                         │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -1960,7 +1958,7 @@ export function InlineDemo({
 ```
 
 **Integration prerequisite (before Phase 2 streams can compile):**
-- Stream D's `ScenePanel` imports `EngineProvider` with `scrollSource.kind === 'viewport-relative'` — requires Stream B.
+- Stream D's `ScenePanel` imports `SceneEngine` with `scrollSource.kind === 'viewport-relative'` — requires Stream B.
 - Stream D's `ScenePanel` indirectly triggers `RuntimeLoop.setCanvas()` — requires Stream A.
 - Streams C, E, F, G have no direct imports from Stream A or B (they import only from `@brewsite/core` published interface, which is unchanged from their perspective).
 
@@ -2012,7 +2010,7 @@ Use `renderHook` from `@testing-library/react`. Mock `IntersectionObserver` glob
 ### Stream D tests
 **File:** `apps/docs/src/__tests__/ScenePanel.test.tsx`
 
-Use `renderHook` / `render` from `@testing-library/react`. ScenePanel wraps EngineProvider; mock EngineProvider to avoid real WebGL initialization.
+Use `renderHook` / `render` from `@testing-library/react`. ScenePanel wraps SceneEngine; mock SceneEngine to avoid real WebGL initialization.
 
 | Test scenario | Assertion |
 |---|---|
@@ -2080,7 +2078,7 @@ Stream B specifies adding `setControlledProgress` which writes to `controlledPro
 Each `InlineDemo` creates its own WebGL context. In the new design, `InlineDemo` is NOT subject to the `useViewportRelativeScroll` lifecycle management. If a ProseBlock section contains many InlineDemos that are simultaneously in the DOM, they can consume multiple context slots. Keep InlineDemo usage minimal — prefer `ScenePanel` for animated content.
 
 ### 11.6 `SceneCanvas` ref forwarding timing
-`SceneCanvas` forwards its ref via `useEffect`, not during the React commit phase ref assignment. Therefore `canvasRef.current` is populated after `SceneCanvas`'s `useEffect` runs. Since `SceneCanvas` is a child of `EngineProvider`, React fires its effects before EngineProvider's effects (children-before-parents). `useViewportRelativeScroll`'s IntersectionObserver setup effect (called from inside EngineProvider) runs after SceneCanvas's ref-forwarding effect, so `canvasRef.current` is guaranteed to be populated when the IntersectionObserver observes it.
+`SceneCanvas` forwards its ref via `useEffect`, not during the React commit phase ref assignment. Therefore `canvasRef.current` is populated after `SceneCanvas`'s `useEffect` runs. Since `SceneCanvas` is a child of `SceneEngine`, React fires its effects before SceneEngine's effects (children-before-parents). `useViewportRelativeScroll`'s IntersectionObserver setup effect (called from inside SceneEngine) runs after SceneCanvas's ref-forwarding effect, so `canvasRef.current` is guaranteed to be populated when the IntersectionObserver observes it.
 
-### 11.7 `EngineProvider` `plugins` prop stability
+### 11.7 `SceneEngine` `plugins` prop stability
 Each `ScenePanel` receives `DOCS_PLUGINS` from a module-level constant. This ensures the plugins array is referentially stable across renders. If `ScenePanel` users construct plugin arrays inline or inside a component, they must wrap them in `useMemo`. `ScenePanel`'s API documentation should note this. The `DocsLayout` uses a module-level constant, so it is correct.

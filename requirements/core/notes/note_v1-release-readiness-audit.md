@@ -3,7 +3,7 @@ title: "v1 Release Readiness Audit"
 doc_type: note
 owner: Toolkit Product
 status: complete
-last_updated: 2026-03-18
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
@@ -302,7 +302,7 @@ The current Camera DSL requires a `mode` discriminant (`'world'`, `'orbit'`, `'n
 
 The scaffolder only creates `src/scenes/intro.tsx` (a scene DSL file). It does not create the `App.tsx` or page component that sets up `SceneEngine`, plugins, `SceneCanvas`, etc. A new user would have a scene file but no idea how to render it.
 
-**Action:** Add an `App.tsx` template that imports the scene, sets up `SceneEngine` with `corePlugin()`, and renders `ScenePlayer` or the manual `ScrollStage` + `SceneCanvas` + `EngineOverlayHost` composition.
+**Action:** Add an `App.tsx` template that imports the scene, sets up `SceneEngine` with `corePlugin()`, and renders the manual `ScrollStage` + `SceneCanvas` + `EngineOverlayHost` composition.
 
 ### 5.6 BLOCKING — Error Messages and JSDoc Reference Deleted `EngineProvider`
 

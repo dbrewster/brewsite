@@ -20,7 +20,7 @@ import type * as THREE from 'three';
  * - Plugins must not import from each other — use shared core interfaces only.
  *
  * @example
- * // In SceneEngine / ScenePlayer:
+ * // In SceneEngine:
  * plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}
  */
 export interface WidgetPlugin {

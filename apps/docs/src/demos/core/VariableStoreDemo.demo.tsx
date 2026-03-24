@@ -12,7 +12,7 @@ import { DemoScene } from '../shared/DemoScene';
 
 export const CODE = `
 // useCurrentScene() reads the active scene id and index from the engine state.
-// It must be called inside a component rendered within <ScenePlayer>.
+// It must be called inside a component rendered within <SceneEngine>.
 function SceneInfoOverlay(): JSX.Element {
   const { id, index } = useCurrentScene();
   return (

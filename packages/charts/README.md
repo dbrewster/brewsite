@@ -28,7 +28,7 @@ No `ChartProvider` required when data is passed inline:
 
 ```tsx
 import { useMemo } from 'react';
-import { ScenePlayer, Scene, corePlugin } from '@brewsite/core';
+import { SceneEngine, Scene, corePlugin } from '@brewsite/core';
 import { chartPlugin, BarChart, ChartAxis, ChartSeries, ChartLegend } from '@brewsite/charts';
 
 const salesRows = [
@@ -40,7 +40,7 @@ const salesRows = [
 function SalesPage() {
   const charts = useMemo(() => chartPlugin(), []);
   return (
-    <ScenePlayer
+    <SceneEngine
       manifestUrl="/assets/manifest.json"
       plugins={[corePlugin(), charts]}
     >
@@ -53,7 +53,7 @@ function SalesPage() {
           <ChartLegend visible position="right" />
         </BarChart>
       </Scene>
-    </ScenePlayer>
+    </SceneEngine>
   );
 }
 ```
@@ -178,14 +178,14 @@ function LiveDashboard() {
   }, []);
 
   return (
-    <ScenePlayer plugins={[charts]}>
+    <SceneEngine plugins={[charts]}>
       <Scene id="s1">
         <BarChart id="live-chart" data={initialRows} theme="darkGlass">
           <ChartAxis axis="x" field="month" />
           <ChartAxis axis="y" field="revenue" />
         </BarChart>
       </Scene>
-    </ScenePlayer>
+    </SceneEngine>
   );
 }
 ```

@@ -3,7 +3,7 @@ title: Charts Overhaul v2 Feature Note
 doc_type: note
 owner: product
 status: draft
-updated: 2026-03-11
+updated: 2026-03-23
 ---
 
 # @brewsite/charts — V2.1 Feature Note
@@ -195,7 +195,7 @@ import { useLiveChartData } from '@brewsite/charts';
 // Inside a React component that has access to chartsPlugin:
 useLiveChartData(chartsPlugin, 'revenue-chart', revenueRows);
 
-// chartsPlugin: the value returned by chartPlugin(), passed to ScenePlayer's plugins prop.
+// chartsPlugin: the value returned by chartPlugin(), passed to SceneEngine's plugins prop.
 // chartId: matches the `id` prop on <BarChart id="revenue-chart" data={initialRows}>.
 // rows: any DataInput (row array or columnar). Hook normalizes before registering.
 ```

@@ -5,7 +5,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 /**
  * Converts a JSX subtree to a stable string for cache key computation and
- * recompilation detection in ScenePlayer. Called once per scene per parent render.
+ * recompilation detection in SceneEngine. Called once per scene per parent render.
  *
  * Design constraints:
  * - Object keys are sorted so prop order does not affect the output.

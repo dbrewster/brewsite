@@ -17,22 +17,22 @@ export default function Navigation(): JSX.Element {
       <h2>Scroll Mode (default)</h2>
 
       <p>
-        Wrap <code>{'<ScenePlayer>'}</code> in <code>{'<EngineScrollRegion>'}</code> to enable
+        Wrap <code>{'<SceneEngine>'}</code> in <code>{'<EngineScrollRegion>'}</code> to enable
         scroll-driven navigation. The scroll position is mapped to [0,1] progress across all
         scenes.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`import { EngineScrollRegion, ScenePlayer } from '@brewsite/core';
+        code={`import { EngineScrollRegion, SceneEngine } from '@brewsite/core';
 
 export default function Page() {
   return (
     <EngineScrollRegion pixelsPerScene={800}>
       <div style={{ position: 'sticky', top: 0, height: '100vh' }}>
-        <ScenePlayer manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
+        <SceneEngine manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
           {scenes}
-        </ScenePlayer>
+        </SceneEngine>
       </div>
     </EngineScrollRegion>
   );
@@ -78,26 +78,26 @@ function Controls() {
       />
 
       <Callout type="note">
-        <code>useEngineScrubber</code> must be rendered inside a <code>{'<ScenePlayer>'}</code>{' '}
+        <code>useEngineScrubber</code> must be rendered inside a <code>{'<SceneEngine>'}</code>{' '}
         subtree. See <Link to="/core/hooks">Hooks Reference</Link> for the full API.
       </Callout>
 
       <h2>Keyboard Navigation</h2>
 
       <p>
-        ScenePlayer responds to <kbd>ArrowRight</kbd>/<kbd>ArrowLeft</kbd> (advance/retreat one
+        SceneEngine responds to <kbd>ArrowRight</kbd>/<kbd>ArrowLeft</kbd> (advance/retreat one
         scene) and <kbd>Home</kbd>/<kbd>End</kbd> by default when <code>keyboard: true</code> is
         set.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`<ScenePlayer
+        code={`<SceneEngine
   manifestUrl="/scene-manifest.json"
   keyboard
 >
   {scenes}
-</ScenePlayer>`}
+</SceneEngine>`}
       />
 
     </section>

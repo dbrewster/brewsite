@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
 status: deprecated
 owner: brewsite-product-manager
-last_updated: 2026-03-09
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -81,7 +81,7 @@ A `Diagram` element in isolation renders in world space at a single position. Wh
 
 ## Functional Requirements
 
-1. `DiagramCanvasWidget` instances are auto-registered at compile time by `diagramPlugin()` when the `DiagramCanvas` handler encounters a new canvas id. No manual widget pre-registration in `widgetSetup.ts` is required for canvas elements.
+1. `DiagramCanvasWidget` instances are auto-registered at compile time by `diagramPlugin()` when the `DiagramCanvas` handler encounters a new canvas id. No manual widget pre-registration is required for canvas elements.
 2. The canvas `theme` prop shall propagate as `fallbackTheme` to all child `<Diagram>` elements that do not specify their own `theme`.
 3. `DiagramCanvas` placement is declared via `x`, `y`, `w`, `h` NVS props (top-left origin, `[0, 1]`). Each canvas renders in its own scissored sub-viewport with an isolated depth buffer. Child `<Diagram>` elements retain their own `position` / `rotation` / `scale` in diagram-local space.
 4. `DiagramPipe` dot notation (`"diagramId.nodeId"`) shall be validated at compile time. An invalid reference (missing diagram id, missing node id, or malformed dot notation) shall emit `console.warn` and produce a `DiagramPipeState` with `controlPoints: []` (rendered as invisible). The compiler must not throw.
@@ -387,7 +387,7 @@ export class DiagramCanvasWidget
 
   /**
    * Optional callback for node-click events within any child diagram.
-   * Assign after construction in widgetSetup.ts.
+   * Assign after construction in plugin setup.
    */
   public onInteraction: ((event: DiagramInteractionEvent) => void) | undefined;
 
@@ -464,22 +464,21 @@ export class DiagramCanvasWidget
 
 ### Plugin Setup Pattern
 
-`diagramPlugin()` is the recommended integration path. Pass it to `EngineProvider` or `ScenePlayer` via the `plugins` prop. It automatically creates and registers `DiagramCanvasWidget` instances when the compiler first encounters a `<DiagramCanvas id="...">` element.
+`diagramPlugin()` is the recommended integration path. Pass it to `SceneEngine` via the `plugins` prop. It automatically creates and registers `DiagramCanvasWidget` instances when the compiler first encounters a `<DiagramCanvas id="...">` element.
 
 ```typescript
 import { useMemo } from 'react';
-import { EngineProvider, corePlugin } from '@brewsite/core';
+import { SceneEngine, corePlugin } from '@brewsite/core';
 import { diagramPlugin } from '@brewsite/diagram';
 
 function App() {
   const diagPlugin = useMemo(() => diagramPlugin(), []);
   return (
-    <EngineProvider
-      manifestUrl="/assets/manifest.json"
+    <SceneEngine
       plugins={[corePlugin(), diagPlugin]}
     >
       {/* scenes with <DiagramCanvas> */}
-    </EngineProvider>
+    </SceneEngine>
   );
 }
 ```
@@ -626,7 +625,7 @@ Replace `position` and `rotation` with NVS props and `tilt`:
 Consumers adding `DiagramCanvasWidget` to an existing project must:
 
 1. Import `DiagramCanvasWidget` and `compileCanvas` from `@brewsite/diagram`.
-2. Register one `DiagramCanvasWidget` instance per `DiagramCanvas` id before `ScenePlayer` mounts (or use `diagramPlugin()` for auto-registration).
+2. Register one `DiagramCanvasWidget` instance per `DiagramCanvas` id before `SceneEngine` mounts (or use `diagramPlugin()` for auto-registration).
 3. Replace standalone `<Diagram>` DSL usages with `<DiagramCanvas>` + nested `<Diagram>` children wherever cross-diagram pipes are needed. Standalone `<Diagram>` elements outside a canvas remain fully supported.
 
 ## Dependencies

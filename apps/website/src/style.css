@@ -268,7 +268,7 @@ code {
   max-width: 580px;
 }
 
-/* ─── Act Content Panel (beside or below ScenePlayer) ───────────────────── */
+/* ─── Act Content Panel (beside or below SceneEngine) ───────────────────── */
 .act-content-panel {
   padding: var(--section-pad-x);
   max-width: 460px;
@@ -298,7 +298,7 @@ code {
   margin-bottom: 24px;
 }
 
-/* ─── ScenePlayer Wrapper ────────────────────────────────────────────────── */
+/* ─── SceneEngine Wrapper ────────────────────────────────────────────────── */
 .scene-section {
   position: relative;
   width: 100%;

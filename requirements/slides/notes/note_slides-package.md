@@ -3,7 +3,7 @@ title: "Feature Note: @brewsite/slides Package"
 doc_type: note
 owner: brewsite-product-manager
 status: draft
-updated: 2026-03-05
+updated: 2026-03-23
 change_history:
   - date: 2026-03-04
     author: brewsite-product-manager (PM-1)
@@ -17,7 +17,7 @@ change_history:
 
 ## 1. Problem Statement
 
-BrewSite today is an excellent engine for marketing scenes and interactive 3D narratives. Its authoring model — pure JSX snapshots, automatic transitions, scroll-driven or keyboard-navigated progression — is powerful but deliberately low-level. Every scene author must wire together `EngineProvider`, `EngineInputRegion`, `SceneCanvas`, `EngineOverlayHost`, a plugin array, a camera element, lighting, background, `InputController`, and `ProgressManager` just to show the first slide. There is no opinionated authoring surface for the most common narrative artifact in the developer-facing world: a slide deck.
+BrewSite today is an excellent engine for marketing scenes and interactive 3D narratives. Its authoring model — pure JSX snapshots, automatic transitions, scroll-driven or keyboard-navigated progression — is powerful but deliberately low-level. Every scene author must wire together `SceneEngine`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, a plugin array, a camera element, lighting, background, `InputController`, and `ProgressManager` just to show the first slide. There is no opinionated authoring surface for the most common narrative artifact in the developer-facing world: a slide deck.
 
 The concrete pains this causes today:
 
@@ -41,18 +41,18 @@ A dedicated `@brewsite/slides` package solves all of these pains while remaining
 
 `@brewsite/slides` is a new BrewSite published package that provides an opinionated, batteries-included authoring surface for slide deck experiences. It exports:
 
-- **`<SlidePlayer>`** — The top-level React component. Drop-in replacement for a custom `EngineProvider` + layout stack. Handles fullscreen, keyboard navigation, and progress display. Accepts an optional `id` prop for external state access.
+- **`<SlidePlayer>`** — The top-level React component. Drop-in replacement for a custom `SceneEngine` + layout stack. Handles fullscreen, keyboard navigation, and progress display. Accepts an optional `id` prop for external state access.
 - **`<Slide>`** — The primary authoring unit. Compiles to a `<Scene>` with sensible defaults (camera, lighting, background, navigation, progress weighting).
 - **Built-in layout components** — `<TitleLayout>`, `<TitleBodyLayout>`, `<TwoColumnLayout>`, `<FullBleedLayout>`, `<BlankLayout>` — each rendering their content as React content registered through the existing `TextBox` widget infrastructure.
 - **Text content primitives** — `<Heading>`, `<Body>`, `<BulletList>`, `<NumberedList>` — typed, styleable, animation-aware React components rendered as TextBox children.
 - **Speaker notes** — Authored as props on `<Slide>`, stored in VariableStore, surfaced in presenter view.
 - **`slidesPlugin()`** — Plugin factory that registers all slides widgets into a `WidgetRegistry`.
-- **`defaultDeckTheme`** and the `DeckTheme` type — Superset of core's `SceneTheme`, maps to `SceneTheme` for injection into `EngineProvider`.
+- **`defaultDeckTheme`** and the `DeckTheme` type — Superset of core's `SceneTheme`, maps to `SceneTheme` for injection into `SceneEngine`.
 
 **Authoring mental model:**
 
 ```tsx
-// A complete slide deck — no EngineProvider plumbing required
+// A complete slide deck — no SceneEngine plumbing required
 import { SlidePlayer, Slide, TitleLayout, TitleBodyLayout, BulletList } from '@brewsite/slides';
 
 export default function TechDeckPage() {
@@ -75,7 +75,7 @@ export default function TechDeckPage() {
 }
 ```
 
-Under the hood, `<SlidePlayer>` transforms each `<Slide>` into a `<Scene>`, registers slide-specific widgets via the plugin system, configures default navigation, and mounts the full EngineProvider + canvas + overlay stack.
+Under the hood, `<SlidePlayer>` transforms each `<Slide>` into a `<Scene>`, registers slide-specific widgets via the plugin system, configures default navigation, and mounts the full SceneEngine + canvas + overlay stack.
 
 ### 2.1 MVP Scope (v1.0 vs v1.1)
 
@@ -109,7 +109,7 @@ Under the hood, `<SlidePlayer>` transforms each `<Slide>` into a `<Scene>`, regi
 **`<SlidePlayer>`** — Root component. Props:
 - `plugins?: WidgetPlugin[]` — Additional plugins (e.g., `diagramPlugin()`, `modelPlugin()`)
 - `theme?: DeckTheme` — Typography, colors, spacing; defaults to `defaultDeckTheme`
-- `manifestUrl?: string` — Optional. Asset manifest for GLTF model/animation assets. When omitted, `SlidePlayer` passes an empty manifest (`{ models: [], animations: [] }`) to `EngineProvider`. Only required when the deck uses `@brewsite/model` elements. This is a known workaround for `EngineProvider.manifestUrl` being required; it is flagged as a DX gap for the core team.
+- `manifestUrl?: string` — Optional. Asset manifest for GLTF model/animation assets. When omitted, `SlidePlayer` passes an empty manifest to `SceneEngine` via `modelPlugin()`. Only required when the deck uses `@brewsite/model` elements. Manifest loading is now handled by plugins.
 - `id?: string` — Optional stable engine ID. Required if `<PresenterView>` (v1.1) reads state from this deck via `useSceneEngineState(id)`.
 - `fullscreen?: boolean` — Force fullscreen mode
 - `aspectRatio?: number` — Canvas aspect ratio (default: 16/9)
@@ -312,7 +312,7 @@ Keyboard toggle: `F`. The slide canvas and overlay host both scale into the full
 
 ### 3.12 Deck-Level Theming
 
-`DeckTheme` is a superset of `@brewsite/core`'s existing `SceneTheme`. `SlidePlayer` maps `DeckTheme` to `SceneTheme` and passes it as the `sceneTheme` prop on the internal `EngineProvider`. `EngineOverlayHost` injects the resulting CSS variables (`--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-color-mode`, `--brewsite-accent-color`, etc.) that all TextBox children consume.
+`DeckTheme` is a superset of `@brewsite/core`'s existing `SceneTheme`. `SlidePlayer` maps `DeckTheme` to `SceneTheme` and passes it as the `sceneTheme` prop on the internal `SceneEngine`. `EngineOverlayHost` injects the resulting CSS variables (`--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-color-mode`, `--brewsite-accent-color`, etc.) that all TextBox children consume.
 
 `DeckTheme` extends `SceneTheme` with slide-specific concerns not covered by `SceneTheme` (spacing, background gradient, border-radius) which are injected as additional CSS custom properties by the `SlideLayoutWidget`.
 
@@ -327,7 +327,7 @@ type SceneTheme = {
 
 // DeckTheme (new, from @brewsite/slides):
 type DeckTheme = {
-  // ── SceneTheme fields (mapped 1:1 to EngineProvider.sceneTheme) ──
+  // ── SceneTheme fields (mapped 1:1 to SceneEngine.sceneTheme) ──
   fonts: {
     heading: string;     // → SceneTheme.font.htmlFamily
     body?: string;       // fallback to heading
@@ -422,7 +422,7 @@ Because NVS absolute positioning (`position: absolute; left: x%; top: y%`) does 
 ### 4.1 Which `@brewsite/core` Primitives Are Reused Directly
 
 **Reused directly (no wrapping):**
-- `EngineProvider` — Created internally inside `SlidePlayer`; receives `sceneTheme` derived from `DeckTheme`
+- `SceneEngine` — Created internally inside `SlidePlayer`; receives `sceneTheme` derived from `DeckTheme`
 - `EngineARContainer` — Used as-is for aspect ratio management (16:9 default)
 - `EngineInputRegion` — Used as-is for input capture
 - `SceneCanvas` — Used as-is for Three.js rendering
@@ -438,25 +438,25 @@ Because NVS absolute positioning (`position: absolute; left: x%; top: y%`) does 
 - `IWidget`, `ISceneElement`, `IRenderable` — Slide widgets implement these interfaces
 - `WidgetRegistry`, `registerNode` — Used by `slidesPlugin()` to register slide element types
 - `VariableStore` — `SlideMetaWidget` publishes notes/title/slideIndex per slide
-- `useSceneEngineState` — Used by `<PresenterView>` (v1.1) to read progress state from outside the EngineProvider tree
-- `getSceneRuntimeState` — Used by `<PresenterView>` (v1.1) to read VariableStore (speaker notes) from outside the EngineProvider tree
+- `useSceneEngineState` — Used by `<PresenterView>` (v1.1) to read progress state from outside the SceneEngine tree
+- `getSceneRuntimeState` — Used by `<PresenterView>` (v1.1) to read VariableStore (speaker notes) from outside the SceneEngine tree
 - `useCurrentScene`, `useSceneProgress` — Used by the progress indicator
 - `useEngineInput` — Used by overview panel (v1.1) to navigate to a specific slide
 
 **Note on EngineOverlayHost:** The overlay host does not accept arbitrary React component trees as direct children. It has one rendering path: it reads TextBox widget IDs from the `TEXTBOX_NAMESPACE` in VariableStore, then renders each as a positioned `<div>` whose `children` are sourced from `TextBoxChildrenContext` (a `Map<string, ReactNode>` written by `TextBoxWidget.apply()`). The `ReactNode` stored in this map can be any React content — including `<Heading>`, `<BulletList>`, etc. The slide layout system uses this path: layout components compile to TextBox DSL elements, and the layout content lives in those TextBoxes' `children` props. No new overlay registration mechanism is introduced.
 
 **Abstracted behind slides API:**
-- `compileSceneTrack` — Triggered by `EngineProvider` internally
+- `compileSceneTrack` — Triggered by `SceneEngine` internally
 - `SceneTrack`, `SceneTrackTick` — Infrastructure detail
-- `RuntimeDriverImpl` — Hidden inside `EngineProvider`
+- `RuntimeDriverImpl` — Hidden inside `SceneEngine`
 
-### 4.2 Does It Wrap `ScenePlayer` or Build Its Own Variant?
+### 4.2 Does It Build Its Own Variant?
 
-`@brewsite/slides` does not wrap `ScenePlayer`. `ScenePlayer` is a minimal convenience wrapper for the simplest single-screen case. `<SlidePlayer>` is a new composing component that assembles:
+`<SlidePlayer>` is a composing component that assembles:
 
 ```
 SlidePlayer
-└── EngineProvider (id, slidesPlugin + user plugins, sceneTheme, empty manifest fallback)
+└── SceneEngine (id, slidesPlugin + user plugins, sceneTheme, empty manifest fallback)
     ├── Slide children → Scene DSL (compile-time transformation via React.Children.map)
     ├── EngineARContainer (16:9 default, fullscreen-aware)
     │   └── EngineInputRegion
@@ -467,7 +467,7 @@ SlidePlayer
     └── FullscreenWrapper
 ```
 
-`SlidePlayer` is the "opinionated wrapper" pattern. Advanced users who need full control use `EngineProvider` + `slidesPlugin()` + individual `<Slide>` elements directly.
+`SlidePlayer` is the "opinionated wrapper" pattern. Advanced users who need full control use `SceneEngine` + `slidesPlugin()` + individual `<Slide>` elements directly.
 
 ### 4.3 Integration with `@brewsite/diagram`
 
@@ -521,13 +521,13 @@ Since `TextBoxState.children: React.ReactNode` is arbitrary React content (not s
 
 **Tradeoff:** `SlideLayoutWidget` is responsible for producing correct TextBox states at compile time, including NVS coordinate math for each layout variant. This logic must be unit-tested as a pure compile function with real inputs.
 
-### Decision 3: SlidePlayer Is the "Batteries Included" API; EngineProvider Is the Escape Hatch
+### Decision 3: SlidePlayer Is the "Batteries Included" API; SceneEngine Is the Escape Hatch
 
-**Decision:** `SlidePlayer` is an opaque wrapper that handles all engine plumbing. Advanced users use `EngineProvider` + `slidesPlugin()` + `<Slide>` DSL directly.
+**Decision:** `SlidePlayer` is an opaque wrapper that handles all engine plumbing. Advanced users use `SceneEngine` + `slidesPlugin()` + `<Slide>` DSL directly.
 
 **Rationale:** The core BrewSite API has a high learning curve for developers who just want to show a deck. `SlidePlayer` makes the 80% case trivially easy while keeping the 20% case accessible via escape hatch.
 
-**Implication:** `SlidePlayer` transforms `<Slide>` children into `<Scene>` elements via `React.Children.map()` in its render body, then passes the resulting `<Scene>` elements as children to `EngineProvider`. This is Option A from the original open questions — chosen because it keeps `<Slide>` as a pure data container and avoids the NodeHandler expansion complexity of Option B.
+**Implication:** `SlidePlayer` transforms `<Slide>` children into `<Scene>` elements via `React.Children.map()` in its render body, then passes the resulting `<Scene>` elements as children to `SceneEngine`. This is Option A from the original open questions — chosen because it keeps `<Slide>` as a pure data container and avoids the NodeHandler expansion complexity of Option B.
 
 **Tradeoff:** `SlidePlayer.render()` must understand the full `<Slide>` prop surface to construct `<Scene>` JSX. This is acceptable — all props are typed, and the transform is a pure function of `<Slide>` props to `<Scene>` children. The transform must be tested in isolation.
 
@@ -589,7 +589,7 @@ The progress indicator reads `VariableStore['slide:logicalIndex'][currentSceneId
 
 ### Decision 7: DeckTheme Is a Superset of SceneTheme; No Parallel CSS Variable System
 
-**Decision:** `DeckTheme` maps its core fields to `@brewsite/core`'s existing `SceneTheme` type. `SlidePlayer` derives a `SceneTheme` from `DeckTheme` and passes it as `sceneTheme` to `EngineProvider`. Extended slide-specific CSS variables are injected by `SlideLayoutWidget` into the overlay container — they do not overlap with the `--brewsite-*` variables already defined by `SceneTheme`.
+**Decision:** `DeckTheme` maps its core fields to `@brewsite/core`'s existing `SceneTheme` type. `SlidePlayer` derives a `SceneTheme` from `DeckTheme` and passes it as `sceneTheme` to `SceneEngine`. Extended slide-specific CSS variables are injected by `SlideLayoutWidget` into the overlay container — they do not overlap with the `--brewsite-*` variables already defined by `SceneTheme`.
 
 **Rationale:** `EngineOverlayHost` already injects `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-color-mode`, and `--brewsite-accent-color` via the existing `SceneTheme` + `ThemeContext` mechanism. Creating a parallel set of font/color CSS variables would produce two competing definitions of the same property, causing unpredictable inheritance. `DeckTheme` must feed into the existing mechanism, not around it.
 
@@ -726,7 +726,7 @@ The `@media print` approach fights the absolute positioning model and may produc
 
 **Element module pattern mandatory:** All new element modules must follow the `types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts` pattern. The compiler must remain pure (no React, no Three.js, no async). Three.js is confined to `render.ts` files.
 
-**Compiler purity:** All `<Slide>` → `<Scene>` transformation must happen synchronously in `SlidePlayer.render()`. No I/O, no async. The `compileSceneTrack` call triggered by `EngineProvider` must receive fully-resolved `<Scene>` elements.
+**Compiler purity:** All `<Slide>` → `<Scene>` transformation must happen synchronously in `SlidePlayer.render()`. No I/O, no async. The `compileSceneTrack` call triggered by `SceneEngine` must receive fully-resolved `<Scene>` elements.
 
 **Interface-based stateful tests:** Tests must use real inputs and real output assertions. Compile functions are tested as pure functions with real DSL inputs and real state outputs. Runtime tests use the existing mock doubles from `packages/core/src/runtime/mocks/`.
 

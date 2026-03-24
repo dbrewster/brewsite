@@ -3,7 +3,7 @@ title: "BrewSite Core — HUD Overlay System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
@@ -89,7 +89,7 @@ The following modules, types, and exports have been deleted:
 - `SceneTrackTick.hudPrimitives` — removed
 - `SceneFrameDelta.hudItems` — removed
 
-**ScenePlayer prop:**
+**SceneEngine prop:**
 - `contentSlots` — removed (the overlay host pattern replaces it)
 
 ---
@@ -148,7 +148,7 @@ For persistent overlay content (navigation arrows, progress dots) that must appe
 | `<Hud><HudItem id="x">...</HudItem></Hud>` in scene DSL | HTML children directly in `<Scene>` |
 | `HudOverlay` — rendered compiled primitives | `EngineOverlayHost` — renders current scene's ReactNode overlay |
 | `HudPhaseContext` — provided `phase` / `blockProgress` | No direct replacement. Use `useSceneProgress()` or animate on mount. |
-| `contentSlots` on `ScenePlayer` | Sibling components alongside `EngineOverlayHost` |
+| `contentSlots` on `SceneEngine` | Sibling components alongside `EngineOverlayHost` |
 | `SceneFrame.hudItems` field | Removed. Overlay content is authored via `<TextBox>` DSL element. |
 | `SceneTrackTick.hudPrimitives` | Removed. Overlays are `TextBoxState` entries in the `VariableStore`, rendered by `EngineOverlayHost`. |
 

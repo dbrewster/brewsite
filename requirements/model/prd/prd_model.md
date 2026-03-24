@@ -3,7 +3,7 @@ title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
 status: approved
 owner: Toolkit Product
-last_updated: 2026-03-21
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
@@ -118,7 +118,7 @@ Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core
 export interface ModelPluginOptions {
   /**
    * URL to fetch the asset manifest JSON from (e.g. '/assets/manifest.json').
-   * Mutually exclusive with `manifest`. Fetched asynchronously during EngineProvider mount.
+   * Mutually exclusive with `manifest`. Fetched asynchronously during SceneEngine mount.
    */
   manifestUrl?: string;
 
@@ -141,12 +141,12 @@ export function modelPlugin(options?: ModelPluginOptions): WidgetPlugin & {
 };
 ```
 
-Register via `EngineProvider.plugins`:
+Register via `SceneEngine.plugins`:
 
 ```tsx
-<EngineProvider plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}>
+<SceneEngine plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}>
   {/* scenes */}
-</EngineProvider>
+</SceneEngine>
 ```
 
 ### Handler Registration
@@ -795,7 +795,7 @@ export const LabelPositionerContext: React.Context<LabelPositioner | null>;
 
 /**
  * Hook to access the LabelPositioner.
- * Throws if called outside a ScenePlayer / EngineProvider with modelPlugin().
+ * Throws if called outside a SceneEngine with modelPlugin().
  */
 export function useLabelPositioner(): LabelPositioner;
 ```

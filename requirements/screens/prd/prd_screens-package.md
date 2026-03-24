@@ -3,7 +3,7 @@ title: "@brewsite/screens Package"
 doc_type: prd
 owner: Toolkit Product
 status: current
-updated: 2026-03-21
+updated: 2026-03-23
 version_history:
   - version: "0.1.0"
     date: 2026-03-13
@@ -108,13 +108,14 @@ Peer dependencies: `@brewsite/core`, `react`, `react-dom`, `three`.
 The single required setup step — add `screensPlugin()` to your `plugins` array alongside `corePlugin()`:
 
 ```tsx
-import { ScenePlayer, corePlugin } from '@brewsite/core';
+import { SceneEngine, corePlugin } from '@brewsite/core';
 import { screensPlugin } from '@brewsite/screens';
 
-<ScenePlayer
-  scenes={scenes}
+<SceneEngine
   plugins={[corePlugin(), screensPlugin()]}
-/>
+>
+  {/* scenes */}
+</SceneEngine>
 ```
 
 Widget instances are created lazily on first DSL compilation. There is no upfront widget enumeration or `registry.register()` call needed.
@@ -436,7 +437,7 @@ import { diagramPlugin } from '@brewsite/diagram';
 registry.register(new ScreenWidget('my-screen', compileScreen({ id: 'my-screen', src: '' })));
 registry.register(new ImagePanelWidget('my-panel', compileImagePanel({ id: 'my-panel', src: '' })));
 
-<ScenePlayer plugins={[corePlugin(), diagramPlugin()]} />
+<SceneEngine plugins={[corePlugin(), diagramPlugin()]}>{/* scenes */}</SceneEngine>
 ```
 
 **After:**
@@ -445,7 +446,7 @@ import { Screen, ImagePanel } from '@brewsite/screens';
 import { screensPlugin } from '@brewsite/screens';
 
 // No manual registration needed — screensPlugin() handles it lazily:
-<ScenePlayer plugins={[corePlugin(), screensPlugin()]} />
+<SceneEngine plugins={[corePlugin(), screensPlugin()]}>{/* scenes */}</SceneEngine>
 ```
 
 DSL usage is unchanged — `<Screen>`, `<ImagePanel>`, and their props are identical.

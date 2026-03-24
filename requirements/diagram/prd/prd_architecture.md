@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-19
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -71,7 +71,7 @@ Affected packages: `@brewsite/diagram` (primary). `@brewsite/core` is a peer dep
 
 **Primary metrics:**
 - Consumers can author, compile, and play back a multi-scene diagram with zero Three.js code in their scene files.
-- Adding `@brewsite/diagram` to a project requires calling `diagramPlugin()` in the `plugins` array passed to `EngineProvider` — no manual widget pre-registration or diagram ID listing is needed.
+- Adding `@brewsite/diagram` to a project requires calling `diagramPlugin()` in the `plugins` array passed to `SceneEngine` — no manual widget pre-registration or diagram ID listing is needed.
 - All compile functions (`compileDiagram`, `compileImagePanel`, `compileScreen`) pass their full test suites with real DSL inputs and asserted real outputs.
 
 **Guardrail metrics:**
@@ -232,32 +232,19 @@ import './register';
 
 ```typescript
 import { useMemo } from 'react';
-import { EngineProvider, corePlugin } from '@brewsite/core';
+import { SceneEngine, corePlugin } from '@brewsite/core';
 import { diagramPlugin } from '@brewsite/diagram';
 
 function App() {
   const diagPlugin = useMemo(() => diagramPlugin(), []);
   return (
-    <EngineProvider
-      manifestUrl="/assets/manifest.json"
+    <SceneEngine
       plugins={[corePlugin(), diagPlugin]}
     >
       {/* scenes with <Diagram> elements */}
-    </EngineProvider>
+    </SceneEngine>
   );
 }
-```
-
-`diagramPlugin()` also works with `ScenePlayer`:
-
-```typescript
-import { ScenePlayer, corePlugin } from '@brewsite/core';
-import { diagramPlugin } from '@brewsite/diagram';
-
-<ScenePlayer
-  sceneGroup={sceneGroup}
-  plugins={[corePlugin(), diagramPlugin()]}
-/>
 ```
 
 The plugin lifecycle has three hooks:

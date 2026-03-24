@@ -3,7 +3,7 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-21
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-21
     author: "Toolkit Product"
@@ -436,7 +436,7 @@ export type SceneTrack = {
   transitionBlocks?: SceneTrackTransitionBlock[];
   /**
    * Warnings accumulated during compilation. Empty or absent when no issues.
-   * Consumed internally by EngineProvider after compilation completes.
+   * Consumed internally by SceneEngine after compilation completes.
    */
   warnings?: CompileWarning[];
   /**
@@ -971,7 +971,7 @@ const key = [
 
 **Cache invalidation:** The cache is a module-level `Map<string, SceneTrack>`. It is never automatically invalidated — `clearCache()` must be called explicitly. The player layer calls `clearCache()` when the widget registry is rebuilt (e.g., after hot module replacement or viewport resize that forces registry recreation).
 
-**Cache scope:** The cache is process-scoped (same Map instance for all `EngineProvider` instances in a single page). In practice this is safe because the cache key includes all variable inputs. Two providers with the same scenes and registry will correctly share a cached track.
+**Cache scope:** The cache is process-scoped (same Map instance for all `SceneEngine` instances in a single page). In practice this is safe because the cache key includes all variable inputs. Two engines with the same scenes and registry will correctly share a cached track.
 
 ---
 

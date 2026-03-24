@@ -51,7 +51,7 @@ If a file needs to import from a layer it is forbidden from, the abstraction bou
 ### `packages/core/src/` — The Engine
 
 ```
-player/      React integration surface (ScenePlayer, hooks, EngineFrameDriver)
+player/      React integration surface (SceneEngine, hooks, ScrollStage, SceneCanvas)
 compiler/    Pure DSL→SceneTrack pipeline (no Three.js, no React)
   blocks/    DSL block components (Hud, InputController, Action, maps)
   primitives/  Per-element primitive compilers

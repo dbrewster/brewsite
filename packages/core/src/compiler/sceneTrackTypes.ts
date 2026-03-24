@@ -362,7 +362,7 @@ export type SceneWindow = {
 
 /**
  * A single pre-baked frame in the scene track. Indexed for O(1) sampling.
- * Produced by sceneTrackCompiler. Consumed by RuntimeDriver and ScenePlayer.
+ * Produced by sceneTrackCompiler. Consumed by RuntimeDriver and SceneEngine.
  */
 export type SceneTrackTick = {
   index: number;

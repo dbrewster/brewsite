@@ -74,7 +74,7 @@ export const EXAMPLES: ExampleEntry[] = [
   {
     path: '/mdx-embed',
     label: 'MDX Embed',
-    description: 'Markdown article with interactive 3D diagrams embedded inline via react-markdown.',
+    description: 'MDX article with interactive 3D diagrams using SceneEmbed directly in .mdx files.',
   },
 ];
 

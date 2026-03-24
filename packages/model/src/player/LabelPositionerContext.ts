@@ -8,7 +8,7 @@ export const LabelPositionerContext = createContext<LabelPositioner | null>(null
 export const useLabelPositioner = (): LabelPositioner => {
   const ctx = useContext(LabelPositionerContext);
   if (!ctx) {
-    throw new Error('[useLabelPositioner] must be used inside <ScenePlayer>');
+    throw new Error('[useLabelPositioner] must be used inside <SceneEngine>');
   }
   return ctx;
 };

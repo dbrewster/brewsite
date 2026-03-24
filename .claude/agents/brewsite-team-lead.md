@@ -64,7 +64,7 @@ You have five specialized agents. Always prefer the most specific agent. Only fa
 ---
 
 ### `brewsite-scene-author`
-**Owns:** Scene DSL files and page layouts inside `apps/`. Wires `ScenePlayer` or `EngineProvider` into pages, configures `ProgressManager` for scroll weighting, authors overlay content, configures `InputController` actions (orbit, dolly, pan, reset), uses `useEngineState`/`useCurrentScene`/`useSceneEngineState`/`useSceneRuntime` hooks.
+**Owns:** Scene DSL files and page layouts inside `apps/`. Wires `SceneEngine` (with `ScrollStage` and `SceneCanvas`) into pages, configures `ProgressManager` for scroll weighting, authors overlay content, configures `InputController` actions (orbit, dolly, pan, reset), uses `useEngineState`/`useCurrentScene`/`useSceneRuntime` hooks.
 
 **MCP tools available:** This agent has access to the `brewsite-docs` MCP server, which provides:
 - `brewsite_search` — natural-language search over BrewSite documentation (filterable by topic: `core`, `diagram`, `model`, `charts`, `screens`, `guides`).
@@ -76,7 +76,7 @@ When delegating to this agent, instruct it to use these MCP tools to research co
 **Delegate to this agent when:**
 - A new scene or sequence of scenes needs to be authored.
 - An existing scene needs to be updated or debugged (wrong animation, wrong scroll feel, broken input/orbit/zoom).
-- A new page layout needs `ScenePlayer` or `EngineProvider` wired up.
+- A new page layout needs `SceneEngine` wired up.
 - Scroll pacing (`ProgressManager` scroll units) needs tuning.
 - Input actions (camera orbit, dolly, pan, reset) need to be configured or fixed.
 

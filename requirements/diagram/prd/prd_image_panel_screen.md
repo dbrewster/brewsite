@@ -3,7 +3,7 @@ title: "BrewSite Diagram — ImagePanel and Screen Elements"
 doc_type: prd
 status: deprecated
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -532,7 +532,7 @@ export function disposeGlowSprite(sprite: THREE.Sprite): void;
 ### Widget Registration Pattern
 
 ```typescript
-// In consumer's widgetSetup.ts, before ScenePlayer mounts:
+// In consumer's plugin setup, before SceneEngine mounts:
 
 import { WidgetRegistry } from '@brewsite/core';
 import {
@@ -647,7 +647,7 @@ Both elements use `bezelThickness: 0.3` as the default. The `bezelGeometry.ts` `
 This is the initial implementation of both elements. No existing `@brewsite/diagram` consumer API changes. Consumers adding these elements must:
 
 1. Import `ImagePanelWidget`/`ScreenWidget` and the corresponding compile functions from `@brewsite/diagram`.
-2. Register one widget instance per element id before `ScenePlayer` mounts.
+2. Register one widget instance per element id before `SceneEngine` mounts.
 3. Import `./register.ts` from `@brewsite/diagram` to wire the DSL node handlers.
 
 ## Dependencies

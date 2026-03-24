@@ -61,7 +61,7 @@ export const docsNav: NavSection[] = [
     title: 'Player & Hooks',
     actId: 'act-player-hooks',
     items: [
-      { label: 'ScenePlayer & EngineProvider', id: 'scene-player' },
+      { label: 'SceneEngine & EngineProvider', id: 'scene-player' },
       { label: 'Hooks Reference',              id: 'scene-hooks' },
     ],
   },

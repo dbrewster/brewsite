@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-21
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-21
     author: "Toolkit Product"
@@ -639,7 +639,7 @@ All themes share: `defaultSize: ["15%", "8%"]`, `margin: 0`, `flow.gap: "6%"`.
 
 `DiagramTheme.input` is reserved for future canvas-level default input configuration. As of the current implementation, a standalone `<Diagram>` that declares `theme.input` will receive an `IGNORED_INPUT_CONFIG` compiler warning. The field exists in the type for forward-compatibility but is not consumed by `DiagramWidget` or the current compiler handler. Scene authors should use `<InputController>` with `<Action type="diagram-canvas.*">` for canvas interaction instead.
 
-The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and forwarded to any `onCompileWarning` handler registered on `ScenePlayer`.
+The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and forwarded to any `onCompileWarning` handler registered on `SceneEngine`.
 
 ## SceneTheme Integration
 
@@ -651,7 +651,7 @@ The diagram compile handler in `compiler/handlers.ts` automatically bridges `Sce
 2. The diagram handler reads `api.context.sceneTheme` and merges it: `{ ...resolvedTheme, sceneTheme: api.context.sceneTheme }`
 3. The merged theme is passed to `compileDiagram()`, which calls `buildThemeRenderConfig()` to derive font URL and effective font size factors
 
-This means consumers who configure `SceneTheme` at the engine level (via `useSceneEngine({ sceneTheme })` or `ScenePlayer sceneTheme` prop) get automatic font and sizing integration in all diagrams — no manual `DiagramTheme.sceneTheme` wiring required. Manual `sceneTheme` on `DiagramTheme` still works as before and takes precedence if both are present.
+This means consumers who configure `SceneTheme` at the engine level (via `useSceneEngine({ sceneTheme })` or `SceneEngine sceneTheme` prop) get automatic font and sizing integration in all diagrams — no manual `DiagramTheme.sceneTheme` wiring required. Manual `sceneTheme` on `DiagramTheme` still works as before and takes precedence if both are present.
 
 The cache key for `SceneTrack` includes `sceneTheme.font.webglFontUrl`, `sceneTheme.fontSize.label`, and `sceneTheme.fontSize.caption` — the three fields that affect diagram compilation output. Changing these values at runtime triggers recompilation.
 

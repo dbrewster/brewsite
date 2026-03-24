@@ -521,7 +521,7 @@ export const ensureSceneRegistry = (): void => {
 
 // NOTE: Module-scope auto-registration removed.
 // registerCoreHandlers() in coreHandlers.ts handles all registrations.
-// Called by SceneEngine, ScenePlayer, or corePlugin().registerHandlers().
+// Called by SceneEngine or corePlugin().registerHandlers().
 
 export const resolveSceneFromDsl = (
   tree: unknown,

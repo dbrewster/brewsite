@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Interaction System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-23
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -376,7 +376,7 @@ readonly onMouseLeave?: DiagramGroupMouseHandler;  // opts group into GroupInter
 ### Usage — Focus Region with React State
 
 ```tsx
-// In a React component above ScenePlayer:
+// In a React component above SceneEngine:
 
 import { useDiagramFocusRegion } from '@brewsite/diagram';
 
@@ -515,7 +515,7 @@ This is the initial implementation of the interaction system. No existing `@brew
 
 1. Add `onMouseEnter`/`onMouseLeave` props to `DiagramNode` or `DiagramGroup` DSL elements.
 2. Add `clickable={true}` to nodes that should respond to click.
-3. Assign `DiagramWidget.onInteraction` callback in `widgetSetup.ts`.
+3. Assign `DiagramWidget.onInteraction` callback in plugin setup.
 4. Use `useDiagramFocusRegion()` in React components or `addEventListener(DIAGRAM_FOCUS_REGION_EVENT, ...)` outside React.
 
 Consumers who do not add any of the above have zero behavior change — the interaction system is entirely opt-in.

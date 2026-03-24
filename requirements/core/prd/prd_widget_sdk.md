@@ -1606,7 +1606,7 @@ export class MyElementWidget
 The type-factory pattern enables one DSL component to produce multiple concrete widget implementations based on the `type` prop:
 
 ```typescript
-// In widgetSetup:
+// In plugin setup:
 registry.registerTypeFactory(ModelRouter, (props) => {
   const type = props.type as string;
   const id = props.id as string;

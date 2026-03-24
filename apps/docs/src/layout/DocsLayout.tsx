@@ -93,7 +93,7 @@ export function DocsLayout(): JSX.Element {
                 <code>&lt;Floor&gt;</code>, <code>&lt;Environment&gt;</code>
               </li>
               <li>
-                <strong>ScenePlayer</strong> — React component that mounts a Three.js canvas and drives
+                <strong>SceneEngine</strong> — React component that mounts a Three.js canvas and drives
                 the render loop
               </li>
               <li>
@@ -252,22 +252,22 @@ function MyScenes() {
               Elements not declared in a scene <strong>inherit from the previous scene</strong>.
             </Callout>
 
-            <h2>Step 4: Mount ScenePlayer</h2>
+            <h2>Step 4: Mount SceneEngine</h2>
             <CodeBlock
               language="tsx"
-              code={`import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
+              code={`import { SceneEngine, createDefaultWidgetRegistry } from '@brewsite/core';
 
 const registry = createDefaultWidgetRegistry(null);
 
 function App() {
   return (
-    <ScenePlayer
+    <SceneEngine
       manifestUrl="/scene-manifest.json"
       widgetSetup={() => registry}
       style={{ width: '100%', height: '500px' }}
     >
       {/* Your scenes go here */}
-    </ScenePlayer>
+    </SceneEngine>
   );
 }`}
             />
@@ -275,21 +275,21 @@ function App() {
             <h2>Step 5: Add Scroll Control</h2>
             <CodeBlock
               language="tsx"
-              code={`import { ScenePlayer, EngineScrollRegion, createDefaultWidgetRegistry } from '@brewsite/core';
+              code={`import { SceneEngine, EngineScrollRegion, createDefaultWidgetRegistry } from '@brewsite/core';
 
 const registry = createDefaultWidgetRegistry(null);
 
 function App() {
   return (
     <EngineScrollRegion pixelsPerScene={800}>
-      <ScenePlayer
+      <SceneEngine
         manifestUrl="/scene-manifest.json"
         widgetSetup={() => registry}
         pixelsPerScene={800}
         style={{ width: '100%', height: '500px' }}
       >
         {/* scenes */}
-      </ScenePlayer>
+      </SceneEngine>
     </EngineScrollRegion>
   );
 }`}
@@ -423,7 +423,7 @@ interface ILoadable extends IWidget {
                 <tr>
                   <td>Player</td>
                   <td><code>@brewsite/core</code></td>
-                  <td>React integration, ScenePlayer, hooks</td>
+                  <td>React integration, SceneEngine, hooks</td>
                 </tr>
                 <tr>
                   <td>Runtime</td>
@@ -460,7 +460,7 @@ interface ILoadable extends IWidget {
               dependencies.
             </p>
             <Callout type="note">
-              The compiler can run on the server. Only <code>ScenePlayer</code> (and the Three.js render
+              The compiler can run on the server. Only <code>SceneEngine</code> (and the Three.js render
               layer) requires a DOM environment.
             </Callout>
           </ProseBlock>
@@ -578,7 +578,7 @@ interface ILoadable extends IWidget {
           <ProseBlock id="multi-scene-prose">
             <h1>Multi-Scene Sequences</h1>
             <p>
-              BrewSite scenes are a sequence of keyframes. The <code>ScenePlayer</code> interpolates
+              BrewSite scenes are a sequence of keyframes. The <code>SceneEngine</code> interpolates
               smoothly between them as the user scrolls (or as you drive progress programmatically). Each
               scene occupies an equal share of the total progress range, and only the props that differ
               from the previous scene are animated.
@@ -586,12 +586,12 @@ interface ILoadable extends IWidget {
 
             <h2>Ordering Scenes</h2>
             <p>
-              Place <code>&lt;Scene&gt;</code> elements as children of <code>ScenePlayer</code> in order.
+              Place <code>&lt;Scene&gt;</code> elements as children of <code>SceneEngine</code> in order.
               The first scene is at progress <code>0</code>, the last is at progress <code>1</code>.
             </p>
             <CodeBlock
               language="tsx"
-              code={`<ScenePlayer manifestUrl="/manifest.json" widgetSetup={() => registry}>
+              code={`<SceneEngine manifestUrl="/manifest.json" widgetSetup={() => registry}>
   <Scene key="s1">
     <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
     <Lighting>
@@ -612,7 +612,7 @@ interface ILoadable extends IWidget {
       <Ambient color="#4488ff" intensity={0.5} />
     </Lighting>
   </Scene>
-</ScenePlayer>`}
+</SceneEngine>`}
             />
 
             <h2>How Progress Works</h2>
@@ -630,14 +630,14 @@ const sceneIndex = Math.floor(progress * sceneCount);`}
             <CodeBlock
               language="tsx"
               code={`{/* Default — good balance for most scenes */}
-<ScenePlayer quality="balanced" manifestUrl="/manifest.json" widgetSetup={() => registry}>
+<SceneEngine quality="balanced" manifestUrl="/manifest.json" widgetSetup={() => registry}>
   ...
-</ScenePlayer>
+</SceneEngine>
 
 {/* High — 120 ticks per scene, smoother transitions */}
-<ScenePlayer quality="high" manifestUrl="/manifest.json" widgetSetup={() => registry}>
+<SceneEngine quality="high" manifestUrl="/manifest.json" widgetSetup={() => registry}>
   ...
-</ScenePlayer>`}
+</SceneEngine>`}
             />
             <Callout type="note">
               Higher quality increases compile time and memory for the SceneTrack, but has zero effect on
@@ -1370,7 +1370,7 @@ const myTransitionSpec: FunctionalTransitionSpec<{ opacity: number }> = {
 
             <h2>EngineOverlayHost</h2>
             <p>
-              <code>ScenePlayer</code> renders an <code>EngineOverlayHost</code> automatically.
+              <code>SceneEngine</code> renders an <code>EngineOverlayHost</code> automatically.
               When using the <code>EngineProvider</code> composition pattern, add{' '}
               <code>{'<EngineOverlayHost />'}</code> yourself alongside <code>{'<SceneCanvas />'}</code>:
             </p>
@@ -1501,20 +1501,20 @@ const myTransitionSpec: FunctionalTransitionSpec<{ opacity: number }> = {
 
             <h2>Scroll Mode (default)</h2>
             <p>
-              Wrap <code>{'<ScenePlayer>'}</code> in <code>{'<EngineScrollRegion>'}</code> to enable
+              Wrap <code>{'<SceneEngine>'}</code> in <code>{'<EngineScrollRegion>'}</code> to enable
               scroll-driven navigation.
             </p>
             <CodeBlock
               language="tsx"
-              code={`import { EngineScrollRegion, ScenePlayer } from '@brewsite/core';
+              code={`import { EngineScrollRegion, SceneEngine } from '@brewsite/core';
 
 export default function Page() {
   return (
     <EngineScrollRegion pixelsPerScene={800}>
       <div style={{ position: 'sticky', top: 0, height: '100vh' }}>
-        <ScenePlayer manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
+        <SceneEngine manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
           {scenes}
-        </ScenePlayer>
+        </SceneEngine>
       </div>
     </EngineScrollRegion>
   );
@@ -1550,23 +1550,23 @@ function Controls() {
 }`}
             />
             <Callout type="note">
-              <code>useEngineScrubber</code> must be rendered inside a <code>{'<ScenePlayer>'}</code>{' '}
+              <code>useEngineScrubber</code> must be rendered inside a <code>{'<SceneEngine>'}</code>{' '}
               subtree. See <a href="#hooks-prose">Hooks Reference</a> for the full API.
             </Callout>
 
             <h2>Keyboard Navigation</h2>
             <p>
-              ScenePlayer responds to <kbd>ArrowRight</kbd>/<kbd>ArrowLeft</kbd> by default when{' '}
+              SceneEngine responds to <kbd>ArrowRight</kbd>/<kbd>ArrowLeft</kbd> by default when{' '}
               <code>keyboard: true</code> is set.
             </p>
             <CodeBlock
               language="tsx"
-              code={`<ScenePlayer
+              code={`<SceneEngine
   manifestUrl="/scene-manifest.json"
   keyboard
 >
   {scenes}
-</ScenePlayer>`}
+</SceneEngine>`}
             />
 
           </ProseBlock>
@@ -1635,9 +1635,9 @@ function Controls() {
           <ActHeader id="act-player-hooks" title="Player &amp; Hooks" />
 
           <ProseBlock id="player-prose">
-            <h1>ScenePlayer &amp; EngineProvider</h1>
+            <h1>SceneEngine &amp; EngineProvider</h1>
             <p>
-              The <code>ScenePlayer</code> component is the top-level React integration point. It manages
+              The <code>SceneEngine</code> component is the top-level React integration point. It manages
               the Three.js renderer, the widget tick loop, and the HUD overlay.
             </p>
 
@@ -1658,19 +1658,19 @@ function Controls() {
 
             <h2>EngineScrollRegion</h2>
             <p>
-              Wrap <code>ScenePlayer</code> in <code>EngineScrollRegion</code> to create a scroll spacer:
+              Wrap <code>SceneEngine</code> in <code>EngineScrollRegion</code> to create a scroll spacer:
             </p>
             <CodeBlock
               language="tsx"
-              code={`import { EngineScrollRegion, ScenePlayer } from '@brewsite/core';
+              code={`import { EngineScrollRegion, SceneEngine } from '@brewsite/core';
 
 export default function Page() {
   return (
     <EngineScrollRegion pixelsPerScene={800}>
       <div style={{ position: 'sticky', top: 0, height: '100vh' }}>
-        <ScenePlayer manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
+        <SceneEngine manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
           {scenes}
-        </ScenePlayer>
+        </SceneEngine>
       </div>
     </EngineScrollRegion>
   );
@@ -1683,16 +1683,16 @@ export default function Page() {
             </p>
             <CodeBlock
               language="tsx"
-              code={`import { EngineScrollRegion, EngineInputRegion, ScenePlayer } from '@brewsite/core';
+              code={`import { EngineScrollRegion, EngineInputRegion, SceneEngine } from '@brewsite/core';
 
 export default function Page() {
   return (
     <EngineScrollRegion pixelsPerScene={800}>
       <div style={{ position: 'sticky', top: 0, height: '100vh' }}>
         <EngineInputRegion>
-          <ScenePlayer manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
+          <SceneEngine manifestUrl="/scene-manifest.json" pixelsPerScene={800}>
             {scenes}
-          </ScenePlayer>
+          </SceneEngine>
         </EngineInputRegion>
       </div>
     </EngineScrollRegion>
@@ -1703,12 +1703,12 @@ export default function Page() {
             <h2>TimelineWidget (Dev Tool)</h2>
             <CodeBlock
               language="tsx"
-              code={`import { ScenePlayer, TimelineWidget } from '@brewsite/core';
+              code={`import { SceneEngine, TimelineWidget } from '@brewsite/core';
 
-<ScenePlayer manifestUrl="/scene-manifest.json">
+<SceneEngine manifestUrl="/scene-manifest.json">
   {scenes}
   {import.meta.env.DEV && <TimelineWidget />}
-</ScenePlayer>`}
+</SceneEngine>`}
             />
             <Callout type="warning">
               Remove <code>TimelineWidget</code> before production. It adds visual overhead and is for
@@ -1722,11 +1722,11 @@ export default function Page() {
           <ProseBlock id="hooks-prose">
             <h1>Hooks Reference</h1>
             <p>
-              All hooks must be called from components rendered inside <code>{'<ScenePlayer>'}</code>.
+              All hooks must be called from components rendered inside <code>{'<SceneEngine>'}</code>.
               They read from React contexts provided by the player.
             </p>
             <Callout type="warning">
-              Do not call these hooks outside of a <code>{'<ScenePlayer>'}</code> subtree. They will
+              Do not call these hooks outside of a <code>{'<SceneEngine>'}</code> subtree. They will
               throw.
             </Callout>
 
@@ -2103,7 +2103,7 @@ registry.register(new MyElementWidget());`}
   return registry;
 }
 
-<ScenePlayer scenes={<MyScenes />} widgetSetup={setupWidgets} />`}
+<SceneEngine scenes={<MyScenes />} widgetSetup={setupWidgets} />`}
             />
 
             <h2>Step 6: Use It in a Scene</h2>
@@ -2213,7 +2213,7 @@ function ScoreDisplay(): JSX.Element {
             <h1>Widget Registry</h1>
             <p>
               The <code>WidgetRegistry</code> maps DSL component names to widget instances. You create
-              a registry once per <code>ScenePlayer</code> instance and pass it in via the{' '}
+              a registry once per <code>SceneEngine</code> instance and pass it in via the{' '}
               <code>widgetSetup</code> prop.
             </p>
 
@@ -2306,7 +2306,7 @@ function setupWidgets(manifest) {
             />
             <Callout type="note">
               The registry is created once per player instance. Pass it as the return value of the{' '}
-              <code>widgetSetup</code> function prop on <code>ScenePlayer</code>.
+              <code>widgetSetup</code> function prop on <code>SceneEngine</code>.
             </Callout>
           </ProseBlock>
           <ScenePanel id="scene-widget-registry" height="480px" plugins={DOCS_PLUGINS}>
@@ -2361,7 +2361,7 @@ function setupWidgets(manifest) {
                 <tr><th>Export</th><th>Signature</th><th>Description</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>ScenePlayer</code></td><td><code>React.FC&lt;ScenePlayerProps&gt;</code></td><td>Root player component. See <a href="#player-prose">ScenePlayer</a>.</td></tr>
+                <tr><td><code>SceneEngine</code></td><td><code>React.FC&lt;SceneEngineProps&gt;</code></td><td>Root player component. See <a href="#player-prose">SceneEngine</a>.</td></tr>
                 <tr><td><code>EngineScrollRegion</code></td><td><code>React.FC</code></td><td>Scroll-aware container that maps document scroll position to scene progress.</td></tr>
                 <tr><td><code>EngineInputRegion</code></td><td><code>React.FC</code></td><td>Pointer/keyboard event capture region.</td></tr>
                 <tr><td><code>useSceneEngine</code></td><td><code>() =&gt; SceneEngine</code></td><td>Access the engine imperatively.</td></tr>
@@ -2450,7 +2450,7 @@ const perf = createSceneTimeline(3, {
             />
             <Callout type="note">
               In most cases you don&apos;t need to call <code>createSceneTimeline</code> directly.{' '}
-              <code>ScenePlayer</code> creates one internally using the <code>quality</code> prop.
+              <code>SceneEngine</code> creates one internally using the <code>quality</code> prop.
             </Callout>
 
             <h2>Math Utilities</h2>

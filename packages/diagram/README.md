@@ -53,14 +53,14 @@ export const myScene: SceneDefinition = {
 ```tsx
 // App.tsx
 import { useMemo } from 'react';
-import { ScenePlayer, corePlugin } from '@brewsite/core';
+import { SceneEngine, corePlugin } from '@brewsite/core';
 import { diagramPlugin } from '@brewsite/diagram';
 import { myScene } from './scenes/myScene';
 
 export default function Page() {
   const diagPlugin = useMemo(() => diagramPlugin(), []);
   return (
-    <ScenePlayer
+    <SceneEngine
       sceneGroup={{ id: 'demo', scenes: [myScene] }}
       plugins={[corePlugin(), diagPlugin]}
       framesPerTick={100}

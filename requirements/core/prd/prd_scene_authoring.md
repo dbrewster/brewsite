@@ -183,7 +183,7 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 
 ```typescript
 // packages/core/src/compiler/sceneTypes.ts
-// @internal — constructed by ScenePlayer from <Scene> children. Not exported.
+// @internal — constructed by SceneEngine from <Scene> children. Not exported.
 
 export type SceneDefinition = {
   id: string;                    // derived from element.key or element.props.id
@@ -893,12 +893,12 @@ For scenes that need to respond to runtime values (viewport dimensions, asset-re
 // page.tsx
 function DiagramPage() {
   // useSceneRuntime reads engine-internal values reactively.
-  // Requires matching id prop on <ScenePlayer>.
+  // Requires matching id prop on <SceneEngine>.
   const { assetsReady, viewport } = useSceneRuntime('my-player');
   const [theme] = useTheme(); // any external state also works
 
   return (
-    <ScenePlayer id="my-player" manifestUrl="..." widgetSetup={...}>
+    <SceneEngine id="my-player" plugins={[corePlugin(), modelPlugin({ manifestUrl: '...' })]}>
       <Scene key="responsive">
         {/* <Model> requires @brewsite/model */}
         <Model
@@ -912,7 +912,7 @@ function DiagramPage() {
           ambient={{ intensity: theme === 'dark' ? 1.0 : 0.5, color: '#ffffff' }}
         />
       </Scene>
-    </ScenePlayer>
+    </SceneEngine>
   );
 }
 ```
@@ -1038,7 +1038,7 @@ setAutoAdvancePaused(true);
 setAutoAdvancePaused(false);
 ```
 
-`setAutoAdvancePaused(paused: boolean)` — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: calling it on one engine does not affect other `<ScenePlayer>` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state. When `paused: false`, the clock resumes from where it stopped.
+`setAutoAdvancePaused(paused: boolean)` — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: calling it on one engine does not affect other `<SceneEngine>` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state. When `paused: false`, the clock resumes from where it stopped.
 
 Typical use cases: pausing when a modal or lightbox opens, pausing when a tooltip or hover overlay is active, pausing during video playback within overlay content.
 
@@ -1490,11 +1490,11 @@ export type SceneRuntimeState = {
 export const useSceneRuntime = (playerId: string): SceneRuntimeState;
 ```
 
-**How it works:** `ScenePlayer` publishes its runtime state to a module-level `ScenePlayerRegistry` whenever its `id` prop is set. `useSceneRuntime` reads from this registry via `useSyncExternalStore`, making it concurrent-mode safe. When engine state changes (assets finish loading, viewport resizes), `useSceneRuntime` causes the parent component to re-render with updated values. The new JSX content produces a different `contentKey` via `serializeJsx`, which triggers automatic recompilation of the SceneTrack.
+**How it works:** `SceneEngine` publishes its runtime state to a module-level `ScenePlayerRegistry` whenever its `id` prop is set. `useSceneRuntime` reads from this registry via `useSyncExternalStore`, making it concurrent-mode safe. When engine state changes (assets finish loading, viewport resizes), `useSceneRuntime` causes the parent component to re-render with updated values. The new JSX content produces a different `contentKey` via `serializeJsx`, which triggers automatic recompilation of the SceneTrack.
 
 **Requirements:**
-- The `<ScenePlayer>` must have a matching `id` prop.
-- `useSceneRuntime` must be called in a component that **renders above or alongside** `<ScenePlayer>` in the tree — i.e., a parent or sibling, not a child.
+- The `<SceneEngine>` must have a matching `id` prop.
+- `useSceneRuntime` must be called in a component that **renders above or alongside** `<SceneEngine>` in the tree — i.e., a parent or sibling, not a child.
 - In development, a 1000ms timeout warning is emitted if no matching player is found after mount.
 
 **Migration from old `getFrame(context)` pattern:**
@@ -1659,9 +1659,9 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 
 ### Breaking changes introduced by Scene Authoring API Simplification (2026-02-28)
 
-1. **`sceneGroup` prop removed from `ScenePlayer`** — Hard removed. Migrate: replace `sceneGroup={{ id: 'x', scenes: [s1, s2] }}` with `<ScenePlayer>{s1}{s2}</ScenePlayer>`.
+1. **`sceneGroup` prop removed from `SceneEngine`** — Hard removed. Migrate: replace `sceneGroup={{ id: 'x', scenes: [s1, s2] }}` with `<SceneEngine>{s1}{s2}</SceneEngine>`.
 2. **`SceneDefinition` and `SceneGroup` removed from public exports** — Code importing these types directly must update. Neither type is needed in the new authoring model.
-3. **`getFrame(context)` function pattern removed from public authoring surface** — Authors needing `assetsReady`, `viewport`, `variables`, `numScenes` must use `useSceneRuntime(id)` in the parent component. The `id` prop on `ScenePlayer` becomes required to use this hook.
+3. **`getFrame(context)` function pattern removed from public authoring surface** — Authors needing `assetsReady`, `viewport`, `variables`, `numScenes` must use `useSceneRuntime(id)` in the parent component. The `id` prop on `SceneEngine` becomes required to use this hook.
 4. **`SceneDefinition.index` removed** — Was always redundant. Any code constructing `SceneDefinition` objects manually must remove the `index` field.
 
 ### Breaking changes introduced by Scene Unit System (2026-03-21)

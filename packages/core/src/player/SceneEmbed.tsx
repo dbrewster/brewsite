@@ -282,7 +282,7 @@ function SceneEmbedInner(props: SceneEmbedInnerProps): ReactElement {
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
         <SceneCanvas style={{ width: '100%', height: '100%' }} />
       </div>
-      <EngineOverlayHost passthroughPointerEvents={props.interactive !== true} />
+      <EngineOverlayHost passthroughPointerEvents={props.interactive === true} />
     </SceneEngine>
   );
 }

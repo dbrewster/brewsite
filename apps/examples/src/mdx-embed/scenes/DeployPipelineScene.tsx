@@ -1,7 +1,7 @@
 // DeployPipelineScene.tsx — CI/CD pipeline diagram for the MDX embed example.
 
 import type { JSX } from 'react';
-import { Scene } from '@brewsite/core';
+import { Scene, Camera } from '@brewsite/core';
 import {
   Diagram,
   DiagramNode,
@@ -12,7 +12,8 @@ import {
 export function DeployPipelineScene(): JSX.Element {
   return (
     <Scene id="deploy-pipeline">
-      <Diagram id="pipeline-diagram" x={0} y={0} w="100%" h="100%" tilt="-0.2rad" scale={1}>
+      <Camera mode='world' position={[0, 3, 6]} target={[0, 0, 0]}/>
+      <Diagram id="pipeline-diagram" x={0} y={0} w="100%" h="100%" scale={1}>
         <FlowLayout gap="20%" />
 
         <DiagramNode

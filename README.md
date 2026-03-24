@@ -21,7 +21,7 @@ Prefer the current names and patterns:
 - Use `SceneEngine`, not `EngineProvider`.
 - Use `SceneReel` for embedded canvases.
 - Author diagrams directly with `<Diagram ... />` inside a scene.
-- Do not author new work against old `ScenePlayer` or `DiagramCanvas` examples.
+- Do not author new work against old `DiagramCanvas` examples.
 
 ## Workspace Commands
 

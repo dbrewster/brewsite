@@ -54,19 +54,17 @@ export interface CorePluginOptions {
  * />
  */
 export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
-  const lightingWidget = new LightingWidget();
-  const backgroundWidget = new BackgroundWidget();
-  const environmentWidget = new EnvironmentWidget();
-  const floorWidget = new FloorWidget();
-  const cameraWidget = new CameraWidget();
-  const sceneMetaWidget = new SceneMetaWidget({ onSceneChange: options?.onSceneChange });
-  const spotlightRigWidget = new SpotlightRigWidget();
-
   return {
     createWidgets() {
-      return [lightingWidget, backgroundWidget, environmentWidget,
-              floorWidget, cameraWidget, sceneMetaWidget,
-              spotlightRigWidget];
+      return [
+        new LightingWidget(),
+        new BackgroundWidget(),
+        new EnvironmentWidget(),
+        new FloorWidget(),
+        new CameraWidget(),
+        new SceneMetaWidget({ onSceneChange: options?.onSceneChange }),
+        new SpotlightRigWidget(),
+      ];
     },
     registerHandlers() {
       registerCoreHandlers();
@@ -74,10 +72,16 @@ export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
     configureRegistry(reg) {
       // Resolve ILightingOverride widgets registered by other plugins (e.g. diagram).
       // Called after all plugins' createWidgets() have run.
-      const overrideWidgets = [...reg.getAllWidgets()].filter(isLightingOverride);
-      lightingWidget.setLightingOverrides(overrideWidgets);
+      const lighting = reg.get('lighting');
+      if (lighting && 'setLightingOverrides' in lighting) {
+        const overrideWidgets = [...reg.getAllWidgets()].filter(isLightingOverride);
+        (lighting as LightingWidget).setLightingOverrides(overrideWidgets);
+      }
       // Wire material loader/manifest access for floor preset materials.
-      floorWidget.setRegistry(reg);
+      const floor = reg.get('floor');
+      if (floor && 'setRegistry' in floor) {
+        (floor as FloorWidget).setRegistry(reg);
+      }
     },
 
     reconcileCompiledTrack(registry: WidgetRegistry, track: SceneTrack): void {

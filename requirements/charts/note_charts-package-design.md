@@ -3,7 +3,7 @@ title: "@brewsite/charts — Package Design Note"
 doc_type: note
 owner: Toolkit Product
 status: draft
-updated: 2026-03-01
+updated: 2026-03-23
 ---
 
 # @brewsite/charts — Package Design Note
@@ -146,7 +146,7 @@ API-sourced data without DSL changes.
     ],
   }}
 >
-  <ScenePlayer manifest={manifest} />
+  <SceneEngine plugins={[corePlugin(), chartPlugin()]}>{/* scenes */}</SceneEngine>
 </ChartProvider>
 
 // Scene DSL (baked into SceneTrack)
