@@ -10,8 +10,7 @@
     "rootDir": "src",
     "paths": {
       "@brewsite/core": ["../core/dist/index.d.ts"],
-      "@brewsite/diagram": ["../diagram/dist/index.d.ts"],
-      "@brewsite/docs": ["../docs/dist/index.d.ts"]
+      "@brewsite/diagram": ["../diagram/dist/index.d.ts"]
     }
   },
   "include": ["src"],

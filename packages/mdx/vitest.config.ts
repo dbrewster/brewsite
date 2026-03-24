@@ -18,7 +18,6 @@ export default defineConfig({
     alias: {
       '@brewsite/core': resolve(__dirname, '../core/src/index.ts'),
       '@brewsite/diagram': resolve(__dirname, '../diagram/src/index.ts'),
-      '@brewsite/docs': resolve(__dirname, '../docs/src/index.ts'),
     },
   },
 });

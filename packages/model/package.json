@@ -30,7 +30,7 @@
     "meshoptimizer": "^0.23.0"
   },
   "peerDependencies": {
-    "@brewsite/core": "^0.8.0",
+    "@brewsite/core": "workspace:^",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
     "three": ">=0.170.0"

@@ -30,7 +30,7 @@ const packages = [
   { name: "@brewsite/textures",      dir: path.join(repoRoot, "packages/textures"),               gitPath: "packages/textures",            deps: ["@brewsite/core"] },
   { name: "@brewsite/slides",        dir: path.join(repoRoot, "packages/slides"),                 gitPath: "packages/slides",              deps: ["@brewsite/core", "@brewsite/diagram", "@brewsite/model", "@brewsite/charts"] },
   { name: "@brewsite/themes",        dir: path.join(repoRoot, "packages/themes"),                 gitPath: "packages/themes",              deps: ["@brewsite/core", "@brewsite/diagram", "@brewsite/charts"] },
-  { name: "@brewsite/mdx",           dir: path.join(repoRoot, "packages/mdx"),                    gitPath: "packages/mdx",                 deps: ["@brewsite/core", "@brewsite/diagram", "@brewsite/docs"] },
+  { name: "@brewsite/mdx",           dir: path.join(repoRoot, "packages/mdx"),                    gitPath: "packages/mdx",                 deps: ["@brewsite/core", "@brewsite/diagram"] },
   { name: "@brewsite/claude-author", dir: path.join(repoRoot, "packages/claude-author"),          gitPath: "packages/claude-author",       deps: [] },
   { name: "create-brewsite",         dir: path.join(repoRoot, "packages/npx/create-brewsite"),    gitPath: "packages/npx/create-brewsite", deps: [] },
   { name: "brewsite",                dir: path.join(repoRoot, "packages/npx/brewsite"),           gitPath: "packages/npx/brewsite",        deps: [] },
@@ -213,76 +213,59 @@ for (const pkg of packages) {
   runInDir(pkg.dir, "npm", npmVersionArgs);
 }
 
-// ─── Step 2: Pin @brewsite/core version in all dependents ────────────────────
-// workspace:* refs are not resolved by npm publish — replace with real version.
+// ─── Step 2: Resolve workspace: protocol references ─────────────────────────
+// npm publish does not understand pnpm's workspace: protocol. Replace all
+// "workspace:^" → "^<version>" and "workspace:*" → "<version>" in
+// dependencies and peerDependencies so the published package.json is valid.
 
-const coreVersion = readVersion(packages[0].dir);
-const diagramVersion = readVersion(packages[1].dir);
-const modelVersion = readVersion(packages[2].dir);
-const chartsVersion = readVersion(packages[3].dir);
+// Build a version lookup: package name → bumped version
+const versionByName = {};
+for (const pkg of packages) {
+  versionByName[pkg.name] = readVersion(pkg.dir);
+}
 
-console.log(`\nPinning inter-package versions (core@${coreVersion})...`);
+console.log(`\nResolving workspace: references...`);
 
-// @brewsite/diagram — hard dependency (ships alongside core)
-const { packageJsonPath: diagramPath, packageJson: diagramJson } =
-  readPackageJson(packages[1].dir);
-diagramJson.dependencies = diagramJson.dependencies ?? {};
-diagramJson.dependencies["@brewsite/core"] = coreVersion;
-writePackageJson(diagramPath, diagramJson);
-console.log(`  @brewsite/diagram dependencies["@brewsite/core"] -> ${coreVersion}`);
+for (const pkg of packages) {
+  const { packageJsonPath, packageJson } = readPackageJson(pkg.dir);
+  let changed = false;
 
-// @brewsite/model — peer dependency (caret range so consumers can control it)
-const { packageJsonPath: modelPath, packageJson: modelJson } =
-  readPackageJson(packages[2].dir);
-modelJson.peerDependencies = modelJson.peerDependencies ?? {};
-modelJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
-writePackageJson(modelPath, modelJson);
-console.log(`  @brewsite/model peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+  for (const depField of ["dependencies", "peerDependencies"]) {
+    const deps = packageJson[depField];
+    if (!deps) continue;
+    for (const [depName, depRange] of Object.entries(deps)) {
+      if (typeof depRange !== "string" || !depRange.startsWith("workspace:")) continue;
 
-// @brewsite/charts — peer dependency
-const { packageJsonPath: chartsPath, packageJson: chartsJson } =
-  readPackageJson(packages[3].dir);
-chartsJson.peerDependencies = chartsJson.peerDependencies ?? {};
-chartsJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
-writePackageJson(chartsPath, chartsJson);
-console.log(`  @brewsite/charts peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+      const resolvedVersion = versionByName[depName];
+      if (!resolvedVersion) {
+        console.warn(`  ⚠ ${pkg.name} ${depField}["${depName}"] = "${depRange}" — target not in registry, skipping`);
+        continue;
+      }
 
-// @brewsite/screens — peer dependency
-const { packageJsonPath: screensPath, packageJson: screensJson } =
-  readPackageJson(packages[4].dir);
-screensJson.peerDependencies = screensJson.peerDependencies ?? {};
-screensJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
-writePackageJson(screensPath, screensJson);
-console.log(`  @brewsite/screens peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+      // workspace:^ → ^version (caret range), workspace:* → exact version
+      const protocol = depRange.slice("workspace:".length);
+      let pinned;
+      if (protocol === "^") {
+        pinned = `^${resolvedVersion}`;
+      } else if (protocol === "~") {
+        pinned = `~${resolvedVersion}`;
+      } else {
+        // workspace:* or workspace:<version> → exact
+        pinned = resolvedVersion;
+      }
 
-// @brewsite/textures — peer dependency
-const { packageJsonPath: texturesPath, packageJson: texturesJson } =
-  readPackageJson(packages[5].dir);
-texturesJson.peerDependencies = texturesJson.peerDependencies ?? {};
-texturesJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
-writePackageJson(texturesPath, texturesJson);
-console.log(`  @brewsite/textures peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+      deps[depName] = pinned;
+      changed = true;
+      console.log(`  ${pkg.name} ${depField}["${depName}"] -> ${pinned}`);
+    }
+  }
 
-// @brewsite/slides — peer dependencies on core, diagram, model, charts
-const { packageJsonPath: slidesPath, packageJson: slidesJson } =
-  readPackageJson(packages[6].dir);
-slidesJson.peerDependencies = slidesJson.peerDependencies ?? {};
-slidesJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
-slidesJson.peerDependencies["@brewsite/diagram"] = `^${diagramVersion}`;
-slidesJson.peerDependencies["@brewsite/model"] = `^${modelVersion}`;
-slidesJson.peerDependencies["@brewsite/charts"] = `^${chartsVersion}`;
-writePackageJson(slidesPath, slidesJson);
-console.log(`  @brewsite/slides peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+  if (changed) {
+    writePackageJson(packageJsonPath, packageJson);
+  }
+}
 
-// @brewsite/themes — hard dependencies on core, diagram, charts
-const { packageJsonPath: themesPath, packageJson: themesJson } =
-  readPackageJson(packages[7].dir);
-themesJson.dependencies = themesJson.dependencies ?? {};
-themesJson.dependencies["@brewsite/core"] = coreVersion;
-themesJson.dependencies["@brewsite/diagram"] = diagramVersion;
-themesJson.dependencies["@brewsite/charts"] = chartsVersion;
-writePackageJson(themesPath, themesJson);
-console.log(`  @brewsite/themes dependencies["@brewsite/core"] -> ${coreVersion}`);
+const coreVersion = versionByName["@brewsite/core"];
 
 // ─── Step 3: Confirm versions ────────────────────────────────────────────────
 
@@ -320,6 +303,7 @@ run("pnpm", ["--filter", "@brewsite/screens", "build"]);
 run("pnpm", ["--filter", "@brewsite/textures", "build"]);
 run("pnpm", ["--filter", "@brewsite/slides", "build"]);
 run("pnpm", ["--filter", "@brewsite/themes", "build"]);
+run("pnpm", ["--filter", "@brewsite/mdx", "build"]);
 run("pnpm", ["--filter", "@brewsite/claude-author", "build"]);
 run("pnpm", ["--filter", "create-brewsite", "build"]);
 run("pnpm", ["--filter", "brewsite", "build"]);

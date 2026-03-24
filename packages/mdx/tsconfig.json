@@ -3,8 +3,7 @@
     "baseUrl": ".",
     "paths": {
       "@brewsite/core": ["../core/src/index.ts"],
-      "@brewsite/diagram": ["../diagram/src/index.ts"],
-      "@brewsite/docs": ["../docs/src/index.ts"]
+      "@brewsite/diagram": ["../diagram/src/index.ts"]
     },
     "target": "ES2020",
     "useDefineForClassFields": true,

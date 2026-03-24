@@ -36,7 +36,7 @@ function DefaultErrorFallback({ error }: { error: Error }): ReactElement {
  *
  * Takes an MDX source string, compiles it in the browser, and renders
  * the result with pre-registered BrewSite components (SceneEmbed,
- * Diagram DSL, etc.) and optional @brewsite/docs components (CodeBlock,
+ * Diagram DSL, etc.) and built-in documentation components (CodeBlock,
  * Callout).
  *
  * Supports YAML frontmatter extraction, heading TOC generation, caching,

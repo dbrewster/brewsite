@@ -170,8 +170,8 @@ importers:
   packages/charts:
     dependencies:
       '@brewsite/core':
-        specifier: ^0.7.6
-        version: 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:^
+        version: link:../core
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -356,8 +356,8 @@ importers:
   packages/diagram:
     dependencies:
       '@brewsite/core':
-        specifier: 0.7.6
-        version: 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:*
+        version: link:../core
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
@@ -445,11 +445,14 @@ importers:
   packages/mdx:
     dependencies:
       '@brewsite/charts':
-        specifier: ^0.7.6
-        version: 0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))
+        specifier: workspace:^
+        version: link:../charts
       '@brewsite/model':
-        specifier: ^0.7.6
-        version: 0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:^
+        version: link:../model
+      prism-react-renderer:
+        specifier: ^2.4.1
+        version: 2.4.1(react@19.2.4)
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
@@ -469,9 +472,6 @@ importers:
       '@brewsite/diagram':
         specifier: workspace:*
         version: link:../diagram
-      '@brewsite/docs':
-        specifier: workspace:*
-        version: link:../docs
       '@mdx-js/mdx':
         specifier: ^3.1.0
         version: 3.1.1
@@ -503,8 +503,8 @@ importers:
   packages/model:
     dependencies:
       '@brewsite/core':
-        specifier: ^0.7.6
-        version: 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:^
+        version: link:../core
       meshoptimizer:
         specifier: ^0.23.0
         version: 0.23.0
@@ -585,8 +585,8 @@ importers:
   packages/screens:
     dependencies:
       '@brewsite/core':
-        specifier: ^0.7.6
-        version: 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:^
+        version: link:../core
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
@@ -631,14 +631,14 @@ importers:
   packages/slides:
     dependencies:
       '@brewsite/charts':
-        specifier: ^0.7.6
-        version: 0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))
+        specifier: workspace:^
+        version: link:../charts
       '@brewsite/diagram':
-        specifier: ^0.7.6
-        version: 0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))
+        specifier: workspace:^
+        version: link:../diagram
       '@brewsite/model':
-        specifier: ^0.7.6
-        version: 0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:^
+        version: link:../model
       react:
         specifier: ^18 || ^19
         version: 19.2.4
@@ -680,8 +680,8 @@ importers:
   packages/textures:
     dependencies:
       '@brewsite/core':
-        specifier: ^0.7.6
-        version: 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:^
+        version: link:../core
       three:
         specifier: '>=0.170.0'
         version: 0.183.2
@@ -705,14 +705,14 @@ importers:
   packages/themes:
     dependencies:
       '@brewsite/charts':
-        specifier: 0.7.6
-        version: 0.7.6(@brewsite/core@0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))
+        specifier: workspace:*
+        version: link:../charts
       '@brewsite/core':
-        specifier: 0.7.6
-        version: 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+        specifier: workspace:*
+        version: link:../core
       '@brewsite/diagram':
-        specifier: 0.7.6
-        version: 0.7.6(@brewsite/core@0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))
+        specifier: workspace:*
+        version: link:../diagram
     devDependencies:
       '@types/react':
         specifier: ^19.2.14
@@ -837,40 +837,6 @@ packages:
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
-
-  '@brewsite/charts@0.7.6':
-    resolution: {integrity: sha512-OJG7/CulfkQvMh+o06ZMEcbXPCupKdba4s6MmQEtdnWmEs0WyMfvgN1CslD6w6ttWm/UDPrLTi35gRdvz7KSIQ==}
-    peerDependencies:
-      '@brewsite/core': ^0.7.6
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-      three: '>=0.170.0'
-      troika-three-text: ^0.52.4
-
-  '@brewsite/core@0.7.6':
-    resolution: {integrity: sha512-S6CfNEt8XQtGBgyRy+ExI5vRvfqlgHO/+D06wX59rzISQ2hDqvrLvTeMb2h9s9bL/YeFPwlV18a6dwl0dlVSOw==}
-    peerDependencies:
-      camera-controls: ^3.1.2
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-      three: '>=0.170.0'
-
-  '@brewsite/diagram@0.7.6':
-    resolution: {integrity: sha512-yuRJiLRvhsoa3nXc4sj13VQBY5ZfWrj+mMoQerY+PWs5dxvmheaKTcjE+ZO0GrHqZ9o3aOSvcQTt6dcpEztsvg==}
-    peerDependencies:
-      '@brewsite/core': workspace:*
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-      three: '>=0.170.0'
-      troika-three-text: ^0.52.4
-
-  '@brewsite/model@0.7.6':
-    resolution: {integrity: sha512-GtqW+uKOlUzNjJhmCPuECeekpgtLQ4I4W+VNfckVktT2UFe+QmuRzt0gfAMQRN4RIhGy3ER80OVb9sbA0zymwg==}
-    peerDependencies:
-      '@brewsite/core': ^0.7.6
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-      three: '>=0.170.0'
 
   '@clack/core@0.4.2':
     resolution: {integrity: sha512-NYQfcEy8MWIxrT5Fj8nIVchfRFA26yYKJcvBS7WlUIlw2OmQOY9DhGGXMovyI5J5PpxrCPGkgUi207EBrjpBvg==}
@@ -4217,68 +4183,6 @@ snapshots:
       '@babel/helper-validator-identifier': 7.28.5
 
   '@bcoe/v8-coverage@0.2.3': {}
-
-  '@brewsite/charts@0.7.6(@brewsite/core@0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))':
-    dependencies:
-      '@brewsite/core': 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
-      d3-array: 3.2.4
-      d3-format: 3.1.2
-      d3-scale: 4.0.2
-      d3-scale-chromatic: 3.1.0
-      d3-shape: 3.2.0
-      d3-time-format: 4.1.0
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      three: 0.183.2
-      troika-three-text: 0.52.4(three@0.183.2)
-
-  '@brewsite/charts@0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))':
-    dependencies:
-      '@brewsite/core': link:packages/core
-      d3-array: 3.2.4
-      d3-format: 3.1.2
-      d3-scale: 4.0.2
-      d3-scale-chromatic: 3.1.0
-      d3-shape: 3.2.0
-      d3-time-format: 4.1.0
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      three: 0.183.2
-      troika-three-text: 0.52.4(three@0.183.2)
-
-  '@brewsite/core@0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)':
-    dependencies:
-      camera-controls: 3.1.2(three@0.183.2)
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      three: 0.183.2
-      three-custom-shader-material: 6.4.0(react@19.2.4)(three@0.183.2)
-    transitivePeerDependencies:
-      - '@react-three/fiber'
-
-  '@brewsite/diagram@0.7.6(@brewsite/core@0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))':
-    dependencies:
-      '@brewsite/core': 0.7.6(camera-controls@3.1.2(three@0.183.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      three: 0.183.2
-      troika-three-text: 0.52.4(three@0.183.2)
-
-  '@brewsite/diagram@0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)(troika-three-text@0.52.4(three@0.183.2))':
-    dependencies:
-      '@brewsite/core': link:packages/core
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      three: 0.183.2
-      troika-three-text: 0.52.4(three@0.183.2)
-
-  '@brewsite/model@0.7.6(@brewsite/core@packages+core)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)':
-    dependencies:
-      '@brewsite/core': link:packages/core
-      meshoptimizer: 0.23.0
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      three: 0.183.2
 
   '@clack/core@0.4.2':
     dependencies:

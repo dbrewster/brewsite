@@ -28,13 +28,13 @@
     "coverage": "vitest run --coverage"
   },
   "peerDependencies": {
-    "@brewsite/core": "^0.8.0",
+    "@brewsite/core": "workspace:^",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",
     "three": ">=0.170.0",
-    "@brewsite/diagram": "^0.8.0",
-    "@brewsite/model": "^0.8.0",
-    "@brewsite/charts": "^0.8.0"
+    "@brewsite/diagram": "workspace:^",
+    "@brewsite/model": "workspace:^",
+    "@brewsite/charts": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@brewsite/diagram": {

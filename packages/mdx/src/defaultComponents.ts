@@ -12,16 +12,14 @@ import {
   Floor,
 } from '@brewsite/core';
 import type { SceneEmbedProps } from '@brewsite/core';
-import { CodeBlock, Callout } from '@brewsite/docs';
-import type { CalloutType, CodeLanguage } from '@brewsite/docs';
+import { CodeBlock } from './ui/CodeBlock';
+import type { CodeLanguage } from './ui/CodeBlock';
+import { Callout } from './ui/Callout';
+import type { CalloutType } from './ui/Callout';
 import {
   Diagram, DiagramNode, DiagramEdge, DiagramGroup, FlowLayout,
 } from '@brewsite/diagram';
 import { slugify } from './toc';
-
-// NOTE: In published form, @brewsite/docs and @brewsite/diagram would use
-// dynamic import or conditional logic to handle the optional peer dependency.
-// In this monorepo they are always available, so we import them statically.
 
 /**
  * Component map type used by MDX evaluate().
@@ -156,7 +154,7 @@ function detectCalloutType(children: ReactNode): { type: CalloutType; content: R
 }
 
 /**
- * Builds Layer 2: @brewsite/docs components (CodeBlock, Callout).
+ * Builds Layer 2: documentation components (CodeBlock, Callout).
  * Maps fenced code blocks to CodeBlock and callout-style blockquotes to Callout.
  */
 function buildDocsComponents(): ComponentMap {
@@ -234,7 +232,7 @@ function buildBrewSiteComponents(
  *
  * The map is built from three layers (lowest to highest priority):
  * 1. HTML element defaults (headings with ids, table wrapper, smart links)
- * 2. @brewsite/docs components (CodeBlock, Callout) when installed
+ * 2. Documentation components (CodeBlock, Callout)
  * 3. BrewSite scene components (SceneEmbed, Scene, Diagram DSL)
  *
  * Consumer-provided components override all layers.

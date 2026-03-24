@@ -56,6 +56,6 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
-    "@brewsite/core": "0.8.0"
+    "@brewsite/core": "workspace:*"
   }
 }
