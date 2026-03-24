@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/themes",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -28,9 +28,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@brewsite/core": "workspace:*",
-    "@brewsite/diagram": "workspace:*",
-    "@brewsite/charts": "workspace:*"
+    "@brewsite/core": "0.8.1",
+    "@brewsite/diagram": "0.8.1",
+    "@brewsite/charts": "0.8.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
