@@ -215,8 +215,9 @@ for (const pkg of packages) {
 
 // ─── Step 2: Resolve workspace: protocol references ─────────────────────────
 // npm publish does not understand pnpm's workspace: protocol. Replace all
-// "workspace:^" → "^<version>" and "workspace:*" → "<version>" in
-// dependencies and peerDependencies so the published package.json is valid.
+// "workspace:^" → "^<version>" in dependencies and peerDependencies so the
+// published package.json is valid. After publishing, we restore the workspace:
+// refs so they aren't committed as hardcoded versions (which go stale).
 
 // Build a version lookup: package name → bumped version
 const versionByName = {};
@@ -224,46 +225,72 @@ for (const pkg of packages) {
   versionByName[pkg.name] = readVersion(pkg.dir);
 }
 
-console.log(`\nResolving workspace: references...`);
+/**
+ * Scans all packages and resolves workspace: references to real versions.
+ * Returns a restore map so the original workspace: values can be put back later.
+ * Each entry: { packageJsonPath, restorations: [{ depField, depName, original }] }
+ */
+function resolveWorkspaceRefs() {
+  const restoreMap = [];
 
-for (const pkg of packages) {
-  const { packageJsonPath, packageJson } = readPackageJson(pkg.dir);
-  let changed = false;
+  for (const pkg of packages) {
+    const { packageJsonPath, packageJson } = readPackageJson(pkg.dir);
+    const restorations = [];
 
-  for (const depField of ["dependencies", "peerDependencies"]) {
-    const deps = packageJson[depField];
-    if (!deps) continue;
-    for (const [depName, depRange] of Object.entries(deps)) {
-      if (typeof depRange !== "string" || !depRange.startsWith("workspace:")) continue;
+    for (const depField of ["dependencies", "peerDependencies"]) {
+      const deps = packageJson[depField];
+      if (!deps) continue;
+      for (const [depName, depRange] of Object.entries(deps)) {
+        if (typeof depRange !== "string" || !depRange.startsWith("workspace:")) continue;
 
-      const resolvedVersion = versionByName[depName];
-      if (!resolvedVersion) {
-        console.warn(`  ⚠ ${pkg.name} ${depField}["${depName}"] = "${depRange}" — target not in registry, skipping`);
-        continue;
+        const resolvedVersion = versionByName[depName];
+        if (!resolvedVersion) {
+          console.warn(`  ⚠ ${pkg.name} ${depField}["${depName}"] = "${depRange}" — target not in registry, skipping`);
+          continue;
+        }
+
+        // workspace:^ → ^version (caret range), workspace:~ → ~version, workspace:* → exact
+        const protocol = depRange.slice("workspace:".length);
+        let pinned;
+        if (protocol === "^") {
+          pinned = `^${resolvedVersion}`;
+        } else if (protocol === "~") {
+          pinned = `~${resolvedVersion}`;
+        } else {
+          pinned = resolvedVersion;
+        }
+
+        restorations.push({ depField, depName, original: depRange });
+        deps[depName] = pinned;
+        console.log(`  ${pkg.name} ${depField}["${depName}"] -> ${pinned}`);
       }
+    }
 
-      // workspace:^ → ^version (caret range), workspace:* → exact version
-      const protocol = depRange.slice("workspace:".length);
-      let pinned;
-      if (protocol === "^") {
-        pinned = `^${resolvedVersion}`;
-      } else if (protocol === "~") {
-        pinned = `~${resolvedVersion}`;
-      } else {
-        // workspace:* or workspace:<version> → exact
-        pinned = resolvedVersion;
-      }
-
-      deps[depName] = pinned;
-      changed = true;
-      console.log(`  ${pkg.name} ${depField}["${depName}"] -> ${pinned}`);
+    if (restorations.length > 0) {
+      writePackageJson(packageJsonPath, packageJson);
+      restoreMap.push({ packageJsonPath, restorations });
     }
   }
 
-  if (changed) {
+  return restoreMap;
+}
+
+/**
+ * Restores workspace: protocol references that were resolved for publishing.
+ * Called after npm publish so the committed package.json files keep workspace: refs.
+ */
+function restoreWorkspaceRefs(restoreMap) {
+  for (const { packageJsonPath, restorations } of restoreMap) {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    for (const { depField, depName, original } of restorations) {
+      packageJson[depField][depName] = original;
+    }
     writePackageJson(packageJsonPath, packageJson);
   }
 }
+
+console.log(`\nResolving workspace: references for publish...`);
+const workspaceRestoreMap = resolveWorkspaceRefs();
 
 const coreVersion = versionByName["@brewsite/core"];
 
@@ -330,6 +357,14 @@ for (const pkg of packages) {
 }
 
 console.log(`\nPublish hashes saved to ${path.relative(repoRoot, HASH_FILE)}`);
+
+// ─── Step 6b: Restore workspace: references ─────────────────────────────────
+// Put workspace: protocol back so the committed package.json files stay
+// portable. Without this, the next publish would see hardcoded versions
+// and the generic resolver wouldn't touch them.
+
+console.log("\nRestoring workspace: references...");
+restoreWorkspaceRefs(workspaceRestoreMap);
 
 // ─── Step 7: Git tag and commit ──────────────────────────────────────────────
 // Commit the version bumps and publish hashes, then tag for changelog generation.

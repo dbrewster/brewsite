@@ -28,9 +28,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@brewsite/core": "0.8.1",
-    "@brewsite/diagram": "0.8.1",
-    "@brewsite/charts": "0.8.1"
+    "@brewsite/core": "workspace:^",
+    "@brewsite/diagram": "workspace:^",
+    "@brewsite/charts": "workspace:^"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

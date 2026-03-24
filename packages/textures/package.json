@@ -34,7 +34,7 @@
     "download": "bash scripts/download-textures.sh"
   },
   "peerDependencies": {
-    "@brewsite/core": "^0.8.1",
+    "@brewsite/core": "workspace:^",
     "three": ">=0.170.0"
   },
   "devDependencies": {

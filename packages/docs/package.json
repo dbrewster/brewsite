@@ -27,7 +27,7 @@
   "peerDependencies": {
     "react": "^19",
     "react-dom": "^19",
-    "@brewsite/core": "workspace:*"
+    "@brewsite/core": "workspace:^"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
