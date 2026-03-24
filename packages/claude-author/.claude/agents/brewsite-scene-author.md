@@ -122,6 +122,9 @@ import {
 
 // Animation utilities for overlay content
 import { Fade, MidFade, SlideUp, SlideDown, ScrollOn, ScrollOff } from '@brewsite/core/hud/animejs';
+
+// MDX runtime compilation (separate package)
+import { BrewSiteMdx, useMdxCompile, useMdxFetch } from '@brewsite/mdx';
 ```
 
 > **Note on `<Model>`:** The `<Model>` generic DSL element is provided by the `@brewsite/model` package, not `@brewsite/core`. For projects with generated typed model DSL (e.g., `<Robot>`, `<Worker>`), import from the generated file instead. See the Model section below.
@@ -264,6 +267,228 @@ Use when a normal-flow page has a scroll-driven 3D section embedded in it:
 
   <p>Normal page content continues.</p>
 </article>
+```
+
+---
+
+## MDX Embedding (`@brewsite/mdx`)
+
+The `@brewsite/mdx` package provides **runtime MDX compilation in the browser**. It takes an MDX string, compiles it via `@mdx-js/mdx` `evaluate()`, and renders it as React with pre-registered BrewSite components. This enables dynamic documentation pages with embedded interactive 3D scenes — no build plugins required.
+
+### Setup
+
+Install the package and its peer dependency:
+
+```bash
+pnpm add @brewsite/mdx @mdx-js/mdx
+# or via the BrewSite CLI:
+npx brewsite add mdx
+```
+
+The `@mdx-js/mdx` peer dependency must be installed by the consumer project. No Vite plugin or build config is needed — unlike build-time MDX (`@mdx-js/rollup`), this runs entirely in the browser.
+
+### `<BrewSiteMdx>` — Main Component
+
+The primary entry point. Pass the MDX source string as `children`:
+
+```tsx
+import { BrewSiteMdx } from '@brewsite/mdx';
+import { corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+
+const plugins = [corePlugin(), diagramPlugin()];
+
+<BrewSiteMdx plugins={plugins} theme={{ family: 'darkGlass', polarity: 'dark' }}>
+  {mdxString}
+</BrewSiteMdx>
+```
+
+**`<BrewSiteMdx>` props:**
+
+| Prop | Type | Notes |
+|---|---|---|
+| `children` | `string` | MDX source string (required) |
+| `plugins` | `Plugin[]` | BrewSite plugins — auto-injected into every `<SceneEmbed>` in the content |
+| `theme` | `ThemeBundle` | Theme bundle — auto-injected into every `<SceneEmbed>` in the content |
+| `components` | `Record<string, ComponentType>` | Additional custom components available in MDX content (overrides built-ins) |
+| `onFrontmatter` | `(fm: Record<string, unknown>) => void` | Callback when YAML frontmatter is extracted |
+| `onToc` | `(toc: TocEntry[]) => void` | Callback when heading hierarchy is extracted |
+
+### Content Source
+
+The MDX string can come from anywhere:
+
+```tsx
+// From a CMS or API
+const content = await fetch('/api/docs/architecture').then(r => r.text());
+
+// From a raw file import (Vite)
+import content from './content.mdx?raw';
+
+// From a database, localStorage, user input, etc.
+const content = db.getDocument(slug).body;
+```
+
+### Pre-registered Components
+
+All BrewSite DSL components are available in MDX content **without import statements**:
+
+- **Core:** `SceneEmbed`, `Scene`, `Camera`, `Background`, `Lighting`, `Ambient`, `Directional`, `Environment`, `Floor`
+- **Diagram:** `Diagram`, `DiagramNode`, `DiagramEdge`, `DiagramGroup`, `FlowLayout`
+- **Docs (when `@brewsite/docs` installed):** `CodeBlock`, `Callout` (auto-mapped from fenced code blocks and callout-style blockquotes)
+
+### Import Statements in MDX Content — IDE Hints Only
+
+Content authors CAN write `import { Camera } from '@brewsite/core'` in their MDX for IntelliJ/VS Code autocomplete and type checking. These import statements are **stripped before compilation** — components always come from the pre-registered map plus the `components` prop.
+
+```mdx
+{/* These imports are for IDE support only — they are stripped at runtime */}
+import { Camera, Lighting } from '@brewsite/core';
+import { Diagram, DiagramNode } from '@brewsite/diagram';
+
+# My Page
+
+<Camera mode="world" position={[0, 2, 8]} />
+```
+
+Authors SHOULD write imports for IDE support but they are not required. The MDX will compile and render correctly without them.
+
+### Plugin and Theme Injection
+
+The `plugins` and `theme` props on `<BrewSiteMdx>` are automatically injected into every `<SceneEmbed>` found in the content. MDX authors do not need to pass `plugins` or `theme` to `<SceneEmbed>` — they flow in automatically.
+
+If an MDX author explicitly sets `plugins` or `theme` on a `<SceneEmbed>`, the explicit props win (override the injected values).
+
+### Custom Components
+
+Additional components beyond the built-ins can be provided via the `components` prop. Custom components override built-ins if names collide. MDX content uses them without imports:
+
+```tsx
+function InfoCard({ title, children }) {
+  return <div className="info-card"><h3>{title}</h3>{children}</div>;
+}
+
+<BrewSiteMdx plugins={plugins} components={{ InfoCard }}>
+  {content}
+</BrewSiteMdx>
+```
+
+Then in MDX content:
+```mdx
+<InfoCard title="Performance">
+  Renders at 60fps with hardware acceleration.
+</InfoCard>
+```
+
+### Hooks
+
+- **`useMdxCompile(source)`** — Compile hook with caching. Returns `{ Content, frontmatter, toc, error, isCompiling }`. Use when you need fine-grained control over the compilation lifecycle.
+- **`useMdxFetch(url)`** — Fetch + compile convenience hook. Fetches the URL, compiles the result, returns the same shape as `useMdxCompile`. Caching is automatic.
+
+### Frontmatter and TOC
+
+YAML frontmatter is extracted and available via the `onFrontmatter` callback. Heading hierarchy is extracted and available via the `onToc` callback:
+
+```tsx
+function DocsPage({ content }) {
+  const [title, setTitle] = useState('');
+  const [headings, setHeadings] = useState([]);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+      <nav>
+        <h2>{title}</h2>
+        <ul>
+          {headings.map(h => <li key={h.id} style={{ marginLeft: h.depth * 12 }}>{h.text}</li>)}
+        </ul>
+      </nav>
+      <BrewSiteMdx
+        plugins={plugins}
+        onFrontmatter={(fm) => setTitle(fm.title as string)}
+        onToc={setHeadings}
+      >
+        {content}
+      </BrewSiteMdx>
+    </div>
+  );
+}
+```
+
+### Caching
+
+Compiled results are cached by source hash (LRU, 50 entries). If the same content string is passed again, the compiled result is returned instantly without recompilation.
+
+### GFM Support
+
+Tables, strikethrough, autolinks, and task lists work automatically via `remark-gfm` (included by default).
+
+### Example — Dynamic Docs Page with Embedded 3D Scene
+
+```tsx
+import { BrewSiteMdx } from '@brewsite/mdx';
+import { corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+
+function DocsPage({ slug }) {
+  const [content, setContent] = useState(null);
+  const plugins = useMemo(() => [corePlugin(), diagramPlugin()], []);
+
+  useEffect(() => {
+    fetch(`/api/docs/${slug}`).then(r => r.text()).then(setContent);
+  }, [slug]);
+
+  if (!content) return <Loading />;
+
+  return (
+    <BrewSiteMdx plugins={plugins} theme={{ family: 'darkGlass', polarity: 'dark' }}>
+      {content}
+    </BrewSiteMdx>
+  );
+}
+```
+
+### Example — MDX Content (what the content author writes)
+
+```mdx
+---
+title: Architecture Overview
+---
+
+# Architecture Overview
+
+The system uses a microservices architecture:
+
+<SceneEmbed height={380} interactive>
+  <Scene id="arch">
+    <Camera mode="world" position={[0, 0, 6]} target={[0, 0, 0]} />
+    <Diagram id="arch-diagram" w="80%" h="80%">
+      <DiagramNode id="api" label="API Gateway" shape="hexagon" />
+      <DiagramNode id="db" label="Database" shape="circle" />
+      <DiagramEdge from="api" to="db" label="Query" />
+    </Diagram>
+  </Scene>
+</SceneEmbed>
+```
+
+### Example — Using `useMdxFetch` Hook
+
+```tsx
+import { useMdxFetch } from '@brewsite/mdx';
+
+function RemoteDoc({ url }) {
+  const { Content, frontmatter, toc, error, isCompiling } = useMdxFetch(url);
+
+  if (isCompiling) return <Spinner />;
+  if (error) return <ErrorBanner error={error} />;
+  if (!Content) return null;
+
+  return (
+    <article>
+      <h1>{frontmatter?.title}</h1>
+      <Content />
+    </article>
+  );
+}
 ```
 
 ---
