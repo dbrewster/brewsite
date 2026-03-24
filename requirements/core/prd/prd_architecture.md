@@ -7,6 +7,9 @@ updated: 2026-03-23
 change_history:
   - date: 2026-03-23
     author: "Toolkit Product"
+    summary: "Added @brewsite/mdx to monorepo structure table (§2), dependency rule, and design rule 4. Package provides runtime browser-side MDX compilation with pre-registered BrewSite components."
+  - date: 2026-03-23
+    author: "Toolkit Product"
     summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput, ControlledProgressContext. Updated player layer description: SceneReel → SceneEmbed, TimeInput/ControlledInput removed from component list. SceneEmbed provides auto-play, controlled progress, visibility lifecycle, and interactive camera."
   - date: 2026-03-21
     author: "Toolkit Product"
@@ -99,9 +102,10 @@ This is a `pnpm` + Turborepo monorepo. Published packages and private apps:
 | `packages/claude-author` | `@brewsite/claude-author` | MCP server + docs search for AI-assisted scene authoring | Yes |
 | `packages/npx/create-brewsite` | `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) | Yes |
 | `packages/npx/brewsite` | `brewsite` | Utility CLI (`npx brewsite add ...`) | Yes |
+| `packages/mdx` | `@brewsite/mdx` | Runtime browser-side MDX compilation with pre-registered BrewSite components | Yes |
 | `apps/examples` | `@brewsite/examples` | Dev/demo app | No (private) |
 
-**Package dependency rule:** `@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/slides`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone — they have no cross-package build dependencies. The apps may import from all packages. This rule is absolute. Violating it creates circular dependency and prevents independent publishing.
+**Package dependency rule:** `@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/slides`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. `@brewsite/mdx` depends on `@brewsite/core` as a peer and optionally integrates with `@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, and `@brewsite/docs` when they are installed — it has no hard cross-package build dependency. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone — they have no cross-package build dependencies. The apps may import from all packages. This rule is absolute. Violating it creates circular dependency and prevents independent publishing.
 
 **Build tooling:**
 - `@brewsite/core` builds with Vite (library mode) + tsc for type declarations.
@@ -1169,7 +1173,7 @@ These rules are non-negotiable. Any change that violates them requires a corresp
 
 3. **`compiler/index.ts` exports only DSL authoring surface.** Infrastructure types (`SceneTrack`, `compileSceneTrack`, cache utilities) are imported directly from their source files, not re-exported through the compiler index.
 
-4. **`@brewsite/diagram` may import from `@brewsite/core`, never vice versa.** This is a hard dependency direction constraint. `@brewsite/core` must remain publishable and usable without `@brewsite/diagram`. The same rule applies to `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/slides`, and `@brewsite/themes`.
+4. **`@brewsite/diagram` may import from `@brewsite/core`, never vice versa.** This is a hard dependency direction constraint. `@brewsite/core` must remain publishable and usable without `@brewsite/diagram`. The same rule applies to `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/slides`, `@brewsite/themes`, and `@brewsite/mdx`.
 
 5. **Widget classes are the runtime integration contract.** New renderable or behavioral concepts are added by implementing `IWidget` (and relevant sub-interfaces) and registering with `WidgetRegistry`. The runtime and compiler are not modified to accommodate new concepts.
 

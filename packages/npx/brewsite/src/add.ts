@@ -14,6 +14,7 @@ export const PACKAGE_MAP: Record<string, { npm: string; dev: boolean }> = {
   'textures':      { npm: '@brewsite/textures', dev: false },
   'slides':        { npm: '@brewsite/slides', dev: false },
   'themes':        { npm: '@brewsite/themes', dev: false },
+  'mdx':           { npm: '@brewsite/mdx', dev: false },
   'claude-author': { npm: '@brewsite/claude-author', dev: true },
 };
 

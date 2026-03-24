@@ -74,7 +74,7 @@ export const EXAMPLES: ExampleEntry[] = [
   {
     path: '/mdx-embed',
     label: 'MDX Embed',
-    description: 'MDX article with interactive 3D diagrams using SceneEmbed directly in .mdx files.',
+    description: 'Dynamic MDX article with 3D diagrams via @brewsite/mdx runtime compilation.',
   },
 ];
 

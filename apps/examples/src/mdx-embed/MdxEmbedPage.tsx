@@ -1,40 +1,40 @@
 // MdxEmbedPage.tsx — MDX article with embedded 3D diagrams.
-// Demonstrates importing a real .mdx file that uses <SceneEmbed> directly.
-// The MDX file is compiled at build time by @mdx-js/rollup — no runtime
-// markdown parsing, no custom fenced-code-block hacks.
+// Demonstrates runtime MDX compilation via @brewsite/mdx.
+// The .mdx file is imported as a raw string (Vite ?raw suffix) and compiled
+// at runtime in the browser — no build-time MDX plugin needed.
+// All BrewSite components (SceneEmbed, Diagram DSL, etc.) are pre-registered
+// by BrewSiteMdx and available in the content without import statements.
 
 import { type JSX, useMemo, useState } from 'react';
-import type { ThemeFamily, ThemePolarity } from '@brewsite/core';
+import type { ActiveTheme, ThemeFamily, ThemePolarity } from '@brewsite/core';
+import { corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+import { themesPlugin } from '@brewsite/themes';
+import { BrewSiteMdx, type TocEntry } from '@brewsite/mdx';
+import { DeployPipelineScene } from './scenes/DeployPipelineScene';
+// Vite's ?raw suffix imports the .mdx file as a plain string — no compilation,
+// no Vite plugin. In production, this string would come from fetch('/api/docs/...').
+import ARTICLE_CONTENT from './content.mdx?raw';
 import { ThemeToggle } from '../Lights';
 import { ExampleHeader } from '../ExampleHeader';
 import { useThemeCss } from '../hooks/useThemeCss';
-
-// Import the compiled MDX — @mdx-js/rollup compiles this to a React component
-// at build time. The .mdx file imports SceneEmbed and scene components directly,
-// so no component override for SceneEmbed is needed.
-import ArticleContent from './content.mdx';
-
-// ── MDX component overrides (standard HTML elements only) ────────────────────
-// The .mdx file handles its own SceneEmbed imports and props. These overrides
-// only style the standard markdown-generated HTML elements (tables, etc.).
-
-const mdxComponents: Record<string, React.ComponentType<Record<string, unknown>>> = {
-  // Wrap tables in a scrollable container for narrow viewports.
-  table(props: Record<string, unknown>) {
-    return (
-      <div className="mdx-table-wrapper">
-        <table {...props} />
-      </div>
-    );
-  },
-};
 
 // ── Page component ──────────────────────────────────────────────────────────
 
 export default function MdxEmbedPage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   useThemeCss(family, polarity);
+
+  const plugins = useMemo(() => [corePlugin(), diagramPlugin(), themesPlugin()], []);
+  const [toc, setToc] = useState<TocEntry[]>([]);
+
+  // Custom components available in the MDX content beyond the built-in BrewSite set.
+  // DeployPipelineScene is a pre-built scene component referenced by name in the MDX.
+  const extraComponents = useMemo(() => ({
+    DeployPipelineScene,
+  }), []);
 
   return (
     <div className="ex-page">
@@ -49,7 +49,15 @@ export default function MdxEmbedPage(): JSX.Element {
 
       <div className="ex-scroll-content" style={{ maxWidth: 820, margin: '0 auto' }}>
         <div className="mdx-article">
-          <ArticleContent components={mdxComponents} />
+          <BrewSiteMdx
+            plugins={plugins}
+            theme={theme}
+            components={extraComponents}
+            onToc={setToc}
+            placeholder={<div style={{ padding: '2rem', opacity: 0.4 }}>Compiling...</div>}
+          >
+            {ARTICLE_CONTENT}
+          </BrewSiteMdx>
         </div>
       </div>
     </div>

@@ -30,6 +30,7 @@ const packages = [
   { name: "@brewsite/textures",      dir: path.join(repoRoot, "packages/textures"),               gitPath: "packages/textures",            deps: ["@brewsite/core"] },
   { name: "@brewsite/slides",        dir: path.join(repoRoot, "packages/slides"),                 gitPath: "packages/slides",              deps: ["@brewsite/core", "@brewsite/diagram", "@brewsite/model", "@brewsite/charts"] },
   { name: "@brewsite/themes",        dir: path.join(repoRoot, "packages/themes"),                 gitPath: "packages/themes",              deps: ["@brewsite/core", "@brewsite/diagram", "@brewsite/charts"] },
+  { name: "@brewsite/mdx",           dir: path.join(repoRoot, "packages/mdx"),                    gitPath: "packages/mdx",                 deps: ["@brewsite/core", "@brewsite/diagram", "@brewsite/docs"] },
   { name: "@brewsite/claude-author", dir: path.join(repoRoot, "packages/claude-author"),          gitPath: "packages/claude-author",       deps: [] },
   { name: "create-brewsite",         dir: path.join(repoRoot, "packages/npx/create-brewsite"),    gitPath: "packages/npx/create-brewsite", deps: [] },
   { name: "brewsite",                dir: path.join(repoRoot, "packages/npx/brewsite"),           gitPath: "packages/npx/brewsite",        deps: [] },

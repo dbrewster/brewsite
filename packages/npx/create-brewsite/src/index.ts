@@ -14,6 +14,7 @@ import type { ProjectConfig } from './types.js';
 const EXTRA_PEER_DEPS: Record<string, string[]> = {
   '@brewsite/diagram': ['troika-three-text'],
   '@brewsite/charts':  ['troika-three-text'],
+  '@brewsite/mdx':     ['@mdx-js/mdx'],
 };
 
 async function main(): Promise<void> {
@@ -30,6 +31,7 @@ async function main(): Promise<void> {
       { value: '@brewsite/textures', label: '@brewsite/textures', hint: 'PBR material texture presets' },
       { value: '@brewsite/slides', label: '@brewsite/slides', hint: 'Slide deck presentations' },
       { value: '@brewsite/themes', label: '@brewsite/themes', hint: 'Theme bundles for scenes, diagrams, charts' },
+      { value: '@brewsite/mdx', label: '@brewsite/mdx', hint: 'Runtime MDX rendering with embedded 3D scenes' },
     ],
     required: false,
     initialValues: ['@brewsite/diagram', '@brewsite/model'],

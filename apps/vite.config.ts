@@ -2,8 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
-import mdx from '@mdx-js/rollup';
-import remarkGfm from 'remark-gfm';
 import { viteBrewsiteTextures } from '../packages/textures/src/vite';
 
 const appsRoot = __dirname;
@@ -186,14 +184,7 @@ const staticAssetsPlugin: Plugin = {
 
 export default defineConfig({
   root: appsRoot,
-  plugins: [
-    // MDX must run before React's Babel transform. enforce:'pre' ensures
-    // .mdx files are compiled to JSX before any other plugin sees them.
-    { enforce: 'pre', ...mdx({ providerImportSource: '@mdx-js/react', remarkPlugins: [remarkGfm] }) },
-    react(),
-    staticAssetsPlugin,
-    viteBrewsiteTextures(),
-  ],
+  plugins: [react(), staticAssetsPlugin, viteBrewsiteTextures()],
   resolve: {
     dedupe: ['react', 'react-dom', 'three'],
     alias: [
@@ -221,6 +212,7 @@ export default defineConfig({
       { find: '@brewsite/screens', replacement: path.resolve(__dirname, '../packages/screens/src/index.ts') },
       { find: '@brewsite/textures', replacement: path.resolve(__dirname, '../packages/textures/src/index.ts') },
       { find: '@brewsite/docs',    replacement: path.resolve(__dirname, '../packages/docs/src/index.ts') },
+      { find: '@brewsite/mdx',     replacement: path.resolve(__dirname, '../packages/mdx/src/index.ts') },
     ],
   },
   server: {

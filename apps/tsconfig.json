@@ -19,7 +19,9 @@
       "@brewsite/themes": ["../packages/themes/src/index.ts"],
       "@brewsite/themes/*": ["../packages/themes/src/*"],
       "@brewsite/docs": ["../packages/docs/src/index.ts"],
-      "@brewsite/docs/*": ["../packages/docs/src/*"]
+      "@brewsite/docs/*": ["../packages/docs/src/*"],
+      "@brewsite/mdx": ["../packages/mdx/src/index.ts"],
+      "@brewsite/mdx/*": ["../packages/mdx/src/*"]
     },
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -44,7 +46,6 @@
     "./website/src/**/*.tsx",
     "./examples/src/**/*.ts",
     "./examples/src/**/*.tsx",
-    "./examples/src/**/*.mdx",
     "../packages/core/src/types/process.d.ts",
     "../packages/diagram/src/types/troika-three-text.d.ts",
     "../packages/charts/src/types/troika-three-text.d.ts"

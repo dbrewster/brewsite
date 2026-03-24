@@ -1,12 +1,9 @@
-{/* content.mdx — Self-contained MDX article with embedded 3D diagrams. */}
+import {Camera, Scene, SceneEmbed} from "@brewsite/core";
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout} from "@brewsite/diagram";
 
-import {SceneEmbed, Scene, corePlugin, Camera} from '@brewsite/core';
-import { diagramPlugin, Diagram, DiagramNode, DiagramEdge, DiagramGroup, FlowLayout } from '@brewsite/diagram';
-import { themesPlugin } from '@brewsite/themes';
-import { DeployPipelineScene } from './scenes/DeployPipelineScene';
-
-export const plugins = [corePlugin(), diagramPlugin(), themesPlugin()];
-
+---
+title: Authentication Architecture
+author: Platform Team
 ---
 
 # Authentication Architecture
@@ -23,10 +20,10 @@ represents a network request — notice how the gateway acts as the
 single entry point, shielding the backend services from direct
 client access.
 
-<SceneEmbed height={380} plugins={plugins} interactive visibility="autopause" >
+<SceneEmbed height={380} interactive visibility="autopause">
   <Scene id="auth-flow">
-      <Camera mode='world' position={[0, 0, 6]} target={[0, 0, 0]}/>
-      <Diagram id="auth-diagram" x='15%' y='15%' w="70%" h="70%" tilt="-4deg" scale={1}>
+    <Camera mode="world" position={[0, 0, 6]} target={[0, 0, 0]} />
+    <Diagram id="auth-diagram" x="15%" y="15%" w="70%" h="70%" tilt="-4deg" scale={1}>
       <FlowLayout gap="20%" />
       <DiagramNode id="client" label="Client App" shape="rectangle" icon="ui:device-phone-mobile" position={["15%", "50%", 0]} size={["16u", "14u"]} />
       <DiagramGroup id="auth-layer" label="Auth Layer">
@@ -67,7 +64,7 @@ commit triggers an automated build, runs the full test suite, deploys
 to staging for integration testing, and requires manual approval
 before production rollout.
 
-<SceneEmbed height={380} plugins={plugins} interactive visibility="autopause">
+<SceneEmbed height={380} interactive visibility="autopause">
   <DeployPipelineScene />
 </SceneEmbed>
 
@@ -84,10 +81,10 @@ Key metrics tracked across the auth flow:
 
 | Metric | Target | Alert Threshold |
 |--------|--------|-----------------|
-| Gateway latency (p99) | {'< 50ms'} | {'> 200ms'} |
-| Token validation rate | {'> 99.9%'} | {'< 99.5%'} |
-| OAuth provider uptime | 99.99% | {'< 99.9%'} |
-| Failed auth attempts | {'< 0.1%'} | {'> 1%'} |
+| Gateway latency (p99) | < 50ms | > 200ms |
+| Token validation rate | > 99.9% | < 99.5% |
+| OAuth provider uptime | 99.99% | < 99.9% |
+| Failed auth attempts | < 0.1% | > 1% |
 
 These metrics feed into the platform-wide observability dashboard and
 trigger PagerDuty alerts when thresholds are breached.

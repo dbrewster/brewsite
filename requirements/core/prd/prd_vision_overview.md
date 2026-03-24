@@ -7,6 +7,9 @@ updated: 2026-03-23
 change_history:
   - date: 2026-03-23
     author: "Toolkit Product"
+    summary: "Added @brewsite/mdx to published packages table (§1) and dependency rule. Package count updated from nine to ten."
+  - date: 2026-03-23
+    author: "Toolkit Product"
     summary: "SceneEmbed replaces SceneReel, ControlledInput, TimeInput, ControlledProgressContext. Updated §3.3 Input and Navigation, §4.1 DSL authoring components API surface."
   - date: 2026-03-21
     author: "Toolkit Product"
@@ -49,7 +52,7 @@ The package solves a specific and painful problem: creating scroll-driven or int
 
 A consuming developer describes their scenes as pure JSX snapshots — what objects should look like at each scene stop — and the toolkit handles all transition math, interpolation, camera animation, input handling, and React/Three.js integration. The output is a `<SceneEngine>` context provider composed with layout primitives (`ScrollStage`, `SceneCanvas`, `EngineOverlayHost`) that runs the animation against user scroll, pointer interaction, or programmatic control.
 
-The monorepo publishes nine packages:
+The monorepo publishes ten packages:
 
 | Package | Role |
 |---|---|
@@ -59,11 +62,12 @@ The monorepo publishes nine packages:
 | `@brewsite/charts` | 3D chart element library |
 | `@brewsite/screens` | Screen element library |
 | `@brewsite/themes` | Centralized cross-package theme bundles and `themesPlugin()` registration |
+| `@brewsite/mdx` | Runtime browser-side MDX compilation with pre-registered BrewSite components |
 | `@brewsite/claude-author` | MCP server and docs search for AI-assisted scene authoring |
 | `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) |
 | `brewsite` | Utility CLI (`npx brewsite add ...`) |
 
-`@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone with no cross-package build dependencies.
+`@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. `@brewsite/mdx` depends on `@brewsite/core` as a peer and optionally integrates with `@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, and `@brewsite/docs` when they are installed. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone with no cross-package build dependencies.
 
 ---
 

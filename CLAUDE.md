@@ -47,12 +47,13 @@ This is a **pnpm + Turborepo monorepo** with published packages and private apps
 | `packages/textures` | `@brewsite/textures` | PBR material texture presets (published) |
 | `packages/slides` | `@brewsite/slides` | Slide deck presentation system (published) |
 | `packages/themes` | `@brewsite/themes` | Theme bundles for scenes, diagrams, charts (published) |
+| `packages/mdx` | `@brewsite/mdx` | Runtime browser-side MDX compilation with pre-registered BrewSite components (published) |
 | `packages/claude-author` | `@brewsite/claude-author` | MCP server + docs search for AI-assisted scene authoring (published) |
 | `packages/create-brewsite` | `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) (published) |
 | `packages/brewsite` | `brewsite` | Utility CLI (`npx brewsite add ...`) (published) |
 | `apps/` | `@brewsite/apps` | Dev/demo apps (private) |
 
-**Dependency rule:** `@brewsite/diagram`, `@brewsite/model`, and `@brewsite/charts` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The three new CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone — they have no cross-package build dependencies. The apps may import from all packages.
+**Dependency rule:** `@brewsite/diagram`, `@brewsite/model`, and `@brewsite/charts` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. `@brewsite/mdx` depends on `@brewsite/core` as a peer and optionally integrates with `@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, and `@brewsite/docs` when installed. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone — they have no cross-package build dependencies. The apps may import from all packages.
 
 ---
 
@@ -171,6 +172,7 @@ packages/core/src/{compiler,elements,runtime,widget,player,hud,input,timeline,ma
 packages/diagram/src/**/*.ts
 packages/model/src/**/*.ts
 packages/charts/src/**/*.ts
+packages/mdx/src/**/*.ts
 ```
 Excludes `render.ts` files and barrel exports.
 
@@ -182,7 +184,7 @@ Model/animation changes go through `scripts/` at the repo root:
 - `gen-diagram-envmap.mjs` — generate HDR environment map for diagram rendering
 - `extract-model-metadata.mjs` — extract metadata from GLTF at build time
 - `prune-dist.mjs` — post-build artifact cleanup
-- `publish-all.mjs` — publish all BrewSite packages (`core`, `diagram`, `model`, `charts`, `screens`, `textures`, `slides`, `themes`, `claude-author`, `create-brewsite`, `brewsite`)
+- `publish-all.mjs` — publish all BrewSite packages (`core`, `diagram`, `model`, `charts`, `screens`, `textures`, `slides`, `themes`, `mdx`, `claude-author`, `create-brewsite`, `brewsite`)
 
 Prefer these helpers over ad-hoc pipelines for any asset-processing work.
 
