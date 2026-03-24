@@ -3,6 +3,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { copyAssets } from './copyAssets.js';
 
 /** Map of shorthand names to npm package names. */
 export const PACKAGE_MAP: Record<string, { npm: string; dev: boolean }> = {
@@ -73,10 +74,14 @@ function install(
   execSync(cmd, { cwd: projectRoot, stdio: 'inherit' });
 }
 
+/** Packages that ship static assets requiring a copy step. */
+const ASSET_PACKAGES = new Set(['diagram']);
+
 /** Run the `brewsite add` command for the given shorthand package names. */
 export async function runAdd(shortNames: string[]): Promise<void> {
   const projectRoot = process.cwd();
   let needsClaudeAuthorInit = false;
+  let needsAssetCopy = false;
 
   for (const name of shortNames) {
     const entry = PACKAGE_MAP[name];
@@ -92,6 +97,15 @@ export async function runAdd(shortNames: string[]): Promise<void> {
     if (name === 'claude-author') {
       needsClaudeAuthorInit = true;
     }
+    if (ASSET_PACKAGES.has(name)) {
+      needsAssetCopy = true;
+    }
+  }
+
+  // Copy static assets (SVG icons, envmaps) to project's public/ directory
+  if (needsAssetCopy) {
+    console.log('\nCopying static assets to public/...');
+    copyAssets({ projectRoot });
   }
 
   // Run claude-author init if it was added

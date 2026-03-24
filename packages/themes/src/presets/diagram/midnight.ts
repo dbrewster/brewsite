@@ -67,7 +67,7 @@ export const midnightTheme: DiagramTheme = {
     defaultBackColor: '#1E1510CC',
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.55,
     skyColor: '#1A120D',
     horizonColor: '#332319',

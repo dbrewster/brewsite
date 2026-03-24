@@ -67,7 +67,7 @@ export const darkGlassTheme: DiagramTheme = {
     defaultBackColor: '#1A1210CC',
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.85,
     skyColor: '#100A09',
     horizonColor: '#2A1B18',

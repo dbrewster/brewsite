@@ -67,7 +67,7 @@ export const neonCyberTheme: DiagramTheme = {
     defaultBackColor: '#0C1428CC',
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.68,
     skyColor: '#02030D',
     horizonColor: '#09122A',

@@ -1,7 +1,8 @@
 // CLI: npx brewsite <command>
-// Currently supports: brewsite add <package>
+// Supports: brewsite add <package>, brewsite copy-assets [--dest <dir>]
 
 import { runAdd } from './add.js';
+import { runCopyAssets } from './copyAssets.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -21,8 +22,12 @@ if (command === 'add') {
     process.exit(1);
   }
   await runAdd(packages);
+} else if (command === 'copy-assets') {
+  runCopyAssets(args.slice(1));
 } else {
   console.error(`Unknown command: ${command ?? '(none)'}`);
-  console.error('Usage: brewsite add <package> [package...]');
+  console.error('Usage:');
+  console.error('  brewsite add <package> [package...]');
+  console.error('  brewsite copy-assets [--dest <dir>]');
   process.exit(1);
 }
