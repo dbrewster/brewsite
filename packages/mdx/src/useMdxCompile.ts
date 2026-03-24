@@ -57,7 +57,9 @@ export interface ParsedImport {
  * (bare package specifiers like `@brewsite/core` can't be resolved by
  * the browser's native `import()`).
  *
- * Export statements are stripped since `evaluate()` handles exports internally.
+ * Export statements (e.g., `export const nodeSize = [...]`) are **preserved** —
+ * they define local constants available to JSX expressions in the MDX content.
+ * MDX's `evaluate()` processes them as part of the module.
  */
 export function parseAndStripImports(source: string): { imports: ParsedImport[]; cleanSource: string } {
   const imports: ParsedImport[] = [];
@@ -66,10 +68,7 @@ export function parseAndStripImports(source: string): { imports: ParsedImport[];
   const cleanLines = source.split('\n').filter((line) => {
     const trimmed = line.trimStart();
 
-    // Strip export lines
-    if (trimmed.startsWith('export ') || trimmed.startsWith('export{')) return false;
-
-    // Parse and strip import lines
+    // Parse and strip import lines (IDE hints — components come from the map)
     const match = importRegex.exec(line);
     if (match) {
       const names = match[1]!.split(',').map((n) => n.trim()).filter(Boolean);
@@ -83,6 +82,7 @@ export function parseAndStripImports(source: string): { imports: ParsedImport[];
     // Also strip bare import lines that don't match the pattern (e.g., `import 'foo'`)
     if (trimmed.startsWith('import ') || trimmed.startsWith('import{')) return false;
 
+    // Keep export lines — they define local constants (export const nodeSize = [...])
     return true;
   });
 

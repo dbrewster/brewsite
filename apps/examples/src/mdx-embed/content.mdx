@@ -1,10 +1,12 @@
-import {Camera, Scene, SceneEmbed} from "@brewsite/core";
-import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout} from "@brewsite/diagram";
-
 ---
 title: Authentication Architecture
 author: Platform Team
 ---
+
+import {Camera, Scene, SceneEmbed} from "@brewsite/core";
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout} from "@brewsite/diagram";
+
+export const node_size = ['20u', '20u']
 
 # Authentication Architecture
 
@@ -25,14 +27,14 @@ client access.
     <Camera mode="world" position={[0, 0, 6]} target={[0, 0, 0]} />
     <Diagram id="auth-diagram" x="15%" y="15%" w="70%" h="70%" tilt="-4deg" scale={1}>
       <FlowLayout gap="20%" />
-      <DiagramNode id="client" label="Client App" shape="rectangle" icon="ui:device-phone-mobile" position={["15%", "50%", 0]} size={["16u", "14u"]} />
+      <DiagramNode id="client" label="Client App" shape="rectangle" icon="ui:device-phone-mobile" position={["15%", "50%", 0]} size={node_size} />
       <DiagramGroup id="auth-layer" label="Auth Layer">
-        <DiagramNode id="gateway" label="API Gateway" shape="hexagon" icon="ui:shield-check" position={["40%", "30%", 0]} size={["20u", "20u"]} />
-        <DiagramNode id="oauth" label="OAuth Provider" shape="diamond" icon="ui:key" position={["40%", "70%", 0]} size={["16u", "14u"]} />
+        <DiagramNode id="gateway" label="API Gateway" shape="hexagon" icon="ui:shield-check" position={["40%", "30%", 0]} size={node_size} />
+        <DiagramNode id="oauth" label="OAuth Provider" shape="diamond" icon="ui:key" position={["40%", "70%", 0]} size={node_size} />
       </DiagramGroup>
       <DiagramGroup id="backend" label="Backend">
-        <DiagramNode id="api" label="API Server" shape="rectangle" icon="ui:server" position={["70%", "30%", 0]} size={["16u", "12u"]} />
-        <DiagramNode id="db" label="User Store" shape="circle" icon="ui:circle-stack" position={["70%", "70%", 0]} size={["16u", "16u"]} />
+        <DiagramNode id="api" label="API Server" shape="rectangle" icon="ui:server" position={["70%", "30%", 0]} size={node_size} />
+        <DiagramNode id="db" label="User Store" shape="circle" icon="ui:circle-stack" position={["70%", "70%", 0]} size={node_size} />
       </DiagramGroup>
       <DiagramEdge from="client" to="gateway" label="Request" flow="forward" />
       <DiagramEdge from="gateway" to="oauth" label="Validate" flow="forward" />

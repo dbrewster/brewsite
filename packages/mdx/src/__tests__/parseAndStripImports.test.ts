@@ -55,17 +55,17 @@ describe('parseAndStripImports', () => {
     expect(cleanSource).toContain('Some content.');
   });
 
-  it('strips export lines', () => {
+  it('preserves export lines (local constants for MDX)', () => {
     const source = [
       `import { Camera } from '@brewsite/core';`,
-      `export const plugins = [corePlugin()];`,
+      `export const nodeSize = ["60%", "10%"];`,
       '',
       '# Title',
     ].join('\n');
 
     const { cleanSource } = parseAndStripImports(source);
 
-    expect(cleanSource).not.toContain('export');
+    expect(cleanSource).toContain('export const nodeSize');
     expect(cleanSource).not.toContain('import');
     expect(cleanSource).toContain('# Title');
   });
